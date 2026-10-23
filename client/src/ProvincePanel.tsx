@@ -1,5 +1,6 @@
 import type { Ref } from "react";
 import {
+  atWar,
   canAfford,
   provinceIdAt,
   provinceProductionPerDay,
@@ -23,6 +24,7 @@ interface ProvincePanelProps {
   now: number;
   error: string | null;
   onSelect(id: string): void;
+  onDeclareWar(nation: string): void;
   onSelectArmy(id: string): void;
   onRecruit(unitType: UnitTypeId): void;
   onClose(): void;
@@ -31,7 +33,7 @@ interface ProvincePanelProps {
 
 const km = new Intl.NumberFormat("it-IT", { useGrouping: true });
 
-export function ProvincePanel({ map, province, game, now, error, onSelect, onSelectArmy, onRecruit, onClose, ref }: ProvincePanelProps) {
+export function ProvincePanel({ map, province, game, now, error, onSelect, onDeclareWar, onSelectArmy, onRecruit, onClose, ref }: ProvincePanelProps) {
   const ps = game?.provinces[province.id];
   const ownerId = ps?.owner ?? province.nation;
   const owner = map.nations.get(ownerId);
@@ -44,6 +46,7 @@ export function ProvincePanel({ map, province, game, now, error, onSelect, onSel
   const canRecruit = isMine && province.type === "urban";
   const queue = game?.production[province.id] ?? [];
   const stock = game?.nations[game.playerNation]?.stock;
+  const war = game && !isMine ? atWar(game, game.playerNation, ownerId) : false;
 
   return (
     <aside className="panel" aria-label="Dettagli provincia" ref={ref}>
@@ -92,6 +95,26 @@ export function ProvincePanel({ map, province, game, now, error, onSelect, onSel
             </>
           )}
         </dl>
+
+        {game && !isMine && (
+          <div className={war ? "relation war" : "relation"}>
+            <span>
+              {war ? "Sei in guerra con " : "Sei in pace con "}
+              <strong>{owner?.name ?? ownerId}</strong>
+              {!war && <span className="muted"> · entrare nel suo territorio porta alla guerra</span>}
+            </span>
+            {!war && (
+              <button className="button small danger" onClick={() => onDeclareWar(ownerId)}>
+                Dichiara guerra
+              </button>
+            )}
+          </div>
+        )}
+        {!canRecruit && error && (
+          <p className="error-text" role="alert">
+            {error}
+          </p>
+        )}
 
         {production && (
           <>

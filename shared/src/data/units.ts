@@ -1,16 +1,33 @@
 import type { ResourceId } from "../map/types.js";
 
 // Tipi di unità e valori di partenza per il bilanciamento (vedi docs/game-design.md, §7).
-// Le statistiche di combattimento arriveranno con la milestone 4.
 
-export type UnitTypeId = "infantry" | "motorized" | "armoredCar" | "lightTank" | "artillery";
+export type UnitTypeId = "infantry" | "motorized" | "armoredCar" | "lightTank" | "artillery" | "engineer" | "medic";
+
+/** Ruolo di supporto: il genio fa i lavori (ponti, ospedali), la sanità cura. */
+export type UnitRole = "engineer" | "medic";
+
+/** Classe di armatura: decide quale valore di danno si usa contro un'unità. */
+export type ArmorClass = "infantry" | "armored";
+
+export const ARMOR_CLASSES: readonly ArmorClass[] = ["infantry", "armored"];
+
+export const ARMOR_CLASS_NAMES: Record<ArmorClass, string> = {
+  infantry: "Fanteria",
+  armored: "Corazzati",
+};
 
 export interface UnitType {
   id: UnitTypeId;
   name: string;
+  role?: UnitRole;
   /** Velocità di marcia in km/h di gioco. */
   speedKmh: number;
   hp: number;
+  armor: ArmorClass;
+  /** Danno per tick (30 minuti) contro ciascuna classe: `attack` quando attacca o marcia, `defense` quando difende da ferma. */
+  attack: Record<ArmorClass, number>;
+  defense: Record<ArmorClass, number>;
   cost: Partial<Record<ResourceId, number>>;
   /** Ore di gioco per arruolarla in una città. */
   productionHours: number;
@@ -24,6 +41,9 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
     name: "Fanteria",
     speedKmh: 20,
     hp: 15,
+    armor: "infantry",
+    attack: { infantry: 2, armored: 1 },
+    defense: { infantry: 3, armored: 1.5 },
     cost: { food: 400, goods: 300, money: 600, manpower: 1000 },
     productionHours: 6,
     upkeepPerDay: { food: 60, goods: 30, money: 60 },
@@ -33,6 +53,9 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
     name: "Fanteria motorizzata",
     speedKmh: 32,
     hp: 15,
+    armor: "infantry",
+    attack: { infantry: 2.5, armored: 1 },
+    defense: { infantry: 3, armored: 1.5 },
     cost: { food: 400, goods: 500, oil: 300, money: 900, manpower: 1000 },
     productionHours: 10,
     upkeepPerDay: { food: 60, oil: 50, money: 80 },
@@ -42,6 +65,9 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
     name: "Autoblindo",
     speedKmh: 40,
     hp: 12,
+    armor: "armored",
+    attack: { infantry: 2.5, armored: 1 },
+    defense: { infantry: 1.5, armored: 0.75 },
     cost: { goods: 400, metal: 500, oil: 300, money: 1000, manpower: 600 },
     productionHours: 10,
     upkeepPerDay: { metal: 30, oil: 60, money: 80 },
@@ -51,6 +77,9 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
     name: "Carro leggero",
     speedKmh: 30,
     hp: 20,
+    armor: "armored",
+    attack: { infantry: 3.5, armored: 2.5 },
+    defense: { infantry: 2, armored: 1.5 },
     cost: { goods: 300, metal: 900, oil: 500, money: 1300, manpower: 600 },
     productionHours: 14,
     upkeepPerDay: { metal: 50, oil: 80, money: 100 },
@@ -60,9 +89,38 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
     name: "Artiglieria",
     speedKmh: 18,
     hp: 10,
+    armor: "infantry",
+    attack: { infantry: 3, armored: 1.5 },
+    defense: { infantry: 2, armored: 1 },
     cost: { goods: 500, metal: 700, money: 1000, manpower: 800 },
     productionHours: 12,
     upkeepPerDay: { goods: 40, metal: 40, money: 80 },
+  },
+  engineer: {
+    id: "engineer",
+    name: "Genio",
+    role: "engineer",
+    speedKmh: 20,
+    hp: 12,
+    armor: "infantry",
+    attack: { infantry: 1, armored: 0.5 },
+    defense: { infantry: 1.5, armored: 0.75 },
+    cost: { goods: 400, metal: 300, money: 800, manpower: 600 },
+    productionHours: 8,
+    upkeepPerDay: { food: 40, goods: 30, money: 60 },
+  },
+  medic: {
+    id: "medic",
+    name: "Sanità",
+    role: "medic",
+    speedKmh: 20,
+    hp: 10,
+    armor: "infantry",
+    attack: { infantry: 0.5, armored: 0.25 },
+    defense: { infantry: 1, armored: 0.5 },
+    cost: { food: 300, goods: 300, money: 700, manpower: 600 },
+    productionHours: 8,
+    upkeepPerDay: { food: 50, goods: 20, money: 60 },
   },
 };
 

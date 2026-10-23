@@ -1,0 +1,116 @@
+import { useState } from "react";
+import { formatGameTime, type GameEvent, type GameState, type ProvinceId } from "@waw/shared";
+import type { LoadedMap } from "../map/loadMap.js";
+
+// Notizie della partita che riguardano il giocatore: guerre, battaglie, conquiste, armate distrutte, lavori del genio.
+
+const SHOWN = 4;
+
+interface Item {
+  index: number;
+  time: number;
+  text: string;
+  tone: "good" | "bad" | "neutral";
+  province: ProvinceId | null;
+}
+
+/** Testo di un evento visto dal giocatore `me`, o null se non lo riguarda. */
+export function describeEvent(
+  e: GameEvent,
+  map: LoadedMap,
+  me: string,
+  owners?: GameState["provinces"],
+): Omit<Item, "index" | "time"> | null {
+  const nation = (id: string) => map.nations.get(id)?.name ?? id;
+  const province = (id: ProvinceId | null) => (id ? (map.provinces.get(id)?.name ?? id) : null);
+  switch (e.type) {
+    case "war":
+      if (e.by === me) return { text: `Hai dichiarato guerra: ${nation(e.against)}`, tone: "neutral", province: null };
+      if (e.against === me) return { text: `Dichiarazione di guerra da ${nation(e.by)}`, tone: "bad", province: null };
+      return null;
+    case "battle": {
+      if (!e.nations.includes(me)) return null;
+      const other = e.nations[0] === me ? e.nations[1] : e.nations[0];
+      const where = province(e.province);
+      return { text: `Battaglia${where ? ` presso ${where}` : ""} contro ${nation(other)}`, tone: "neutral", province: e.province };
+    }
+    case "conquest":
+      if (e.to === me) return { text: `Conquistata: ${province(e.province)} (${nation(e.from)})`, tone: "good", province: e.province };
+      if (e.from === me) return { text: `Persa: ${province(e.province)}, ora di ${nation(e.to)}`, tone: "bad", province: e.province };
+      return null;
+    case "armyDestroyed": {
+      const where = province(e.province);
+      const at = where ? ` presso ${where}` : "";
+      if (e.owner === me) return { text: `Una tua armata è stata distrutta${at}`, tone: "bad", province: e.province };
+      if (e.by === me) return { text: `Armata nemica distrutta${at} (${nation(e.owner)})`, tone: "good", province: e.province };
+      return null;
+    }
+    case "works": {
+      const where = province(e.province);
+      const river = e.river ? ` sul ${e.river}` : "";
+      const at = where ? ` presso ${where}` : "";
+      const mine = e.by === me;
+      // Le distruzioni altrui interessano solo se avvengono nel nostro territorio.
+      if (!mine && !(e.province && owners?.[e.province]?.owner === me)) return null;
+      switch (e.what) {
+        case "bridgeDestroyed":
+          return { text: mine ? `Ponte distrutto${river}${at}` : `${nation(e.by)} ha distrutto un ponte${river}${at}`, tone: mine ? "neutral" : "bad", province: e.province };
+        case "bridgeRepaired":
+          return mine ? { text: `Ponte riparato${river}${at}`, tone: "good", province: e.province } : null;
+        case "pontoonBuilt":
+          return mine ? { text: `Ponte di barche pronto${river}${at}`, tone: "good", province: e.province } : null;
+        case "pontoonDestroyed":
+          return { text: mine ? `Ponte di barche distrutto${river}${at}` : `${nation(e.by)} ha distrutto un ponte di barche${river}${at}`, tone: mine ? "neutral" : "bad", province: e.province };
+        case "hospitalBuilt":
+          return mine ? { text: `Ospedale da campo pronto${at}`, tone: "good", province: e.province } : null;
+        case "hospitalLost":
+          return mine ? { text: `Ospedale da campo perduto${at}`, tone: "bad", province: e.province } : null;
+      }
+    }
+  }
+}
+
+interface EventFeedProps {
+  map: LoadedMap;
+  game: GameState;
+  onSelectProvince(id: ProvinceId): void;
+}
+
+export function EventFeed({ map, game, onSelectProvince }: EventFeedProps) {
+  // Chiudendo il riquadro si nascondono le notizie viste; ricompare con la prossima.
+  const [hiddenUpTo, setHiddenUpTo] = useState(-1);
+  const items: Item[] = [];
+  for (let i = game.events.length - 1; i >= 0 && items.length < SHOWN; i--) {
+    const e = game.events[i]!;
+    const d = describeEvent(e, map, game.playerNation, game.provinces);
+    if (d) items.push({ ...d, index: i, time: e.time });
+  }
+  // Gli indici scorrono quando il registro scarta i vecchi eventi: si confronta l'orario.
+  const visible = items.filter((it) => it.time > hiddenUpTo);
+  if (visible.length === 0) return null;
+
+  return (
+    <section className="event-feed" aria-label="Notizie" aria-live="polite">
+      <header>
+        <h3>Notizie</h3>
+        <button className="icon-button small" onClick={() => setHiddenUpTo(game.time)} aria-label="Nascondi le notizie">
+          ×
+        </button>
+      </header>
+      <ul>
+        {visible.map((it) => (
+          <li key={`${it.index}-${it.time}`} className={it.tone}>
+            <span className="muted">{formatGameTime(it.time)}</span>
+            {it.province ? (
+              <button className="link" onClick={() => onSelectProvince(it.province!)}>
+                {it.text}
+              </button>
+            ) : (
+              <span>{it.text}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}

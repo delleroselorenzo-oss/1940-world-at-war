@@ -1,11 +1,19 @@
+import { COMBAT } from "../data/combat.js";
+import { ENGINEERING } from "../data/engineering.js";
 import { ECONOMY, RESOURCE_IDS, type EconomyConfig } from "../data/economy.js";
 import { MOVEMENT } from "../data/movement.js";
 import { STARTING_ARMIES, UNIT_TYPES, type UnitTypeId } from "../data/units.js";
-import type { LngLat, MapData, NationId } from "../map/types.js";
-import { flatKm } from "../nav/grid.js";
+import type { LngLat, MapData, NationId, Province } from "../map/types.js";
+import { flatKm, provinceIdAt } from "../nav/grid.js";
+import type { NavData } from "../nav/types.js";
+import { applyDamage, contactFraction, damageAgainst, engagements, heal, lerp, segmentDistanceKm } from "./combat.js";
+import { atWar, logEvent, mayEnter, startWar } from "./diplomacy.js";
 import { nationProductionPerDay, netPerDayByNation } from "./economy.js";
 import { mapIndex } from "./mapIndex.js";
-import type { Army, GameState, ResourceAmounts } from "./state.js";
+import { armyPosition, moverOf, remainingRoute, scheduleRoute } from "./movement.js";
+import { planRoute } from "./routing.js";
+import type { Army, ArmyId, GameState, ResourceAmounts } from "./state.js";
+import { countRole, targetStillValid } from "./works.js";
 
 // Motore della partita: funzioni pure, nessun accesso a orologio di sistema o rete.
 // Chi le usa (oggi il browser, domani il server) passa il tempo dall'esterno.
@@ -28,6 +36,11 @@ export function createGame(map: MapData, options: NewGameOptions, economy: Econo
     nations: {},
     armies: {},
     production: {},
+    relations: {},
+    destroyedBridges: [],
+    pontoons: {},
+    hospitals: {},
+    events: [],
     nextId: 1,
   };
   for (const n of map.nations) {
@@ -46,44 +59,64 @@ export function createGame(map: MapData, options: NewGameOptions, economy: Econo
   return state;
 }
 
+/** Cosa serve al motore: la mappa e, se c'è, la rete di movimento (per confini e territorio). */
+export interface EngineWorld {
+  map: MapData;
+  nav?: NavData;
+}
+
 /**
  * Porta la partita fino al minuto di gioco `until`, elaborando gli eventi in ordine di tempo:
- * arruolamenti completati, arrivi delle armate e tick di produzione (ogni 30 minuti).
+ * arruolamenti e lavori completati, partenze ritardate, controlli ogni 5 minuti (confini, contatti, conquiste, arrivi),
+ * combattimenti e tick di produzione ogni 30 minuti, morale a ogni cambio giorno.
  * Il risultato dipende solo dallo stato e dal tempo, non da quante volte viene chiamata:
  * recuperare ore di assenza in un colpo equivale a giocarle passo passo.
  */
-export function advance(state: GameState, map: MapData, until: number, economy: EconomyConfig = ECONOMY): GameState {
+export function advance(state: GameState, world: EngineWorld, until: number, economy: EconomyConfig = ECONOMY): GameState {
   if (until <= state.time) return state;
+  const { map } = world;
   const tick = economy.tickMinutes;
   const ticksPerDay = economy.dayMinutes / tick;
+  const every = COMBAT.sampleMinutes;
 
-  // Copia delle parti che cambiano; le province restano le stesse (non cambiano ancora).
+  // Copia di lavoro delle parti che possono cambiare (lo stato ricevuto resta intatto).
   const s: GameState = {
     ...state,
+    provinces: { ...state.provinces },
     nations: Object.fromEntries(Object.entries(state.nations).map(([id, n]) => [id, { ...n, stock: { ...n.stock } }])),
     armies: Object.fromEntries(
-      Object.entries(state.armies).map(([id, a]) => [id, { ...a, units: [...a.units] }]),
+      Object.entries(state.armies).map(([id, a]) => [id, { ...a, units: a.units.map((u) => ({ ...u })) }]),
     ),
     production: Object.fromEntries(Object.entries(state.production).map(([id, q]) => [id, q.map((item) => ({ ...item }))])),
+    relations: { ...state.relations },
+    destroyedBridges: [...state.destroyedBridges],
+    pontoons: { ...state.pontoons },
+    hospitals: { ...state.hospitals },
+    events: [...state.events],
   };
   let rates = netPerDayByNation(map, s, economy);
 
   for (;;) {
     const nextTick = (Math.floor(s.time / tick) + 1) * tick;
-    let t = nextTick;
-    for (const a of Object.values(s.armies)) {
-      const arrival = a.move?.times[a.move.times.length - 1];
-      if (arrival !== undefined && arrival < t) t = arrival;
-    }
+    const nextSample = (Math.floor(s.time / every) + 1) * every;
+    let t = Math.min(nextTick, nextSample);
     for (const q of Object.values(s.production)) {
       const finishesAt = q[0]?.finishesAt;
       if (finishesAt != null && finishesAt < t) t = finishesAt;
     }
+    for (const a of Object.values(s.armies)) {
+      if (a.task && a.task.finishesAt < t) t = a.task.finishesAt;
+      if (a.departure && a.departure.at < t) t = a.departure.at;
+    }
     if (t > until) break;
     s.time = t;
 
-    if (completeProduction(s, map, t)) rates = netPerDayByNation(map, s, economy);
-    if (processArrivals(s, t)) rates = netPerDayByNation(map, s, economy);
+    let changed = completeProduction(s, map, t);
+    completeWorks(s, world, t);
+    depart(s, world, t);
+    if (t === nextSample) changed = sample(s, world, t) || changed;
+    if (t === nextTick) changed = fight(s, world, t) || changed;
+    if (changed) rates = netPerDayByNation(map, s, economy);
 
     if (t === nextTick) {
       for (const [id, perDay] of rates) {
@@ -91,7 +124,7 @@ export function advance(state: GameState, map: MapData, until: number, economy: 
         // Il mantenimento non porta le scorte sotto zero (le carenze avranno effetto sul morale).
         for (const r of RESOURCE_IDS) stock[r] = Math.max(0, stock[r] + perDay[r] / ticksPerDay);
       }
-      // Qui, a ogni cambio giorno (t % dayMinutes === 0), arriveranno morale e rivolte.
+      if (t % economy.dayMinutes === 0 && updateMorale(s)) rates = netPerDayByNation(map, s, economy);
     }
   }
   s.time = until;
@@ -116,22 +149,282 @@ function completeProduction(s: GameState, map: MapData, t: number): boolean {
   return changed;
 }
 
-/** Armate che arrivano a destinazione al minuto `t`: si fermano e, se c'è un'altra armata amica ferma lì, si uniscono. */
-function processArrivals(s: GameState, t: number): boolean {
-  let merged = false;
-  for (const army of Object.values(s.armies)) {
-    const move = army.move;
-    if (!move || move.times[move.times.length - 1]! > t) continue;
-    army.position = move.points[move.points.length - 1]!;
-    army.move = null;
-    const host = idleArmyNear(s, army.owner, army.position, army.id);
-    if (host) {
-      host.units.push(...army.units);
-      delete s.armies[army.id];
-      merged = true;
+/**
+ * Controllo ogni 5 minuti di quello che è successo nell'intervallo appena trascorso:
+ * 1. un'armata entrata senza accordi nel territorio altrui provoca la dichiarazione di guerra;
+ * 2. armate nemiche che arrivano a contatto si fermano (chi marciava va all'assalto);
+ * 3. chi passa dal centro di una provincia nemica senza difensori la conquista;
+ * 4. chi è arrivato a destinazione si ferma e si unisce alle armate amiche lì presenti.
+ * Dentro l'intervallo ogni armata si considera in moto rettilineo.
+ */
+function sample(s: GameState, world: EngineWorld, t: number): boolean {
+  const { map, nav } = world;
+  const t0 = t - COMBAT.sampleMinutes;
+  const armies = Object.values(s.armies);
+  const from = new Map<ArmyId, LngLat>();
+  const to = new Map<ArmyId, LngLat>();
+  for (const a of armies) {
+    from.set(a.id, armyPosition(a, t0));
+    to.set(a.id, armyPosition(a, t));
+  }
+  let changed = false;
+
+  if (nav)
+    for (const a of armies) {
+      if (!a.move) continue;
+      const id = provinceIdAt(nav, to.get(a.id)!);
+      const owner = id ? s.provinces[id]?.owner : undefined;
+      if (owner && !mayEnter(s, a.owner, owner)) startWar(s, owner, a.owner, t);
+    }
+
+  const stopAt = new Map<ArmyId, number>();
+  for (let i = 0; i < armies.length; i++)
+    for (let j = i + 1; j < armies.length; j++) {
+      const a = armies[i]!;
+      const b = armies[j]!;
+      if ((!a.move && !b.move) || !atWar(s, a.owner, b.owner)) continue;
+      const f = contactFraction(from.get(a.id)!, to.get(a.id)!, from.get(b.id)!, to.get(b.id)!, COMBAT.contactKm);
+      if (f === null) continue;
+      for (const x of [a, b]) if (x.move) stopAt.set(x.id, Math.min(stopAt.get(x.id) ?? 1, f));
+      const at = lerp(from.get(a.id)!, to.get(a.id)!, f);
+      logEvent(s, { time: t, type: "battle", at, province: nav ? provinceIdAt(nav, at) : null, nations: [a.owner, b.owner] });
+    }
+  for (const [id, f] of stopAt) {
+    const a = s.armies[id]!;
+    a.position = lerp(from.get(id)!, to.get(id)!, f);
+    a.halted = remainingRoute(a.move!, t0 + f * COMBAT.sampleMinutes, a.position);
+    a.move = null;
+    // Con "Attacca" va all'assalto; con "Muovi" si ferma e si difende.
+    a.attacking = a.assault;
+    to.set(id, a.position);
+  }
+
+  const warring = new Set(Object.entries(s.relations).flatMap(([key, r]) => (r.war ? key.split("|") : [])));
+  for (const a of armies) {
+    if (!warring.has(a.owner) || a.units.length === 0) continue;
+    const p0 = from.get(a.id)!;
+    const p1 = to.get(a.id)!;
+    for (const province of candidateProvinces(world, p0, p1)) {
+      const ps = s.provinces[province.id]!;
+      if (!atWar(s, a.owner, ps.owner) || segmentDistanceKm(p0, p1, province.center) > COMBAT.captureKm) continue;
+      if (defended(s, a.owner, province.center, t)) continue;
+      logEvent(s, { time: t, type: "conquest", province: province.id, from: ps.owner, to: a.owner });
+      s.provinces[province.id] = { owner: a.owner, morale: COMBAT.conqueredMorale };
+      delete s.production[province.id];
+      changed = true;
     }
   }
-  return merged;
+
+  for (const a of armies) {
+    const move = a.move;
+    if (!move || move.times[move.times.length - 1]! > t) continue;
+    a.position = move.points[move.points.length - 1]!;
+    a.move = null;
+    const host = idleArmyNear(s, a.owner, a.position, a.id);
+    if (host) {
+      host.units.push(...a.units);
+      host.attacking ||= a.attacking;
+      delete s.armies[a.id];
+    }
+  }
+  return changed;
+}
+
+/** Province il cui centro può stare vicino al tratto p0→p1: quelle sotto i due estremi e le loro confinanti. */
+function candidateProvinces(world: EngineWorld, p0: LngLat, p1: LngLat): Province[] {
+  const { map, nav } = world;
+  if (!nav) return map.provinces;
+  const index = mapIndex(map).provinces;
+  const ids = new Set<string>();
+  for (const p of [p0, p1]) {
+    const id = provinceIdAt(nav, p);
+    if (!id) continue;
+    ids.add(id);
+    for (const n of index.get(id)?.neighbors ?? []) ids.add(n.id);
+  }
+  return [...ids].map((id) => index.get(id)!).filter(Boolean);
+}
+
+/** C'è un'armata nemica di `nation` vicino al punto? */
+function defended(s: GameState, nation: NationId, at: LngLat, t: number): boolean {
+  return Object.values(s.armies).some(
+    (b) => b.units.length > 0 && atWar(s, nation, b.owner) && flatKm(armyPosition(b, t), at) <= COMBAT.contactKm,
+  );
+}
+
+/**
+ * Tick di combattimento: ogni armata a contatto con nemici colpisce il più vicino.
+ * I danni si calcolano tutti sullo stato di inizio tick, poi si applicano insieme.
+ * Dopo: chi non ha più nemici a portata smette l'assalto e, se era stato fermato durante una marcia,
+ * la riprende; chi è fermo nel proprio territorio guarisce.
+ */
+function fight(s: GameState, world: EngineWorld, t: number): boolean {
+  const engaged = engagements(s, t);
+  const pos = new Map(Object.values(s.armies).map((a) => [a.id, armyPosition(a, t)]));
+  const hits: { by: Army; target: Army; damage: ReturnType<typeof damageAgainst> }[] = [];
+  for (const a of Object.values(s.armies)) {
+    const foes = engaged.get(a.id);
+    if (!foes || a.units.length === 0) continue;
+    // Bersaglio: il nemico più vicino (a parità di distanza, il primo per identificativo).
+    let target: Army | undefined;
+    let best = Infinity;
+    for (const id of [...foes].sort()) {
+      const d = flatKm(pos.get(a.id)!, pos.get(id)!);
+      if (d < best) [target, best] = [s.armies[id], d];
+    }
+    if (target) hits.push({ by: a, target, damage: damageAgainst(a, target) });
+  }
+
+  let changed = false;
+  for (const { by, target, damage } of hits) {
+    if (!s.armies[target.id]) continue;
+    const before = target.units.length;
+    target.units = applyDamage(target.units, damage);
+    if (target.units.length === before) continue;
+    changed = true;
+    if (target.units.length > 0) continue;
+    const at = pos.get(target.id)!;
+    logEvent(s, { time: t, type: "armyDestroyed", owner: target.owner, by: by.owner, at, province: world.nav ? provinceIdAt(world.nav, at) : null });
+    delete s.armies[target.id];
+  }
+
+  for (const a of Object.values(s.armies)) {
+    const inContact = engaged.get(a.id)?.some((id) => s.armies[id]) ?? false;
+    if (inContact) continue;
+    a.attacking = false;
+    if (a.halted) {
+      a.move = scheduleRoute(a.halted, moverOf(a), t);
+      a.halted = null;
+    }
+    if (a.move) continue;
+    const rate = healRate(s, world, a);
+    if (rate > 0) heal(a.units, rate);
+  }
+  loseHospitals(s, world, t);
+  return changed;
+}
+
+/**
+ * Guarigione per tick di un'armata ferma e senza nemici a contatto: vale la più alta tra
+ * territorio proprio, sanità al seguito (ovunque) e vicinanza a un proprio ospedale da campo.
+ */
+function healRate(s: GameState, world: EngineWorld, a: Army): number {
+  let rate = 0;
+  if (world.nav) {
+    const id = provinceIdAt(world.nav, a.position);
+    if (id && s.provinces[id]?.owner === a.owner) rate = COMBAT.healPerTick;
+  }
+  if (countRole(a, "medic") > 0) rate = Math.max(rate, COMBAT.medicHealPerTick);
+  const hospital = Object.values(s.hospitals).some(
+    (h) => h.owner === a.owner && flatKm(h.at, a.position) <= ENGINEERING.hospitalRadiusKm,
+  );
+  if (hospital) rate = Math.max(rate, COMBAT.hospitalHealPerTick);
+  return rate;
+}
+
+/** Un ospedale da campo con nemici nel raggio e nessuna armata amica a difenderlo va perso. */
+function loseHospitals(s: GameState, world: EngineWorld, t: number) {
+  for (const h of Object.values(s.hospitals)) {
+    let enemy = false;
+    let friend = false;
+    for (const a of Object.values(s.armies)) {
+      if (a.units.length === 0 || flatKm(armyPosition(a, t), h.at) > ENGINEERING.hospitalRadiusKm) continue;
+      if (a.owner === h.owner) friend = true;
+      else if (atWar(s, a.owner, h.owner)) enemy = true;
+    }
+    if (!enemy || friend) continue;
+    delete s.hospitals[h.id];
+    logEvent(s, { time: t, type: "works", what: "hospitalLost", by: h.owner, at: h.at, province: world.nav ? provinceIdAt(world.nav, h.at) : null, river: null });
+  }
+}
+
+/** Lavori finiti al minuto `t`: si applica il risultato e, se un passaggio si chiude, chi ci passava cambia strada. */
+function completeWorks(s: GameState, world: EngineWorld, t: number) {
+  const { nav } = world;
+  for (const a of Object.values(s.armies)) {
+    const task = a.task;
+    if (!task || task.finishesAt > t) continue;
+    a.task = null;
+    if (!nav || !targetStillValid(s, nav, task.work, task.target)) continue;
+    const target = task.target;
+    const at = target.at;
+    const event = { time: t, type: "works" as const, by: a.owner, at, province: provinceIdAt(nav, at) };
+    if (task.work === "demolish" && target.kind === "bridge") {
+      s.destroyedBridges.push(target.id);
+      logEvent(s, { ...event, what: "bridgeDestroyed", river: nav.bridges.find((b) => b.id === target.id)?.river ?? null });
+      reroute(s, world, at, t);
+    } else if (task.work === "demolish" && target.kind === "pontoon") {
+      const river = s.pontoons[target.id]!.river;
+      delete s.pontoons[target.id];
+      logEvent(s, { ...event, what: "pontoonDestroyed", river });
+      reroute(s, world, at, t);
+    } else if (task.work === "repair" && target.kind === "bridge") {
+      s.destroyedBridges = s.destroyedBridges.filter((id) => id !== target.id);
+      logEvent(s, { ...event, what: "bridgeRepaired", river: nav.bridges.find((b) => b.id === target.id)?.river ?? null });
+    } else if (task.work === "pontoon" && target.kind === "river") {
+      const id = `p${s.nextId++}`;
+      s.pontoons[id] = { id, owner: a.owner, cells: target.cells, at, river: target.river };
+      logEvent(s, { ...event, what: "pontoonBuilt", river: target.river });
+    } else if (task.work === "hospital") {
+      const id = `h${s.nextId++}`;
+      s.hospitals[id] = { id, owner: a.owner, at };
+      logEvent(s, { ...event, what: "hospitalBuilt", river: null });
+    }
+  }
+}
+
+/**
+ * Un passaggio sul fiume vicino a `at` non c'è più: le armate il cui percorso (anche quello
+ * sospeso dal combattimento) ci passava vicino lo ricalcolano; se non c'è un'altra strada si fermano.
+ */
+function reroute(s: GameState, world: EngineWorld, at: LngLat, t: number) {
+  const nav = world.nav!;
+  const near = (points: LngLat[]) => points.some((p, i) => i > 0 && segmentDistanceKm(points[i - 1]!, p, at) <= REROUTE_KM);
+  for (const a of Object.values(s.armies)) {
+    if (a.move) {
+      const pos = armyPosition(a, t);
+      const rest = remainingRoute(a.move, t, pos);
+      if (!rest || !near(rest.points)) continue;
+      const route = planRoute(s, nav, a.owner, pos, rest.points[rest.points.length - 1]!, moverOf(a));
+      a.position = pos;
+      a.move = route && route.km >= 0.5 ? scheduleRoute(route, moverOf(a), t) : null;
+    } else if (a.halted && near(a.halted.points)) {
+      const route = planRoute(s, nav, a.owner, a.halted.points[0]!, a.halted.points[a.halted.points.length - 1]!, moverOf(a));
+      a.halted = route ? { points: route.points, onRoad: route.onRoad, rail: route.rail } : null;
+    }
+  }
+}
+
+/** Partenze ritardate arrivate all'ora: il percorso si calcola adesso, con la mappa di adesso. Chi parte lascia il lavoro. */
+function depart(s: GameState, world: EngineWorld, t: number) {
+  const { nav } = world;
+  for (const a of Object.values(s.armies)) {
+    const departure = a.departure;
+    if (!departure || departure.at > t) continue;
+    a.departure = null;
+    if (!nav || a.move) continue;
+    const route = planRoute(s, nav, a.owner, a.position, departure.target, moverOf(a));
+    if (!route || route.km < 0.5) continue;
+    a.move = scheduleRoute(route, moverOf(a), t);
+    // Partendo si abbandona un eventuale lavoro in corso.
+    a.task = null;
+  }
+}
+
+/** Distanza entro cui un percorso si considera passante per il ponte appena distrutto. */
+const REROUTE_KM = 1;
+
+/** A ogni cambio giorno il morale di ogni provincia si avvicina all'obiettivo. */
+function updateMorale(s: GameState): boolean {
+  let changed = false;
+  for (const [id, ps] of Object.entries(s.provinces)) {
+    const gap = COMBAT.moraleTarget - ps.morale;
+    if (gap === 0) continue;
+    const morale = Math.abs(gap) < 0.5 ? COMBAT.moraleTarget : ps.morale + gap * COMBAT.moraleDailyStep;
+    s.provinces[id] = { ...ps, morale };
+    changed = true;
+  }
+  return changed;
 }
 
 function idleArmyNear(s: GameState, owner: NationId, at: LngLat, except?: string): Army | undefined {
@@ -141,7 +434,7 @@ function idleArmyNear(s: GameState, owner: NationId, at: LngLat, except?: string
 }
 
 function newArmy(s: GameState, owner: NationId, position: LngLat): Army {
-  const army: Army = { id: `a${s.nextId++}`, owner, units: [], position, move: null };
+  const army: Army = { id: `a${s.nextId++}`, owner, units: [], position, move: null, attacking: false, halted: null, assault: false, useRail: false, departure: null, task: null };
   s.armies[army.id] = army;
   return army;
 }

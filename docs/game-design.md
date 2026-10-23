@@ -115,32 +115,47 @@ Le unità nel **ruolo preferito** sono circa 2–3x più efficaci; le "tuttofare
 ## 8. Movimento
 
 - Gli eserciti si muovono **verso qualsiasi punto della terraferma**, non solo verso i centri delle province, con tempo di percorrenza reale in base alla distanza e alla velocità dell'unità più lenta.
-- **Strade e ferrovie** (rete reale semplificata): velocità piena. **Fuori strada**: metà velocità. Il percorso più rapido è calcolato automaticamente e combina i due.
+- **Strade** (rete reale semplificata): velocità piena. **Fuori strada**: metà velocità. Il percorso più rapido è calcolato automaticamente e combina i due.
+- **Ferrovia**: in treno tutte le unità vanno alla stessa velocità: **55 km/h nel proprio territorio** dove il morale della provincia è almeno **70%**, **35 km/h** nel resto del proprio territorio e dove si ha il diritto di passaggio (media realistica di un convoglio militare con soste e incroci). Altrove il treno non si usa e si marcia lungo i binari come su una strada. Salire e scendere costa ciascuno **15 minuti per unità, al massimo 2 ore** (dipende solo dal numero di unità, non dal tipo).
+- **Il treno lo sceglie il giocatore**: con l'opzione "Treno" attiva l'ordine di marcia usa il treno nei tratti in cui fa guadagnare tempo (sui tragitti brevi può comunque convenire marciare); senza l'opzione l'armata non sale mai.
+- La velocità dell'armata è quella dell'**unità più lenta**; per andare più veloci si divide l'armata.
 - **Grandi fiumi** (Danubio, Reno, Volga, Dnepr, Vistola, Elba, Oder, Loira, Po, Don, Dnestr… circa 60): si attraversano **solo sui ponti**, cioè dove una strada o una ferrovia passa il fiume.
-- **Ponti distruggibili** (e riparabili) e **ponti di barche** costruiti dal genio: decisi, arriveranno con il combattimento; il motore già supporta ponti chiusi.
-- La provincia si conquisterà raggiungendone il centro (milestone 4).
+- **Ponti distruggibili** (e riparabili) e **ponti di barche** costruiti dal genio: vedi "Lavori sul campo" qui sotto.
+- **Territorio straniero**: si può marciare ovunque, ma il percorso automatico passa solo per il proprio territorio, per quello di chi è già in guerra o ha un accordo con noi, e per quello della nazione verso cui si marcia (mai per un paese terzo, per non scatenare guerre per sbaglio).
 - Bonus di velocità da infrastrutture e terreno preferito. Le unità sotto il 50% di salute vanno più lente.
 - **Mare**: le unità terrestri diventano **trasporti** (imbarco/sbarco 3–4 ore, ridotto dalla base navale).
 - **Aerei**: hanno un'autonomia; oltre quella si spostano via terra come convoglio.
 
-### Stato attuale (milestone 3)
+### Stato attuale (milestone 3 e 4)
 - Unità disponibili: fanteria, fanteria motorizzata, autoblindo, carro leggero, artiglieria (valori in `shared/src/data/units.ts`).
 - Ogni nazione parte con un'armata in ogni città (3 fanterie + 1 artiglieria nella capitale, 2 fanterie nelle altre).
 - Si arruola **solo nelle proprie città**: il costo si paga subito, l'unità esce dopo il tempo di produzione; più ordini formano una coda.
-- Le armate marciano solo **nel proprio territorio e via terra** finché non arriva il combattimento (milestone 4).
 - Un'armata in marcia che riceve un nuovo ordine cambia strada dal punto in cui si trova; "Fermati qui" la ferma dov'è.
+- L'arrivo a destinazione si registra al primo controllo dei 5 minuti (vedi §9).
 - Due armate della stessa nazione ferme entro 3 km si **uniscono**; le unità appena arruolate si uniscono all'armata ferma in città.
+- **Partenza ritardata** ("Ritarda"): l'armata resta ferma e parte all'ora scelta; il percorso si calcola alla partenza. Partendo si abbandona un eventuale lavoro in corso.
 - Valori: `shared/src/data/movement.ts`.
+
+### Lavori sul campo (genio e sanità)
+- Due unità di supporto: **Genio** (fa i lavori) e **Sanità** (cura). Si arruolano in città come le altre.
+- **Distruggere un ponte** (o un ponte di barche) entro 3 km: qualsiasi armata ferma, **1 ora**. Le armate il cui percorso passava di lì cambiano strada; se non ce n'è un'altra si fermano.
+- **Riparare un ponte** entro 3 km: serve il genio, **8 ore**.
+- **Ponte di barche**: serve il genio, **6 ore**, sul tratto di fiume più vicino entro 8 km. Lo può usare chiunque e si può distruggere.
+- **Ospedale da campo**: servono genio e sanità, **4 ore**. Le armate della stessa nazione ferme entro 5 km guariscono del 10% per tick. Va perso se ci sono nemici entro 5 km e nessuna armata amica a difenderlo.
+- Più genio lavora più in fretta: la durata si divide per il numero di unità del genio, fino a 3 (la distruzione dura sempre 1 ora). Un ordine di marcia o "Fermati qui" interrompe il lavoro.
+- **Guarigione** di un'armata ferma senza nemici a contatto: il valore più alto tra 3% per tick nel proprio territorio, 6% se ha la sanità (ovunque), 10% vicino a un proprio ospedale.
+- Valori: `shared/src/data/engineering.ts` e `shared/src/data/combat.ts`.
 
 ## 9. Combattimento
 
-- **Tick ogni 30 minuti** tra eserciti ingaggiati. Distanza di ingaggio ravvicinato: **5 km**. Una volta ingaggiati non ci si può ritirare.
+- **Tick ogni 30 minuti** tra eserciti ingaggiati. Distanza di ingaggio ravvicinato: **5 km**.
+- **Ritirata possibile**: un'armata a contatto può ricevere un ordine di marcia e allontanarsi; finché resta entro 5 km continua a combattere. Avanzare verso il nemico a contatto invece la ferma di nuovo: non si passa attraverso un'armata nemica.
 - **Danno di un esercito contro una classe** = somma del danno delle sue unità contro quella classe, con **limite di gruppo**: oltre 10 unità il danno aggiunto cala, oltre 20 non cresce più.
 - **Offensivo vs difensivo**: chi attacca usa i valori offensivi; chi è fermo in difesa usa quelli difensivi; se entrambi sono in movimento valgono entrambi.
 - **Efficienza per salute**: `efficienza = 20% + 0,8 × salute%` (100% a piena salute, 60% a metà).
 - **Niente fattore casuale**: a parità di condizioni il risultato è sempre lo stesso. L'unica variabilità prevista è quella data dal **generale** al comando dell'armata (vedi sotto, da definire).
 - **Distribuzione**: il danno contro una classe si divide tra le unità nemiche di quella classe, in proporzione alla loro presenza nell'esercito.
-- Le unità di un esercito vengono distrutte solo quando la condizione complessiva scende sotto il 50%.
+- **Perdite**: dentro ogni classe il danno colpisce prima l'unità più malconcia, che viene distrutta quando arriva a zero; così le perdite arrivano una alla volta (al posto della regola "distrutte solo sotto il 50%", che serviva con i danni casuali).
 - **Bonus**: terreno preferito, fortificazioni/bunker (es. -38% di danno subito al livello 1), livello dell'unità.
 - **Unità a distanza** (artiglieria, navi): attaccano entro la gittata ogni 30 minuti; il bersaglio risponde solo se ha gittata sufficiente; sotto i 5 km diventa combattimento ravvicinato.
 - **Aerei**:
@@ -149,6 +164,36 @@ Le unità nel **ruolo preferito** sono circa 2–3x più efficaci; le "tuttofare
   - Le unità di terra/mare rispondono con i valori antiaerei difensivi; gli aerei subiscono prima la difesa, poi infliggono danno.
 - **Danni agli edifici**: attaccare un'unità al centro di una provincia danneggia anche gli edifici (fortificazioni bersaglio più probabile).
 
+### Stato attuale (milestone 4)
+- **Guerra**: si può dichiarare guerra dal pannello di una provincia straniera, oppure entrare senza accordi nel suo territorio: in quel caso è il padrone di casa a dichiarare guerra. Con un accordo (diritto di passaggio o visione condivisa) non succede nulla. Pace e accordi si potranno negoziare con la diplomazia vera (milestone 6); prima di entrare in un paese neutrale l'interfaccia chiede conferma.
+- **Controlli ogni 5 minuti** a orari fissi: ingresso nei territori, contatti, conquiste, arrivi. Tra un controllo e l'altro ogni armata si considera in moto rettilineo; gli orari fissi fanno sì che il risultato non dipenda da quante volte si fa avanzare la partita.
+- **Contatto**: due armate nemiche che arrivano entro 5 km si fermano. Chi marciava con l'ordine **Attacca** va all'**assalto** (valori offensivi); con **Muovi** si ferma e **difende**, come chi era già fermo (valori difensivi). Durante la marcia si usano i valori offensivi. Vinto lo scontro, l'armata fermata riprende da sola la marcia interrotta.
+- **Bersaglio**: ogni armata colpisce l'armata nemica più vicina; i danni del tick si calcolano tutti insieme sullo stato di inizio tick.
+- **Classi di armatura** per ora due: fanteria (fanteria, motorizzata, artiglieria) e corazzati (autoblindo, carro leggero). Valori in `shared/src/data/units.ts`, parametri in `shared/src/data/combat.ts`.
+- **Guarigione**: vedi §8, "Lavori sul campo".
+- Non ancora: gittata dell'artiglieria (per ora combatte solo da vicino), bonus di terreno e fortificazioni, generali.
+
+| Unità | Classe | Salute | Attacco (fant./corazz.) | Difesa (fant./corazz.) |
+|---|---|---|---|---|
+| Fanteria | fanteria | 15 | 2 / 1 | 3 / 1,5 |
+| Fanteria motorizzata | fanteria | 15 | 2,5 / 1 | 3 / 1,5 |
+| Autoblindo | corazzati | 12 | 2,5 / 1 | 1,5 / 0,75 |
+| Carro leggero | corazzati | 20 | 3,5 / 2,5 | 2 / 1,5 |
+| Artiglieria | fanteria | 10 | 3 / 1,5 | 2 / 1 |
+| Genio | fanteria | 12 | 1 / 0,5 | 1,5 / 0,75 |
+| Sanità | fanteria | 10 | 0,5 / 0,25 | 1 / 0,5 |
+
+Esempio: l'armata di una capitale (3 fanterie + 1 artiglieria) che assalta un'armata uguale in difesa perde, dopo alcune ore di combattimento: chi difende è avvantaggiato.
+
+### Interfaccia dell'armata
+- Toccando un'armata si apre il suo pannello. Dall'alto: **comandante** (con accanto i pulsanti delle azioni), **stato attuale** (cosa fa e quando finisce, salute complessiva), **azioni**, **composizione** per tipo di unità (quantità, salute, velocità, attacco/difesa; evidenziata l'unità più lenta), riepilogo di forza e mantenimento.
+- **Prima si sceglie l'azione, poi si tocca la mappa**: niente ordini dati da un tocco "indovinato". Azioni di mappa: **Muovi** (marcia, al contatto si difende), **Attacca** (marcia in assetto d'assalto verso un punto o verso la posizione attuale di un'armata nemica). Il pulsante vale per un solo ordine; senza azione scelta un tocco seleziona soltanto. Esc annulla l'azione.
+- **Ritarda**: si sceglie prima dell'ordine (da 30 minuti a 24 ore); lo stato mostra il conto alla rovescia e "Annulla partenza".
+- Altre azioni nel pannello: Fermati qui, Ritirati (in combattimento), Lavori del genio (grigi con il motivo se non si possono fare, con barra di avanzamento e "Interrompi" quando sono in corso), opzione "Treno" (resta impostata tra un ordine e l'altro).
+- Da fare: **Dividi**, inseguimento di un'armata in movimento, generali.
+- Spostarsi su un'armata propria (o fermarsi vicino) la **unisce** di default. Il comando passa al militare con **grado ed esperienza** maggiori, salvo scelta diversa del giocatore.
+- Aeronautica e marina avranno pannelli analoghi.
+
 ### Generali (idea, da definire)
 - Ogni armata può avere un **generale** al comando, con caratteristiche proprie (es. bonus in attacco, in difesa, su un terreno, sul morale o sulla velocità).
 - È l'elemento che sostituisce la casualità: due battaglie uguali danno risultati diversi perché sono guidate da generali diversi.
@@ -156,7 +201,8 @@ Le unità nel **ruolo preferito** sono circa 2–3x più efficaci; le "tuttofare
 
 ## 10. Conquista e vittoria
 
-- Una provincia si conquista entrando nel suo centro senza difensori.
+- Una provincia si conquista **passando dal suo centro** (entro 3 km, anche senza fermarsi) quando non ci sono armate nemiche entro 5 km dal centro. Serve essere in guerra con il proprietario.
+- Alla conquista la provincia passa al conquistatore con morale al **25%** e la sua coda di arruolamento si perde. A ogni cambio giorno il morale risale del 22% della distanza da 100 (per ora l'obiettivo è sempre 100; bonus e malus arriveranno con il morale completo, §4).
 - **Vittoria**: raggiungere una soglia di **punti vittoria** (dalle città possedute) oppure restare l'ultimo. Soglia configurabile per partita.
 
 ## 11. Diplomazia (versione semplice)

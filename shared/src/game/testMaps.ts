@@ -11,6 +11,8 @@ import type { World } from "./orders.js";
 //
 // Una strada corre lungo la riga 2 da un capo all'altro e attraversa il fiume su un ponte.
 // L'isola A9 (colonna 22, separata dal mare) appartiene ad AAA.
+// Con `neutralBetween` la provincia A3 appartiene invece a una terza nazione, CCC.
+// Con `railway` la strada è invece una ferrovia.
 
 export const STEP = 0.1;
 const WIDTH = 23;
@@ -25,7 +27,7 @@ export function cell(col: number, row: number): [number, number] {
   return [(col + 0.5) * STEP, (HEIGHT - row - 0.5) * STEP];
 }
 
-export function testWorld(options: { withBridge?: boolean } = {}): World {
+export function testWorld(options: { withBridge?: boolean; neutralBetween?: boolean; railway?: boolean } = {}): World {
   const ids = Object.keys(columns);
   const provinces: Province[] = ids.map((id) => {
     const [c0, c1] = columns[id]!;
@@ -33,7 +35,7 @@ export function testWorld(options: { withBridge?: boolean } = {}): World {
     return {
       id,
       name: id,
-      nation: id.startsWith("A") ? "AAA" : "BBB",
+      nation: options.neutralBetween && id === "A3" ? "CCC" : id.startsWith("A") ? "AAA" : "BBB",
       type: urban ? "urban" : "rural",
       isCapital: urban,
       city: urban ? id : undefined,
@@ -52,6 +54,7 @@ export function testWorld(options: { withBridge?: boolean } = {}): World {
     nations: [
       { id: "AAA", name: "A", color: "#f00", capitalProvince: "A1" },
       { id: "BBB", name: "B", color: "#00f", capitalProvince: "B1" },
+      ...(options.neutralBetween ? [{ id: "CCC", name: "C", color: "#0f0", capitalProvince: "A3" }] : []),
     ],
     provinces,
   };
@@ -96,11 +99,11 @@ export function testWorld(options: { withBridge?: boolean } = {}): World {
       nodeCell: Int32Array.from(nodeCell),
       edgeA: Int32Array.from(edgeA),
       edgeB: Int32Array.from(edgeB),
-      edgeKind: new Uint8Array(edgeA.length),
+      edgeKind: new Uint8Array(edgeA.length).fill(options.railway ? 1 : 0),
       edgeBridge: Int32Array.from(edgeBridge),
     },
     bridges: [{ id: "br1", at: [RIVER_COL * STEP, cell(0, ROAD_ROW)[1]], river: "Fiume" }],
-    rivers: [],
+    rivers: [{ name: "Fiume", lines: [[[RIVER_COL * STEP, 0], [RIVER_COL * STEP, HEIGHT * STEP]]] }],
   };
   return { map, nav };
 }

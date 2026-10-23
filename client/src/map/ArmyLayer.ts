@@ -1,20 +1,23 @@
 import { Container, Graphics, Text } from "pixi.js";
-import { armyPosition, type Army } from "@waw/shared";
+import { armyHealth, armyPosition, type Army } from "@waw/shared";
 import type { Camera } from "./camera.js";
 import type { LoadedMap } from "./loadMap.js";
 import { project } from "./projection.js";
 
 // Armate sulla mappa: un "gettone" col colore della nazione e il numero di unità,
-// che scorre lungo il percorso mentre l'armata marcia. Le dimensioni sono in pixel
+// che scorre lungo il percorso mentre l'armata marcia. Sotto, la barra della salute;
+// il bordo rosso indica che è in combattimento. Le dimensioni sono in pixel
 // dello schermo (indipendenti dallo zoom).
 
 const BADGE_W = 28;
 const BADGE_H = 18;
 /** Spostamento verso l'alto rispetto al centro della provincia, per non coprire la città. */
 const BADGE_OFFSET_Y = -16;
-/** Distanza verticale tra più armate ferme nella stessa provincia. */
-const STACK_GAP = 21;
+/** Distanza verticale tra più armate ferme nello stesso punto. */
+const STACK_GAP = 26;
 const SELECT_COLOR = "#ffd23f";
+const COMBAT_COLOR = "#e5322d";
+const HEALTH_H = 3;
 const HIT_RADIUS = 16;
 
 interface Badge {
@@ -34,13 +37,15 @@ export class ArmyLayer {
   private readonly badges = new Map<string, Badge>();
   private armies: Army[] = [];
   private playerNation: string | null = null;
+  private engaged: ReadonlySet<string> = new Set();
   private selected: string | null = null;
 
   constructor(private readonly map: LoadedMap) {}
 
-  setArmies(armies: Army[], playerNation: string | null): void {
+  setArmies(armies: Army[], playerNation: string | null, engaged: ReadonlySet<string>): void {
     this.armies = armies;
     this.playerNation = playerNation;
+    this.engaged = engaged;
     const alive = new Set(armies.map((a) => a.id));
     for (const [id, badge] of this.badges) {
       if (alive.has(id)) continue;
@@ -105,18 +110,26 @@ export class ArmyLayer {
     const color = this.map.nations.get(army.owner)?.color ?? "#888888";
     const mine = army.owner === this.playerNation;
     const selected = army.id === this.selected;
-    const look = `${color}|${mine}|${selected}|${army.units.length}`;
+    const fighting = this.engaged.has(army.id);
+    const health = Math.round(armyHealth(army) * 20) / 20;
+    const look = `${color}|${mine}|${selected}|${fighting}|${health}|${army.units.length}`;
     if (look !== badge.look) {
       badge.look = look;
+      const border = selected ? SELECT_COLOR : fighting ? COMBAT_COLOR : mine ? "#ffffff" : "#1b1b1b";
+      const barY = BADGE_H / 2 + 2;
       badge.bg
         .clear()
         .roundRect(-BADGE_W / 2, -BADGE_H / 2, BADGE_W, BADGE_H, 5)
         .fill(color)
-        .stroke({ width: selected ? 3 : mine ? 2 : 1.2, color: selected ? SELECT_COLOR : mine ? "#ffffff" : "#1b1b1b" });
+        .stroke({ width: selected || fighting ? 3 : mine ? 2 : 1.2, color: border })
+        .rect(-BADGE_W / 2, barY, BADGE_W, HEALTH_H)
+        .fill("#1b1b1b")
+        .rect(-BADGE_W / 2, barY, BADGE_W * health, HEALTH_H)
+        .fill(health > 0.6 ? "#5fbf4a" : health > 0.3 ? "#e8b730" : COMBAT_COLOR);
       badge.label.text = String(army.units.length);
       badge.label.style.stroke = { color: "#1b1b1b", width: 2.5, join: "round" };
       // In cima le armate selezionate e quelle del giocatore.
-      badge.container.zIndex = selected ? 2 : mine ? 1 : 0;
+      badge.container.zIndex = selected ? 3 : fighting ? 2 : mine ? 1 : 0;
       this.container.sortableChildren = true;
     }
     return badge;

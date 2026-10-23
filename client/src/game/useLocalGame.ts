@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   advance,
   applyOrder,
@@ -44,13 +44,14 @@ export function useLocalGame(map: LoadedMap): LocalGame {
   const [state, setState] = useState<GameState | null>(null);
   const [now, setNow] = useState(0);
   const [offline, setOffline] = useState<OfflineReport | null>(null);
+  const world = useMemo(() => ({ map: map.data, nav: map.nav }), [map]);
 
   // Al caricamento: riprende la partita salvata e recupera il tempo trascorso offline.
   useEffect(() => {
     const saved = loadGame(map.data.id);
     if (!saved) return;
     const minutes = gameMinutesAt(saved.clock, Date.now());
-    const caught = advance(saved, map.data, minutes);
+    const caught = advance(saved, world, minutes);
     // L'avviso ha senso solo se nel frattempo c'è stato almeno un accredito.
     if (Math.floor(caught.time / ECONOMY.tickMinutes) > Math.floor(saved.time / ECONOMY.tickMinutes)) {
       const before = saved.nations[saved.playerNation]!.stock;
@@ -61,7 +62,7 @@ export function useLocalGame(map: LoadedMap): LocalGame {
     }
     setState(caught);
     setNow(minutes);
-  }, [map]);
+  }, [map, world]);
 
   // Mentre si gioca: ogni secondo la partita avanza (arrivi, arruolamenti, tick di produzione).
   const stateRef = useRef(state);
@@ -74,12 +75,12 @@ export function useLocalGame(map: LoadedMap): LocalGame {
       if (!current) return;
       const minutes = gameMinutesAt(current.clock, Date.now());
       setNow(minutes);
-      const next = advance(current, map.data, minutes);
+      const next = advance(current, world, minutes);
       saveGame(next);
       setState(next);
     }, 1000);
     return () => clearInterval(id);
-  }, [playing, map]);
+  }, [playing, world]);
 
   const start = useCallback(
     (nation: NationId) => {
@@ -112,15 +113,15 @@ export function useLocalGame(map: LoadedMap): LocalGame {
       const current = stateRef.current;
       if (!current) return "Nessuna partita in corso.";
       // L'ordine vale "adesso": prima si porta la partita all'ora attuale.
-      const caught = advance(current, map.data, gameMinutesAt(current.clock, Date.now()));
-      const result = applyOrder(caught, { map: map.data, nav: map.nav }, caught.playerNation, o);
+      const caught = advance(current, world, gameMinutesAt(current.clock, Date.now()));
+      const result = applyOrder(caught, world, caught.playerNation, o);
       if (!result.ok) return result.error;
       saveGame(result.state);
       stateRef.current = result.state;
       setState(result.state);
       return null;
     },
-    [map],
+    [world],
   );
 
   const nowExact = useCallback(() => {

@@ -2,7 +2,7 @@ import { Application, Container, Graphics, Text, type TextStyleOptions } from "p
 import type { Army } from "@waw/shared";
 import type { LngLat } from "@waw/shared";
 import { ArmyLayer } from "./ArmyLayer.js";
-import { TerrainLayer } from "./TerrainLayer.js";
+import { TerrainLayer, type MapWorks } from "./TerrainLayer.js";
 import { clampToBounds, centerOn, fitBounds, pan, screenToWorld, zoomAt, type Camera, type Viewport } from "./camera.js";
 import { HitIndex, type ProjectedShape } from "./geometry.js";
 import { placeLabels, type LabelCandidate } from "./labels.js";
@@ -144,8 +144,12 @@ export class MapRenderer {
     if (this.mounted) this.drawOverlay();
   }
 
-  setArmies(armies: Army[], playerNation: string | null): void {
-    this.armyLayer.setArmies(armies, playerNation);
+  setArmies(armies: Army[], playerNation: string | null, engaged: ReadonlySet<string>): void {
+    this.armyLayer.setArmies(armies, playerNation, engaged);
+  }
+
+  setWorks(works: MapWorks): void {
+    this.terrain.setWorks(works);
   }
 
   setSelectedArmy(id: string | null): void {

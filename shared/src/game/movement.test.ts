@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { COMBAT } from "../data/combat.js";
 import { MOVEMENT } from "../data/movement.js";
 import { UNIT_TYPES } from "../data/units.js";
 import { flatKm } from "../nav/grid.js";
@@ -39,7 +40,8 @@ describe("movimento", () => {
     const army = capitalArmy(game);
     const target = cell(3, 0); // un angolo qualsiasi di A1
     game = order(game, { type: "move", army: army.id, target });
-    const end = advance(game, map, arrivalTime(game.armies[army.id]!)!);
+    // L'arrivo si registra al primo controllo (ogni 5 minuti) dopo l'orario previsto.
+    const end = advance(game, world, arrivalTime(game.armies[army.id]!)! + COMBAT.sampleMinutes);
     expect(end.armies[army.id]!.position).toEqual(target);
     expect(end.armies[army.id]!.move).toBeNull();
   });
@@ -69,7 +71,7 @@ describe("movimento", () => {
     let game = newGame();
     const army = capitalArmy(game);
     game = order(game, { type: "move", army: army.id, target: cell(8, 2) });
-    game = advance(game, map, 60);
+    game = advance(game, world, 60);
     const here = armyPosition(game.armies[army.id]!, 60);
     game = order(game, { type: "stop", army: army.id });
     expect(game.armies[army.id]!.move).toBeNull();
@@ -85,11 +87,11 @@ describe("movimento", () => {
     expect(path.some((p) => Math.abs(p[1] - cell(0, 2)[1]) < 1e-9 && Math.abs(p[0] - cell(10, 2)[0]) < 1e-9)).toBe(true);
   });
 
-  it("rifiuta punti fuori dal proprio territorio, in mare e armate altrui", () => {
+  it("rifiuta punti in mare, irraggiungibili via terra e armate altrui", () => {
     const game = newGame();
     const army = capitalArmy(game);
-    expect(applyOrder(game, world, "AAA", { type: "move", army: army.id, target: cell(17, 2) }).ok).toBe(false);
     expect(applyOrder(game, world, "AAA", { type: "move", army: army.id, target: cell(21, 2) }).ok).toBe(false);
+    expect(applyOrder(game, world, "AAA", { type: "move", army: army.id, target: cell(22, 2) }).ok).toBe(false);
     expect(applyOrder(game, world, "BBB", { type: "move", army: army.id, target: cell(3, 0) }).ok).toBe(false);
   });
 
@@ -100,10 +102,10 @@ describe("movimento", () => {
     const meeting = cell(7, 1);
     game = order(game, { type: "move", army: first.id, target: meeting });
     game = order(game, { type: "recruit", province: "A1", unitType: "infantry" });
-    game = advance(game, map, UNIT_TYPES.infantry.productionHours * 60);
+    game = advance(game, world, UNIT_TYPES.infantry.productionHours * 60);
     const recruit = capitalArmy(game);
     game = order(game, { type: "move", army: recruit.id, target: meeting });
-    game = advance(game, map, game.time + 3000);
+    game = advance(game, world, game.time + 3000);
     const there = Object.values(game.armies).filter((a) => flatKm(a.position, meeting) < 1);
     expect(there).toHaveLength(1);
     expect(there[0]!.units).toHaveLength(size + 1);
@@ -114,9 +116,9 @@ describe("movimento", () => {
     game = order(game, { type: "move", army: capitalArmy(game).id, target: cell(13, 4) });
     game = order(game, { type: "recruit", province: "A1", unitType: "lightTank" });
     let stepped = game;
-    for (let t = 0; t <= 2000; t += 13) stepped = advance(stepped, map, t);
-    stepped = advance(stepped, map, 2000);
-    const once = advance(game, map, 2000);
+    for (let t = 0; t <= 2000; t += 13) stepped = advance(stepped, world, t);
+    stepped = advance(stepped, world, 2000);
+    const once = advance(game, world, 2000);
     expect(stepped.armies).toEqual(once.armies);
     for (const [id, n] of Object.entries(once.nations))
       for (const [r, v] of Object.entries(n.stock)) expect(stepped.nations[id]!.stock[r as keyof typeof n.stock]).toBeCloseTo(v, 6);
@@ -131,8 +133,8 @@ describe("arruolamento", () => {
     game = order(game, { type: "recruit", province: "A1", unitType: "infantry" });
     expect(game.nations.AAA!.stock.manpower).toBe(before - UNIT_TYPES.infantry.cost.manpower!);
     const hours = UNIT_TYPES.infantry.productionHours * 60;
-    expect(capitalArmy(advance(game, map, hours - 1)).units).toHaveLength(size);
-    expect(capitalArmy(advance(game, map, hours)).units).toHaveLength(size + 1);
+    expect(capitalArmy(advance(game, world, hours - 1)).units).toHaveLength(size);
+    expect(capitalArmy(advance(game, world, hours)).units).toHaveLength(size + 1);
   });
 
   it("la coda produce un'unità dopo l'altra", () => {
@@ -141,8 +143,8 @@ describe("arruolamento", () => {
     game = order(game, { type: "recruit", province: "A1", unitType: "infantry" });
     game = order(game, { type: "recruit", province: "A1", unitType: "infantry" });
     const hours = UNIT_TYPES.infantry.productionHours * 60;
-    expect(capitalArmy(advance(game, map, hours)).units).toHaveLength(size + 1);
-    const done = advance(game, map, 2 * hours);
+    expect(capitalArmy(advance(game, world, hours)).units).toHaveLength(size + 1);
+    const done = advance(game, world, 2 * hours);
     expect(capitalArmy(done).units).toHaveLength(size + 2);
     expect(done.production.A1).toBeUndefined();
   });
@@ -157,7 +159,7 @@ describe("arruolamento", () => {
 
   it("le unità consumano risorse ogni giorno", () => {
     const game = newGame();
-    const day = advance(game, map, 1440);
+    const day = advance(game, world, 1440);
     // AAA non produce cibo e la fanteria ne consuma.
     expect(day.nations.AAA!.stock.food).toBeLessThan(game.nations.AAA!.stock.food);
   });

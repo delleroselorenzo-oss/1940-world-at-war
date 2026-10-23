@@ -37,8 +37,18 @@ export function flatKm(a: LngLat, b: LngLat): number {
   return Math.hypot(dx, dy);
 }
 
-/** Il passaggio tra due celle adiacenti (anche in diagonale) è bloccato da un fiume? */
-export function isBlocked(nav: NavData, from: number, to: number): boolean {
+/** Chiave di un passaggio tra due celle adiacenti, uguale nei due versi. */
+export function passageKey(nav: NavData, a: number, b: number): number {
+  const cells = nav.grid.width * nav.grid.height;
+  return a < b ? a * cells + b : b * cells + a;
+}
+
+/**
+ * Il passaggio tra due celle adiacenti (anche in diagonale) è bloccato da un fiume?
+ * `open` sono i passaggi riaperti da un ponte di barche (chiavi di `passageKey`).
+ */
+export function isBlocked(nav: NavData, from: number, to: number, open?: ReadonlySet<number>): boolean {
+  if (open?.has(passageKey(nav, from, to))) return false;
   const { width, blocked } = nav.grid;
   let c1 = from % width;
   let r1 = Math.floor(from / width);
@@ -56,7 +66,7 @@ export function isBlocked(nav: NavData, from: number, to: number): boolean {
  * Il segmento a→b si può percorrere fuori strada? Tutte le celle toccate devono essere
  * ammesse da `canEnter` e nessun passaggio tra loro deve attraversare un fiume.
  */
-export function segmentClear(nav: NavData, a: LngLat, b: LngLat, canEnter: (cell: number) => boolean): boolean {
+export function segmentClear(nav: NavData, a: LngLat, b: LngLat, canEnter: (cell: number) => boolean, open?: ReadonlySet<number>): boolean {
   const samples = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / (nav.grid.step / 4)));
   let prev = cellAt(nav, a);
   if (prev < 0 || !canEnter(prev)) return false;
@@ -67,7 +77,7 @@ export function segmentClear(nav: NavData, a: LngLat, b: LngLat, canEnter: (cell
     if (cell < 0 || !canEnter(cell)) return false;
     const w = nav.grid.width;
     const adjacent = Math.abs((cell % w) - (prev % w)) <= 1 && Math.abs(Math.floor(cell / w) - Math.floor(prev / w)) <= 1;
-    if (!adjacent || isBlocked(nav, prev, cell)) return false;
+    if (!adjacent || isBlocked(nav, prev, cell, open)) return false;
     prev = cell;
   }
   return true;

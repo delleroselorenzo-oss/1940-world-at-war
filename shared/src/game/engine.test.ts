@@ -83,30 +83,30 @@ describe("advance", () => {
   const game = createGame(map, { playerNation: "AAA", realNowMs: start });
 
   it("accredita la produzione solo a tick completi", () => {
-    const early = advance(game, map, 29);
+    const early = advance(game, { map }, 29);
     expect(early.time).toBe(29);
     expect(early.nations.AAA!.stock.metal).toBe(game.nations.AAA!.stock.metal);
-    const after = advance(game, map, 30);
+    const after = advance(game, { map }, 30);
     expect(after.time).toBe(30);
     expect(after.nations.AAA!.stock.metal - game.nations.AAA!.stock.metal).toBeCloseTo(6000 / 48);
   });
 
   it("un giorno intero aggiunge la produzione giornaliera", () => {
-    const after = advance(game, map, 1440);
+    const after = advance(game, { map }, 1440);
     expect(after.nations.BBB!.stock.oil - game.nations.BBB!.stock.oil).toBeCloseTo(6000);
   });
 
   it("non modifica lo stato di partenza", () => {
     const before = game.nations.AAA!.stock.metal;
-    advance(game, map, 600);
+    advance(game, { map }, 600);
     expect(game.nations.AAA!.stock.metal).toBe(before);
   });
 
   it("recuperare in un colpo solo equivale a giocare tick per tick", () => {
     let stepped = game;
-    for (let t = 0; t <= 3000; t += 7) stepped = advance(stepped, map, t);
-    stepped = advance(stepped, map, 3000);
-    const once = advance(game, map, 3000);
+    for (let t = 0; t <= 3000; t += 7) stepped = advance(stepped, { map }, t);
+    stepped = advance(stepped, { map }, 3000);
+    const once = advance(game, { map }, 3000);
     expect(stepped.time).toBe(once.time);
     for (const [id, n] of Object.entries(once.nations))
       for (const [r, v] of Object.entries(n.stock)) expect(stepped.nations[id]!.stock[r as keyof typeof n.stock]).toBeCloseTo(v, 6);

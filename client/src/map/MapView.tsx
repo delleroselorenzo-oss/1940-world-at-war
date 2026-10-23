@@ -2,6 +2,7 @@ import { useEffect, useImperativeHandle, useRef, type Ref } from "react";
 import type { Army, LngLat } from "@waw/shared";
 import type { LoadedMap } from "./loadMap.js";
 import { MapRenderer } from "./MapRenderer.js";
+import type { MapWorks } from "./TerrainLayer.js";
 
 export interface MapViewHandle {
   zoomBy(factor: number): void;
@@ -15,7 +16,13 @@ interface MapViewProps {
   /** Proprietario attuale di ogni provincia (dallo stato di gioco). */
   owners?: Record<string, string>;
   armies: Army[];
+  /** Armate in combattimento in questo momento. */
+  engaged: ReadonlySet<string>;
   playerNation: string | null;
+  /** Ponti distrutti, ponti di barche, ospedali. */
+  works: MapWorks | null;
+  /** Si sta scegliendo un punto per un ordine: cursore a mirino. */
+  targeting?: boolean;
   selectedArmyId: string | null;
   /** Minuto di gioco attuale (chiamato a ogni fotogramma). */
   now(): number;
@@ -24,7 +31,7 @@ interface MapViewProps {
   ref?: Ref<MapViewHandle>;
 }
 
-export function MapView({ map, selectedId, owners, armies, playerNation, selectedArmyId, now, onSelect, onSelectArmy, ref }: MapViewProps) {
+export function MapView({ map, selectedId, owners, armies, engaged, playerNation, works, targeting, selectedArmyId, now, onSelect, onSelectArmy, ref }: MapViewProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<MapRenderer | null>(null);
@@ -35,10 +42,12 @@ export function MapView({ map, selectedId, owners, armies, playerNation, selecte
   onSelectArmyRef.current = onSelectArmy;
   const nowRef = useRef(now);
   nowRef.current = now;
-  const armiesRef = useRef({ armies, playerNation });
-  armiesRef.current = { armies, playerNation };
+  const armiesRef = useRef({ armies, playerNation, engaged });
+  armiesRef.current = { armies, playerNation, engaged };
   const ownersRef = useRef(owners);
   ownersRef.current = owners;
+  const worksRef = useRef(works);
+  worksRef.current = works;
 
   useEffect(() => {
     const tooltip = tooltipRef.current!;
@@ -52,7 +61,8 @@ export function MapView({ map, selectedId, owners, armies, playerNation, selecte
           tooltip.hidden = true;
           return;
         }
-        tooltip.textContent = `${p.name} · ${map.nations.get(p.nation)?.name ?? p.nation}`;
+        const owner = ownersRef.current?.[p.id] ?? p.nation;
+        tooltip.textContent = `${p.name} · ${map.nations.get(owner)?.name ?? owner}`;
         tooltip.hidden = false;
       },
       onPointerMove: (x, y) => {
@@ -61,7 +71,8 @@ export function MapView({ map, selectedId, owners, armies, playerNation, selecte
     });
     rendererRef.current = renderer;
     if (ownersRef.current) renderer.setOwners(ownersRef.current);
-    renderer.setArmies(armiesRef.current.armies, armiesRef.current.playerNation);
+    if (worksRef.current) renderer.setWorks(worksRef.current);
+    renderer.setArmies(armiesRef.current.armies, armiesRef.current.playerNation, armiesRef.current.engaged);
     void renderer.mount(hostRef.current!);
     return () => {
       renderer.destroy();
@@ -78,8 +89,12 @@ export function MapView({ map, selectedId, owners, armies, playerNation, selecte
   }, [owners]);
 
   useEffect(() => {
-    rendererRef.current?.setArmies(armies, playerNation);
-  }, [armies, playerNation]);
+    rendererRef.current?.setArmies(armies, playerNation, engaged);
+  }, [armies, playerNation, engaged]);
+
+  useEffect(() => {
+    if (works) rendererRef.current?.setWorks(works);
+  }, [works]);
 
   useEffect(() => {
     rendererRef.current?.setSelectedArmy(selectedArmyId);
@@ -92,7 +107,7 @@ export function MapView({ map, selectedId, owners, armies, playerNation, selecte
   }));
 
   return (
-    <div className="map-host" ref={hostRef}>
+    <div className={targeting ? "map-host targeting" : "map-host"} ref={hostRef}>
       <div className="map-tooltip" ref={tooltipRef} hidden />
     </div>
   );
