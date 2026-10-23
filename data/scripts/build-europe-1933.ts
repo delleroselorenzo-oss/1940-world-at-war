@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 import * as turf from "@turf/turf";
 import polylabel from "polylabel";
 import type { Feature, FeatureCollection, MultiPolygon, Point, Polygon, Position } from "geojson";
-import { haversineKm, type LngLat, type MapData, type Nation, type Province } from "@waw/shared";
+import { haversineKm, type LngLat, type MainResourceId, type MapData, type Nation, type Province } from "@waw/shared";
 import { EMPTY, FOREIGN_LAND, Raster, SEA } from "./lib/raster.js";
 import { renderPreview } from "./lib/preview.js";
 
@@ -78,6 +78,14 @@ interface MapConfig {
   urban: { maxPerNation: number; areaPerCityKm2: number };
   nations: NationConfig[];
   renames: Record<string, string>;
+  resources: ResourceConfig;
+}
+
+interface ResourceConfig {
+  cityOrder: MainResourceId[];
+  ruralShare: number;
+  ruralWeights: Record<MainResourceId, number>;
+  overrides: Record<string, MainResourceId>;
 }
 
 type Shape = Polygon | MultiPolygon;
@@ -331,6 +339,8 @@ async function main() {
   const ids = new Set<string>();
   for (const p of provinces) p.id = uniqueId(`${p.nation}_${slug(p.name)}`, ids);
 
+  assignResources(provinces, config.resources);
+
   // Confini tra province, con le distanze tra i centri.
   const provinceLinks = new Map<Province, Map<Province, number>>();
   for (const [a, neighbors] of pieceContacts) {
@@ -501,6 +511,60 @@ function directionLabel(dirs: string[]): string {
   return [ns, ew].filter(Boolean).join("-");
 }
 
+/**
+ * Risorse principali, in modo deterministico (stesso risultato a ogni generazione):
+ *  - prima le scelte storiche di `overrides`;
+ *  - le città di una nazione prendono risorse diverse tra loro, nell'ordine di `cityOrder`
+ *    (la capitale per prima);
+ *  - una parte delle province rurali (`ruralShare`) riceve una risorsa scelta con `ruralWeights`.
+ */
+function assignResources(provinces: Province[], config: ResourceConfig) {
+  const byId = new Map(provinces.map((p) => [p.id, p]));
+  for (const [id, resource] of Object.entries(config.overrides)) {
+    const p = byId.get(id);
+    if (p) p.resource = resource;
+    else console.warn(`  ! risorsa per provincia inesistente: ${id}`);
+  }
+
+  const nations = new Set(provinces.map((p) => p.nation));
+  for (const nation of nations) {
+    const cities = provinces
+      .filter((p) => p.nation === nation && p.type === "urban")
+      .sort((a, b) => Number(b.isCapital) - Number(a.isCapital) || a.id.localeCompare(b.id));
+    const used = new Set(cities.map((c) => c.resource).filter((r) => r !== null));
+    for (const city of cities) {
+      if (city.resource) continue;
+      city.resource = config.cityOrder.find((r) => !used.has(r)) ?? config.cityOrder[0]!;
+      used.add(city.resource);
+    }
+  }
+
+  const weighted = Object.entries(config.ruralWeights) as [MainResourceId, number][];
+  const totalWeight = weighted.reduce((s, [, w]) => s + w, 0);
+  for (const p of provinces) {
+    if (p.type !== "rural" || p.resource || p.id in config.overrides) continue;
+    if (hash01(`${p.id}#share`) >= config.ruralShare) continue;
+    let pick = hash01(`${p.id}#kind`) * totalWeight;
+    for (const [resource, weight] of weighted) {
+      pick -= weight;
+      if (pick < 0) {
+        p.resource = resource;
+        break;
+      }
+    }
+  }
+}
+
+/** Numero pseudo-casuale in [0, 1) ricavato da una stringa (FNV-1a): stabile tra una generazione e l'altra. */
+function hash01(s: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0) / 2 ** 32;
+}
+
 /** Nomi ripetuti nella stessa nazione diventano "Nome I", "Nome II", … */
 function dedupeNames(provinces: Province[]) {
   const byKey = new Map<string, Province[]>();
@@ -640,6 +704,9 @@ function report(map: MapData) {
   console.log("Più grandi: ", sorted.slice(-6).reverse().map(fmt).join(", "));
   const isolated = map.provinces.filter((p) => p.neighbors.length === 0);
   console.log(`Isolate (servono collegamenti via mare): ${isolated.map((p) => p.id).join(", ") || "nessuna"}`);
+  const counts = new Map<string, number>();
+  for (const p of map.provinces) counts.set(p.resource ?? "nessuna", (counts.get(p.resource ?? "nessuna") ?? 0) + 1);
+  console.log(`Risorse principali: ${[...counts].map(([r, n]) => `${r} ${n}`).join(", ")}`);
   console.log(`\nTotale: ${map.provinces.length} province. Anteprima: data/maps/europe-1933/preview.html`);
 }
 

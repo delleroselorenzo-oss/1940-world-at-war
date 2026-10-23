@@ -14,6 +14,19 @@ const lng0 = PROJECTION_CENTER[0] * DEG;
 const sinLat0 = Math.sin(PROJECTION_CENTER[1] * DEG);
 const cosLat0 = Math.cos(PROJECTION_CENTER[1] * DEG);
 
+/** Inverso di `project`: da coordinate mondo (km) a [lng, lat]. */
+export function unproject([x, yDown]: [number, number]): LngLat {
+  const y = -yDown;
+  const rho = Math.hypot(x, y);
+  if (rho < 1e-9) return [...PROJECTION_CENTER];
+  const c = 2 * Math.asin(rho / (2 * EARTH_RADIUS_KM));
+  const sinC = Math.sin(c);
+  const cosC = Math.cos(c);
+  const lat = Math.asin(cosC * sinLat0 + (y * sinC * cosLat0) / rho);
+  const lng = lng0 + Math.atan2(x * sinC, rho * cosLat0 * cosC - y * sinLat0 * sinC);
+  return [lng / DEG, lat / DEG];
+}
+
 export function project([lng, lat]: LngLat): [number, number] {
   const lambda = lng * DEG - lng0;
   const phi = lat * DEG;

@@ -1,13 +1,13 @@
 # 1940 World at War
 
 Gioco di strategia multiplayer ambientato nella Seconda guerra mondiale, **ispirato** a Supremacy: Call of War 1942.
-Lo scopo è avere una versione privata da giocare con un piccolo gruppo di amici: **niente acquisti in-game, niente pay-to-win, niente sconosciuti**.
+Lo scopo è avere una versione privata da giocare con un piccolo gruppo di amici: **niente acquisti in-game, niente pay-to-win**.
 
 > Lingua: rispondi e commenta in **italiano**. Nomi di variabili, funzioni e file in **inglese**.
 
 ## Regole di progetto (importanti)
 
-- **Codice, grafica, nomi e testi originali.** Non copiare asset, sprite, mappe, audio o codice del gioco originale e non decompilarne il client. Prendiamo ispirazione dalle meccaniche (che non sono protette), non dai contenuti.
+- **Codice, grafica, nomi e testi originali.** Prendiamo ispirazione dalle meccaniche, non dai contenuti.
 - Il nome del gioco è "1940 World at War" (provvisorio). Non usare il marchio "Supremacy" o "Call of War" nel gioco.
 - Il bilanciamento deve essere **equo**: nessuna valuta premium e nessun modo di accelerare pagando.
 
@@ -49,8 +49,8 @@ Lo scopo è avere una versione privata da giocare con un piccolo gruppo di amici
 ## Roadmap iniziale
 
 1. ✅ **Prototipo mappa**: rendering di una mappa con province cliccabili, zoom e spostamento (`client/`, PixiJS + React).
-2. **Stato di gioco locale**: province con proprietario e risorse; produzione a tick.
-3. **Unità e movimento**: creare un esercito, spostarlo tra province con tempo di viaggio.
+2. ✅ **Stato di gioco locale**: province con proprietario e risorse; produzione a tick (`shared/src/game/`, partita salvata nel browser).
+3. ✅ **Unità e movimento**: creare un esercito, spostarlo tra province con tempo di viaggio (arruolamento nelle città, marcia nel proprio territorio).
 4. **Combattimento** base e conquista delle province.
 5. **Server multiplayer**: partita condivisa, login, più giocatori via WebSocket.
 6. **Edifici, ricerca, diplomazia, nebbia di guerra**.
@@ -62,8 +62,28 @@ Lo scopo è avere una versione privata da giocare con un piccolo gruppo di amici
 
 ## Struttura del client
 
-- `client/src/map/` — mappa: `projection.ts` (proiezione di Lambert sull'Europa, coordinate in km), `camera.ts` (zoom e spostamento), `geometry.ts` (forme proiettate e ricerca della provincia sotto il puntatore), `labels.ts` (etichette senza sovrapposizioni), `MapRenderer.ts` (disegno PixiJS e input mouse/tocco, senza React), `MapView.tsx` (componente React che lo ospita).
+- `client/src/map/` — mappa: `projection.ts` (proiezione di Lambert sull'Europa, coordinate in km), `camera.ts` (zoom e spostamento), `geometry.ts` (forme proiettate e ricerca della provincia sotto il puntatore), `labels.ts` (etichette senza sovrapposizioni), `MapRenderer.ts` (disegno PixiJS e input mouse/tocco, senza React), `ArmyLayer.ts` (gettoni delle armate e percorso), `TerrainLayer.ts` (fiumi, strade, ferrovie, ponti), `MapView.tsx` (componente React che lo ospita).
+- `client/src/game/` — partita locale: `useLocalGame.ts` fa scorrere il tempo reale, chiama il motore di `/shared` e salva in `localStorage` (al rientro recupera il tempo passato offline).
+- `client/src/ui/` — scelta della nazione, barra delle risorse, avviso di rientro.
 - La logica pura (proiezione, camera, geometria, etichette) ha test accanto ai file (`*.test.ts`).
+
+## Motore di gioco (`shared/src/game/`)
+
+- `engine.ts` — `createGame` e `advance(stato, mappa, minuti)`: funzioni pure che elaborano gli eventi in ordine di tempo (arruolamenti completati, arrivi delle armate, tick di produzione ogni 30 minuti). Recuperare molte ore in un colpo dà lo stesso risultato che giocarle passo passo (ci sono test).
+- `orders.ts` — ordini dei giocatori (`recruit`, `move`, `stop`) con tutte le validazioni: è il punto da cui passerà anche il server.
+- `movement.ts` (velocità, orari di passaggio, posizione durante la marcia), `economy.ts` (produzione e mantenimento).
+- Le armate hanno una posizione libera `[lng, lat]`; la marcia è una sequenza di punti con l'orario di passaggio.
+- Test di movimento e ordini su un mondo minimo con fiume, strada e ponte in `testMaps.ts`.
+
+## Rete di movimento (`shared/src/nav/`)
+
+- `types.ts` — formato: griglia di 0,1° con la provincia di ogni cella e i passaggi bloccati dai fiumi; rete di strade e ferrovie; ponti; fiumi per il disegno.
+- `route.ts` — `findRoute`: A* che combina celle (fuori strada, metà velocità) e strade (velocità piena); i fiumi si passano solo lungo un tratto di strada, cioè su un ponte. Supporta ponti chiusi.
+- `grid.ts` — cella/provincia sotto un punto, distanze, linea retta senza ostacoli. `codec.ts` — lettura/scrittura di `nav.json`.
+- Generata da `data/scripts/build-nav.ts` con i parametri di `data/maps/europe-1933/nav.config.json` (quali fiumi, quali strade).
+- `clock.ts` — orologio di gioco (tempo reale × velocità) e formato "Giorno N, hh:mm".
+- I valori di bilanciamento stanno in `shared/src/data/economy.ts` e `shared/src/data/units.ts`.
+- Se cambia la forma di `GameState`, aumentare `VERSION` in `client/src/game/storage.ts` (i salvataggi vecchi vengono ignorati).
 
 ## Comandi
 
@@ -74,7 +94,7 @@ Monorepo con npm workspaces (`shared`, `data`, `client`, `server`), Node 24.
 - `npm run dev` — avvia il client (Vite) su http://localhost:5173
 - `npm test` — test unitari (Vitest)
 - `npm run typecheck` — controllo dei tipi TypeScript su tutto il progetto
-- `npm run map:build` — rigenera la mappa Europa 1933 in `data/maps/europe-1933/` (scarica i dati grezzi in `data/raw/` la prima volta). Vedi il README in quella cartella.
+- `npm run map:build` — rigenera la mappa Europa 1933 in `data/maps/europe-1933/`: province (`map.json`, `provinces.geojson`) e rete di movimento (`nav.json`). Vedi il README in quella cartella. I dati grezzi stanno in `data/raw/` (le province scaricano da sole i file mancanti; strade, ferrovie e fiumi vanno scaricati da Natural Earth, vedi il README).
 
 ## Decisioni prese
 

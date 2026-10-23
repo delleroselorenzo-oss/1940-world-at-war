@@ -1,6 +1,7 @@
 import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
-import type { MapData, Nation, Province } from "@waw/shared";
+import { decodeNav, type MapData, type Nation, type NavData, type NavFile, type Province } from "@waw/shared";
 import mapUrl from "../../../data/maps/europe-1933/map.json?url";
+import navUrl from "../../../data/maps/europe-1933/nav.json?url";
 import shapesUrl from "../../../data/maps/europe-1933/provinces.geojson?url";
 import type { Bounds } from "./camera.js";
 import { projectShape, unionBounds, type ProjectedShape } from "./geometry.js";
@@ -8,6 +9,8 @@ import { project } from "./projection.js";
 
 export interface LoadedMap {
   data: MapData;
+  /** Rete di movimento: griglia, strade, fiumi e ponti. */
+  nav: NavData;
   provinces: Map<string, Province>;
   nations: Map<string, Nation>;
   shapes: ProjectedShape[];
@@ -17,13 +20,15 @@ export interface LoadedMap {
 
 /** Scarica la mappa generata da `npm run map:build` e proietta le forme in km. */
 export async function loadMap(): Promise<LoadedMap> {
-  const [data, geo] = await Promise.all([
+  const [data, geo, navFile] = await Promise.all([
     fetchJson<MapData>(mapUrl),
     fetchJson<FeatureCollection<Polygon | MultiPolygon, { id: string }>>(shapesUrl),
+    fetchJson<NavFile>(navUrl),
   ]);
   const shapes = geo.features.map((f) => projectShape(f.properties.id, f.geometry, project));
   return {
     data,
+    nav: decodeNav(navFile),
     provinces: new Map(data.provinces.map((p) => [p.id, p])),
     nations: new Map(data.nations.map((n) => [n.id, n])),
     shapes,

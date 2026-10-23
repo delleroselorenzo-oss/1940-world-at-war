@@ -10,8 +10,8 @@
 #   1. controlla che ci sia Node.js 24 o superiore;
 #   2. installa le dipendenze se mancano o se package.json è cambiato;
 #   3. genera la mappa se manca;
-#   4. avvia client e server se hanno uno script "dev" (dalle milestone 1 e 5);
-#      finché non esistono, apre l'anteprima della mappa nel browser.
+#   4. avvia client e server se hanno uno script "dev" e apre il gioco nel browser;
+#      se nessuno dei due è pronto, apre l'anteprima della mappa.
 
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -85,10 +85,16 @@ fi
 
 step "Avvio di: ${DEV_WORKSPACES[*]} (Ctrl+C per fermare tutto)"
 PIDS=()
-cleanup() { kill "${PIDS[@]}" 2>/dev/null || true; }
+# I processi in background di uno script ignorano SIGINT: per chiuderli serve SIGTERM.
+cleanup() { kill -TERM "${PIDS[@]}" 2>/dev/null || true; }
 trap cleanup EXIT INT TERM
 for ws in "${DEV_WORKSPACES[@]}"; do
-  npm run dev --workspace "$ws" &
+  if [ "$ws" = client ]; then
+    # --silent evita i messaggi d'errore di npm quando lo fermiamo; --open apre il gioco nel browser.
+    npm run --silent dev --workspace client -- --open &
+  else
+    npm run --silent dev --workspace "$ws" &
+  fi
   PIDS+=($!)
 done
 wait

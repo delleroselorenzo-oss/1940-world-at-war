@@ -1,0 +1,18 @@
+{
+  "_note": "Parametri della rete di movimento (npm run map:build). Fiumi: tutti quelli con scalerank <= maxScalerank, più include, meno exclude (nomi inglesi di Natural Earth).",
+  "gridStepDeg": 0.1,
+  "rivers": {
+    "maxScalerank": 6,
+    "include": ["Desna", "Donets", "Drau", "Mosel", "Nemunas", "Pripyat", "Prut", "Sava", "Weser", "Narva", "Kuban", "Oka", "Maritsa", "Morava"],
+    "exclude": ["Ariège", "Ferenc Csatorna", "Soroksari Duna", "Vorma", "Kokemenjoki", "Amu  Darya"]
+  },
+  "roads": { "maxScalerank": 6, "types": ["Major Highway", "Secondary Highway", "Road", "Unknown"] },
+  "rails": { "maxScalerank": 6 },
+  "riverNames": {
+    "Danube": "Danubio", "Donau": "Danubio", "Rhine": "Reno", "Rhein": "Reno", "Rhin": "Reno", "Dnieper": "Dnepr", "Dnepre": "Dnepr", "Dnipro": "Dnepr",
+    "Vistula": "Vistola", "Elbe": "Elba", "Loire": "Loira", "Seine": "Senna", "Oder": "Oder", "Volga": "Volga", "Don": "Don",
+    "Dniester": "Dnestr", "Rhône": "Rodano", "Rhne": "Rodano", "Po": "Po", "Tagus": "Tago", "Tajo": "Tago", "Ebro": "Ebro", "Duero": "Duero",
+    "Garonne": "Garonna", "Thames": "Tamigi", "Tisa": "Tibisco", "Mosel": "Mosella", "Weser": "Weser", "Sava": "Sava", "Drau": "Drava",
+    "Nemunas": "Niemen", "Zapadnaya Dvina": "Dvina occidentale", "Severnaya Dvina": "Dvina settentrionale", "Maritsa": "Evros", "Euphrates": "Eufrate", "Firat": "Eufrate", "Tigris": "Tigri", "Dicle": "Tigri"
+  }
+}

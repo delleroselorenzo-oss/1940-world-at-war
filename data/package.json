@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsx scripts/build-europe-1933.ts"
+    "build": "tsx scripts/build-europe-1933.ts && tsx scripts/build-nav.ts",
+    "build:nav": "tsx scripts/build-nav.ts"
   },
   "dependencies": {
     "@turf/turf": "^7.2.0",

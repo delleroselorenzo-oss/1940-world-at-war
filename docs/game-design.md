@@ -35,13 +35,18 @@ Escluso per scelta: negozio, valuta premium (Gold), acceleratori a pagamento, al
 | Denaro | Tutto (unità, edifici, ricerca) |
 | Manodopera | Tutte le unità |
 
-- Produzione continua per ora, sommata dalle province, moltiplicata per **morale** ed **edifici industriali**.
+- Produzione sommata dalle province, moltiplicata per **morale** ed **edifici industriali**. Viene **accreditata a ogni tick di 30 minuti** di gioco (1/48 della produzione giornaliera); chi è offline la ritrova al rientro.
 - Valori di partenza indicativi (al 100% di morale, provincia core):
   - città, risorsa principale: **6.000/giorno**
   - provincia rurale con risorsa: **1.500/giorno**
   - provincia rurale senza risorsa: tripla manodopera rispetto alle altre
 - **Mantenimento**: le unità consumano risorse ogni giorno (proporzionale al costo). Carenze → morale in calo; per il cibo fino a -30.
-- **Capacità di magazzino** per la manodopera, che cresce con le province possedute.
+- **Nessun limite di magazzino**: le scorte possono crescere senza tetto (deciso il 23/10/2026).
+- **Mantenimento**: si scala a ogni tick come la produzione; le scorte non scendono sotto zero (le carenze agiranno sul morale).
+- Città: oltre alla risorsa principale producono 3.000 di denaro e 1.500 di manodopera al giorno; province rurali 1.000 di denaro e 800 di manodopera (2.400 se senza risorsa principale).
+- Le città di una nazione hanno risorse principali **diverse tra loro**; alcune province hanno risorse storiche (petrolio a Baku e Ploiești, metallo nella Ruhr, in Slesia, nel Donbass e a Kiruna…). Vedi `resources` in `data/maps/europe-1933/config.json`.
+- Scorte iniziali: 3 giorni di produzione.
+- Valori nel codice: `shared/src/data/economy.ts`.
 - **Mercato** (fase successiva): scambio di risorse tra giocatori tramite offerte.
 
 ## 4. Morale
@@ -109,10 +114,23 @@ Le unità nel **ruolo preferito** sono circa 2–3x più efficaci; le "tuttofare
 
 ## 8. Movimento
 
-- Gli eserciti si muovono **lungo un percorso tra province**, con tempo di percorrenza reale in base alla distanza e alla velocità dell'unità più lenta.
+- Gli eserciti si muovono **verso qualsiasi punto della terraferma**, non solo verso i centri delle province, con tempo di percorrenza reale in base alla distanza e alla velocità dell'unità più lenta.
+- **Strade e ferrovie** (rete reale semplificata): velocità piena. **Fuori strada**: metà velocità. Il percorso più rapido è calcolato automaticamente e combina i due.
+- **Grandi fiumi** (Danubio, Reno, Volga, Dnepr, Vistola, Elba, Oder, Loira, Po, Don, Dnestr… circa 60): si attraversano **solo sui ponti**, cioè dove una strada o una ferrovia passa il fiume.
+- **Ponti distruggibili** (e riparabili) e **ponti di barche** costruiti dal genio: decisi, arriveranno con il combattimento; il motore già supporta ponti chiusi.
+- La provincia si conquisterà raggiungendone il centro (milestone 4).
 - Bonus di velocità da infrastrutture e terreno preferito. Le unità sotto il 50% di salute vanno più lente.
 - **Mare**: le unità terrestri diventano **trasporti** (imbarco/sbarco 3–4 ore, ridotto dalla base navale).
 - **Aerei**: hanno un'autonomia; oltre quella si spostano via terra come convoglio.
+
+### Stato attuale (milestone 3)
+- Unità disponibili: fanteria, fanteria motorizzata, autoblindo, carro leggero, artiglieria (valori in `shared/src/data/units.ts`).
+- Ogni nazione parte con un'armata in ogni città (3 fanterie + 1 artiglieria nella capitale, 2 fanterie nelle altre).
+- Si arruola **solo nelle proprie città**: il costo si paga subito, l'unità esce dopo il tempo di produzione; più ordini formano una coda.
+- Le armate marciano solo **nel proprio territorio e via terra** finché non arriva il combattimento (milestone 4).
+- Un'armata in marcia che riceve un nuovo ordine cambia strada dal punto in cui si trova; "Fermati qui" la ferma dov'è.
+- Due armate della stessa nazione ferme entro 3 km si **uniscono**; le unità appena arruolate si uniscono all'armata ferma in città.
+- Valori: `shared/src/data/movement.ts`.
 
 ## 9. Combattimento
 

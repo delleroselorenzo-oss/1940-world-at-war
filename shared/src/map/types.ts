@@ -11,7 +11,11 @@ export type ProvinceType = "urban" | "rural";
 
 export type Terrain = "plains" | "hills" | "mountains" | "forest" | "urban";
 
-export type ResourceId = "food" | "goods" | "metal" | "oil" | "rare" | "money" | "manpower";
+/** Risorse "principali": ogni provincia ne produce al massimo una. */
+export type MainResourceId = "food" | "goods" | "metal" | "oil" | "rare";
+
+/** Tutte le risorse: le principali più denaro e manodopera, prodotte da ogni provincia. */
+export type ResourceId = MainResourceId | "money" | "manpower";
 
 export interface ProvinceNeighbor {
   id: ProvinceId;
@@ -30,8 +34,8 @@ export interface Province {
   isCapital: boolean;
   /** Ancora da assegnare: null nella bozza generata automaticamente. */
   terrain: Terrain | null;
-  /** Risorsa principale. Ancora da assegnare: null nella bozza. */
-  resource: ResourceId | null;
+  /** Risorsa principale prodotta; null per le province rurali che producono solo denaro e manodopera. */
+  resource: MainResourceId | null;
   /** Centro della provincia, dove stazionano le guarnigioni. */
   center: LngLat;
   areaKm2: number;

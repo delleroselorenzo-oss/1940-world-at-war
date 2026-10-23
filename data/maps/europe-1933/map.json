@@ -192,7 +192,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         20.088,
         40.175
@@ -254,7 +254,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         19.8189,
         41.3275
@@ -284,7 +284,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         14.288781,
         48.319233
@@ -367,7 +367,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         10.688,
         47.191
@@ -408,7 +408,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         16.3667,
         48.2
@@ -454,7 +454,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         4.33333,
         50.8333
@@ -492,7 +492,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         5.436,
         49.903
@@ -623,7 +623,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         27.277,
         43.05
@@ -656,7 +656,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         24.469,
         43.252
@@ -697,7 +697,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         24.753982,
         42.153976
@@ -743,7 +743,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         23.3167,
         42.6833
@@ -814,7 +814,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         7.46667,
         46.9167
@@ -889,7 +889,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         9.7,
         46.668
@@ -938,7 +938,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         19.588,
         48.608
@@ -1028,7 +1028,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         15.856,
         50.398
@@ -1106,7 +1106,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         18.235,
         48.121
@@ -1147,7 +1147,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         18.249986,
         49.830355
@@ -1189,7 +1189,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         14.4667,
         50.0833
@@ -1301,7 +1301,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         18.64,
         54.36
@@ -1327,7 +1327,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         12.567,
         55.677
@@ -1369,7 +1369,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         9.668,
         56.238
@@ -1427,7 +1427,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         -6.48,
         38.606
@@ -1476,7 +1476,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         2.181424,
         41.385245
@@ -1502,7 +1502,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         -2.929987,
         43.249981
@@ -1544,7 +1544,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         -3.6,
         42.367
@@ -1647,7 +1647,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         -4.275,
         38.882
@@ -1688,7 +1688,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         -5.022,
         38.18
@@ -1774,7 +1774,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         -7.443,
         42.926
@@ -1836,7 +1836,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         -2.917,
         40.839
@@ -1914,7 +1914,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         2.979,
         39.602
@@ -1963,7 +1963,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         -6.102,
         42.598
@@ -1996,7 +1996,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         1.149,
         42.136
@@ -2037,7 +2037,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         -3.68333,
         40.4
@@ -2079,7 +2079,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         -4.61,
         42.225
@@ -2157,7 +2157,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         -0.889982,
         41.650002
@@ -2199,7 +2199,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         -5.980007,
         37.405015
@@ -2270,7 +2270,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         -0.893,
         40.567
@@ -2307,7 +2307,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         -4.358,
         39.87
@@ -2344,7 +2344,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         -0.745,
         39.319
@@ -2418,7 +2418,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         22.605,
         58.885
@@ -2483,7 +2483,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         24.7281,
         59.4339
@@ -2632,7 +2632,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         25.339,
         62.652
@@ -2677,7 +2677,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         24.9342,
         60.1756
@@ -2752,7 +2752,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         29.208,
         68.574
@@ -2789,7 +2789,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         23.98,
         63.636
@@ -2855,7 +2855,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         25.470011,
         64.999998
@@ -3053,7 +3053,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         23.750013,
         61.500005
@@ -3087,7 +3087,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         22.254962,
         60.453867
@@ -3121,7 +3121,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         28.754927,
         60.703877
@@ -3393,7 +3393,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         2.707,
         44.351
@@ -3463,7 +3463,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         0.186,
         45.747
@@ -3602,7 +3602,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         4.625,
         47.426
@@ -3680,7 +3680,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         0.773,
         45.132
@@ -3717,7 +3717,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         3.578,
         44.473
@@ -3754,7 +3754,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         1.57,
         46.796
@@ -3869,7 +3869,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         3.078062,
         50.651915
@@ -3899,7 +3899,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         4.828085,
         45.771954
@@ -3986,7 +3986,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         -1.217,
         46.677
@@ -4101,7 +4101,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         5.373064,
         43.291925
@@ -4131,7 +4131,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         6.372,
         48.368
@@ -4213,7 +4213,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         2.33333,
         48.8667
@@ -4296,7 +4296,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         1.079975,
         49.430405
@@ -4429,7 +4429,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         -1.921943,
         52.47692
@@ -4467,7 +4467,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         -6.571,
         58.225
@@ -4483,7 +4483,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         -4.239101,
         55.86227
@@ -4513,7 +4513,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         -4.879,
         57.294
@@ -4534,7 +4534,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         -3.165,
         59.067
@@ -4599,7 +4599,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         -0.116667,
         51.5
@@ -4625,7 +4625,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         -2.248685,
         53.47532
@@ -4663,7 +4663,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         1.038,
         52.592
@@ -4717,7 +4717,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         -1.905,
         55.298
@@ -4771,7 +4771,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         -3.911,
         50.753
@@ -4804,7 +4804,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         -1.744,
         54.166
@@ -4833,7 +4833,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         9.998053,
         53.551971
@@ -4916,7 +4916,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         11.626,
         49.643
@@ -4957,7 +4957,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         11.168,
         48.19
@@ -4994,7 +4994,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         13.4,
         52.5167
@@ -5036,7 +5036,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         15.294,
         52.271
@@ -5073,7 +5073,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         7.016615,
         51.449998
@@ -5115,7 +5115,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         8.675015,
         50.099977
@@ -5223,7 +5223,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         12.833,
         53.787
@@ -5256,7 +5256,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         16.365,
         53.652
@@ -5420,7 +5420,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         16.795,
         50.978
@@ -5465,7 +5465,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         9.199996,
         48.77998
@@ -5511,7 +5511,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         10.743,
         50.928
@@ -5548,7 +5548,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         23.7333,
         37.9833
@@ -5590,7 +5590,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         27.958,
         36.207
@@ -5622,7 +5622,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         20.58,
         38.198
@@ -5675,7 +5675,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         24.306,
         41.223
@@ -5733,7 +5733,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         22.883055,
         40.698052
@@ -5800,7 +5800,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         19.0833,
         47.5
@@ -5838,7 +5838,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         19.466,
         46.597
@@ -5887,7 +5887,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         20.780013,
         48.100409
@@ -5962,7 +5962,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         17.557,
         47.309
@@ -6007,7 +6007,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         -8.043,
         54.912
@@ -6065,7 +6065,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         -6.24889,
         53.3331
@@ -6095,7 +6095,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         -8.769,
         51.998
@@ -6261,7 +6261,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         7.779,
         44.482
@@ -6290,7 +6290,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         13.634,
         42.088
@@ -6323,7 +6323,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         11.25,
         43.780001
@@ -6386,7 +6386,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         9.203063,
         45.471921
@@ -6428,7 +6428,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         14.243066,
         40.841971
@@ -6479,7 +6479,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         12.527,
         43.133
@@ -6512,7 +6512,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         12.4833,
         41.9
@@ -6546,7 +6546,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         9.238,
         40.921
@@ -6562,7 +6562,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         7.668015,
         45.072333
@@ -6641,7 +6641,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         12.111,
         45.893
@@ -6682,7 +6682,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         23.88,
         54.9504
@@ -6798,7 +6798,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         6.13,
         49.6117
@@ -6906,7 +6906,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         24.1333,
         56.9667
@@ -6973,7 +6973,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         4.91667,
         52.35
@@ -7040,7 +7040,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         5.91,
         53.102
@@ -7065,7 +7065,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         3.891,
         51.277
@@ -7086,7 +7086,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         5.324522,
         60.391002
@@ -7120,7 +7120,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         10.199232,
         59.738481
@@ -7216,7 +7216,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         13.971,
         65.645
@@ -7253,7 +7253,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         10.7522,
         59.9139
@@ -7295,7 +7295,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         5.680004,
         58.970004
@@ -7354,7 +7354,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         10.416666,
         63.416657
@@ -7437,7 +7437,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         25.074,
         53.493
@@ -7507,7 +7507,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         19.020017,
         50.26038
@@ -7557,7 +7557,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         24.029995,
         49.83498
@@ -7640,7 +7640,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         19.458229,
         51.767797
@@ -7678,7 +7678,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         16.89994,
         52.405753
@@ -7716,7 +7716,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         26.646,
         51.199
@@ -7798,7 +7798,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         21,
         52.25
@@ -7922,7 +7922,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         19.998,
         49.875
@@ -7955,7 +7955,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         23.008,
         53.164
@@ -7996,7 +7996,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         22.01,
         50.009
@@ -8037,7 +8037,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         22.806,
         51.318
@@ -8115,7 +8115,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         -7.88,
         37.822
@@ -8144,7 +8144,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         -8.421331,
         41.554994
@@ -8174,7 +8174,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         -7.158,
         40.709
@@ -8207,7 +8207,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         -7.679,
         38.574
@@ -8236,7 +8236,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         -9.13333,
         38.7167
@@ -8307,7 +8307,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         24.182,
         45.176
@@ -8340,7 +8340,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         26.735,
         46.431
@@ -8369,7 +8369,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         26.1,
         44.4333
@@ -8415,7 +8415,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         28.857711,
         47.005024
@@ -8449,7 +8449,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         23.598446,
         46.788422
@@ -8491,7 +8491,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         28.161,
         43.893
@@ -8524,7 +8524,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         23.645,
         44.213
@@ -8692,7 +8692,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         27.574947,
         47.168347
@@ -8771,7 +8771,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         25.544,
         47.679
@@ -8820,7 +8820,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         21.223448,
         45.758821
@@ -8862,7 +8862,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         27.641,
         45.126
@@ -9006,7 +9006,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         39.969,
         62.153
@@ -9068,7 +9068,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         49.860271,
         40.397218
@@ -9131,7 +9131,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         57.475,
         52.949
@@ -9164,7 +9164,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         33.671,
         53.122
@@ -9287,7 +9287,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         32.751,
         65.045
@@ -9373,7 +9373,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         32.21,
         51.295
@@ -9410,7 +9410,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         36.803,
         49.539
@@ -9451,7 +9451,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         33.819,
         46.846
@@ -9476,7 +9476,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         47.059,
         42.461
@@ -9517,7 +9517,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         35.598,
         47.304
@@ -9554,7 +9554,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         37.666,
         48.058
@@ -9587,7 +9587,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         43.998148,
         56.334953
@@ -9629,7 +9629,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         30.028,
         52.249
@@ -9674,7 +9674,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         39.081,
         57.835
@@ -9715,7 +9715,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         37.832,
         53.989
@@ -9748,7 +9748,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         30.514682,
         50.435313
@@ -9876,7 +9876,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         44.031,
         58.358
@@ -9917,7 +9917,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         50.606,
         53.03
@@ -9950,7 +9950,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         30.314074,
         59.94096
@@ -10033,7 +10033,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         37.6156,
         55.7522
@@ -10071,7 +10071,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         36.719,
         67.601
@@ -10261,7 +10261,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         59.238,
         51.427
@@ -10348,7 +10348,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         33.783,
         49.683
@@ -10467,7 +10467,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         53.703,
         64.125
@@ -10504,7 +10504,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         51.481,
         65.493
@@ -10549,7 +10549,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         54.588,
         62.03
@@ -10623,7 +10623,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         47.058,
         55.596
@@ -10750,7 +10750,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         47.898,
         51.503
@@ -10795,7 +10795,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         32.602,
         54.687
@@ -10906,7 +10906,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         59.245,
         57.107
@@ -10992,7 +10992,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         39.549,
         45.954
@@ -11103,7 +11103,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         43.346,
         44.972
@@ -11177,7 +11177,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         53.041,
         57.484
@@ -11210,7 +11210,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         47.408,
         53.806
@@ -11304,7 +11304,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         28.613,
         48.93
@@ -11349,7 +11349,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         44.804,
         60.038
@@ -11386,7 +11386,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         37.002,
         60.195
@@ -11554,7 +11554,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         11.97863,
         57.709147
@@ -11645,7 +11645,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         14.165016,
         57.771343
@@ -11675,7 +11675,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         13.02306,
         55.599424
@@ -11701,7 +11701,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         20.958,
         67.94
@@ -11738,7 +11738,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         19.502,
         66.138
@@ -11771,7 +11771,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         18.0745,
         59.3399
@@ -11813,7 +11813,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         17.639998,
         59.860053
@@ -11843,7 +11843,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         13.244,
         59.737
@@ -11880,7 +11880,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         17.107,
         64.891
@@ -12020,7 +12020,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         32.8644,
         39.9272
@@ -12103,7 +12103,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         35.889,
         40.918
@@ -12136,7 +12136,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         40.23004,
         37.920436
@@ -12207,7 +12207,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         28.974277,
         41.017602
@@ -12381,7 +12381,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         32.444,
         38.062
@@ -12451,7 +12451,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         29.059,
         37.7
@@ -12517,7 +12517,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         27.854,
         38.559
@@ -12546,7 +12546,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         34.879979,
         36.920394
@@ -12580,7 +12580,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         39.719994,
         40.979991
@@ -12680,7 +12680,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         20.982,
         45.01
@@ -12750,7 +12750,7 @@
       "type": "urban",
       "isCapital": true,
       "terrain": null,
-      "resource": null,
+      "resource": "goods",
       "center": [
         20.4681,
         44.8186
@@ -12829,7 +12829,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         21.471,
         44.474
@@ -12882,7 +12882,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         18.705,
         45.651
@@ -12931,7 +12931,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         22.048,
         42.559
@@ -13001,7 +13001,7 @@
       "type": "rural",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "rare",
       "center": [
         15.871,
         44.253
@@ -13034,7 +13034,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "food",
       "center": [
         18.383002,
         43.850022
@@ -13076,7 +13076,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "metal",
       "center": [
         21.433461,
         42.000006
@@ -13122,7 +13122,7 @@
       "type": "urban",
       "isCapital": false,
       "terrain": null,
-      "resource": null,
+      "resource": "oil",
       "center": [
         15.999995,
         45.800007

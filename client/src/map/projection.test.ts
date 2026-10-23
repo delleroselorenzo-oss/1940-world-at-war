@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { haversineKm } from "@waw/shared";
-import { PROJECTION_CENTER, project } from "./projection.js";
+import { PROJECTION_CENTER, project, unproject } from "./projection.js";
 
 describe("project", () => {
   it("manda il centro della proiezione nell'origine", () => {
@@ -14,6 +14,14 @@ describe("project", () => {
     const [xEast] = project([20, 52]);
     expect(yNorth).toBeLessThan(0);
     expect(xEast).toBeGreaterThan(0);
+  });
+
+  it("unproject è l'inverso di project", () => {
+    for (const p of [[-9.1, 38.7], [37.6, 55.75], [24.9, 60.2], [33, 39]] as [number, number][]) {
+      const [lng, lat] = unproject(project(p));
+      expect(lng).toBeCloseTo(p[0], 9);
+      expect(lat).toBeCloseTo(p[1], 9);
+    }
   });
 
   it("conserva le distanze vicino al centro (Berlino–Praga)", () => {

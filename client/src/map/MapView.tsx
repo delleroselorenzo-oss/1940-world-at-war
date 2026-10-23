@@ -1,4 +1,5 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from "react";
+import type { Army, LngLat } from "@waw/shared";
 import type { LoadedMap } from "./loadMap.js";
 import { MapRenderer } from "./MapRenderer.js";
 
@@ -11,22 +12,40 @@ export interface MapViewHandle {
 interface MapViewProps {
   map: LoadedMap;
   selectedId: string | null;
-  onSelect(id: string | null): void;
+  /** Proprietario attuale di ogni provincia (dallo stato di gioco). */
+  owners?: Record<string, string>;
+  armies: Army[];
+  playerNation: string | null;
+  selectedArmyId: string | null;
+  /** Minuto di gioco attuale (chiamato a ogni fotogramma). */
+  now(): number;
+  onSelect(id: string | null, at: LngLat): void;
+  onSelectArmy(id: string): void;
   ref?: Ref<MapViewHandle>;
 }
 
-export function MapView({ map, selectedId, onSelect, ref }: MapViewProps) {
+export function MapView({ map, selectedId, owners, armies, playerNation, selectedArmyId, now, onSelect, onSelectArmy, ref }: MapViewProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<MapRenderer | null>(null);
   // I callback cambiano a ogni render: il renderer legge sempre l'ultima versione.
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
+  const onSelectArmyRef = useRef(onSelectArmy);
+  onSelectArmyRef.current = onSelectArmy;
+  const nowRef = useRef(now);
+  nowRef.current = now;
+  const armiesRef = useRef({ armies, playerNation });
+  armiesRef.current = { armies, playerNation };
+  const ownersRef = useRef(owners);
+  ownersRef.current = owners;
 
   useEffect(() => {
     const tooltip = tooltipRef.current!;
     const renderer = new MapRenderer(map, {
-      onSelect: (id) => onSelectRef.current(id),
+      onSelect: (id, at) => onSelectRef.current(id, at),
+      onSelectArmy: (id) => onSelectArmyRef.current(id),
+      now: () => nowRef.current(),
       onHover: (id) => {
         const p = id ? map.provinces.get(id) : undefined;
         if (!p) {
@@ -41,6 +60,8 @@ export function MapView({ map, selectedId, onSelect, ref }: MapViewProps) {
       },
     });
     rendererRef.current = renderer;
+    if (ownersRef.current) renderer.setOwners(ownersRef.current);
+    renderer.setArmies(armiesRef.current.armies, armiesRef.current.playerNation);
     void renderer.mount(hostRef.current!);
     return () => {
       renderer.destroy();
@@ -51,6 +72,18 @@ export function MapView({ map, selectedId, onSelect, ref }: MapViewProps) {
   useEffect(() => {
     rendererRef.current?.setSelected(selectedId);
   }, [selectedId]);
+
+  useEffect(() => {
+    if (owners) rendererRef.current?.setOwners(owners);
+  }, [owners]);
+
+  useEffect(() => {
+    rendererRef.current?.setArmies(armies, playerNation);
+  }, [armies, playerNation]);
+
+  useEffect(() => {
+    rendererRef.current?.setSelectedArmy(selectedArmyId);
+  }, [selectedArmyId]);
 
   useImperativeHandle(ref, () => ({
     zoomBy: (f) => rendererRef.current?.zoomBy(f),

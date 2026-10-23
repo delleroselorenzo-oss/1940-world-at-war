@@ -1,15 +1,24 @@
 import { Application, Container, Graphics, Text, type TextStyleOptions } from "pixi.js";
+import type { Army } from "@waw/shared";
+import type { LngLat } from "@waw/shared";
+import { ArmyLayer } from "./ArmyLayer.js";
+import { TerrainLayer } from "./TerrainLayer.js";
 import { clampToBounds, centerOn, fitBounds, pan, screenToWorld, zoomAt, type Camera, type Viewport } from "./camera.js";
 import { HitIndex, type ProjectedShape } from "./geometry.js";
 import { placeLabels, type LabelCandidate } from "./labels.js";
 import type { LoadedMap } from "./loadMap.js";
-import { project } from "./projection.js";
+import { project, unproject } from "./projection.js";
 
 // Disegno della mappa con PixiJS e gestione di mouse, rotella e tocco.
 // Non dipende da React: il componente MapView lo crea e gli passa i callback.
 
 export interface MapRendererCallbacks {
-  onSelect(id: string | null): void;
+  /** Clic sulla mappa: la provincia (null = sul mare) e il punto esatto. */
+  onSelect(id: string | null, at: LngLat): void;
+  /** Clic su un'armata. */
+  onSelectArmy(id: string): void;
+  /** Minuto di gioco attuale, letto a ogni fotogramma per far scorrere le armate. */
+  now(): number;
   onHover(id: string | null): void;
   /** Posizione del puntatore sullo schermo, per il tooltip. */
   onPointerMove(x: number, y: number): void;
@@ -49,10 +58,15 @@ export class MapRenderer {
   private readonly app = new Application();
   private readonly world = new Container();
   private readonly overlay = new Graphics();
+  private readonly fills = new Graphics();
+  /** Proprietario attuale di ogni provincia; se manca vale la nazione iniziale. */
+  private owners: Record<string, string> = {};
   private readonly markers = new Container();
   private readonly labels: Label[] = [];
   private readonly cityMarkers: Marker[] = [];
   private readonly hit: HitIndex;
+  private readonly armyLayer: ArmyLayer;
+  private readonly terrain: TerrainLayer;
   private view: Viewport = { width: 1, height: 1 };
   private cam: Camera = { x: 0, y: 0, scale: 1 };
   private fitScale = 1;
@@ -70,6 +84,8 @@ export class MapRenderer {
     private readonly callbacks: MapRendererCallbacks,
   ) {
     this.hit = new HitIndex(map.shapes);
+    this.armyLayer = new ArmyLayer(map);
+    this.terrain = new TerrainLayer(map.nav);
   }
 
   async mount(host: HTMLElement): Promise<void> {
@@ -90,7 +106,7 @@ export class MapRenderer {
     this.app.canvas.style.display = "block";
 
     this.drawProvinces();
-    this.world.addChild(this.overlay, this.markers);
+    this.world.addChild(this.terrain.container, this.overlay, this.markers, this.armyLayer.path, this.armyLayer.container);
     this.drawMarkersAndLabels();
     this.app.stage.addChild(this.world);
 
@@ -110,7 +126,10 @@ export class MapRenderer {
     };
     this.app.renderer.on("resize", onResize);
     this.cleanup.push(() => this.app.renderer.off("resize", onResize));
-    this.app.ticker.add(() => this.stepAnimation());
+    this.app.ticker.add(() => {
+      this.stepAnimation();
+      this.armyLayer.update(this.cam, this.callbacks.now());
+    });
   }
 
   destroy(): void {
@@ -123,6 +142,14 @@ export class MapRenderer {
   setSelected(id: string | null): void {
     this.selected = id;
     if (this.mounted) this.drawOverlay();
+  }
+
+  setArmies(armies: Army[], playerNation: string | null): void {
+    this.armyLayer.setArmies(armies, playerNation);
+  }
+
+  setSelectedArmy(id: string | null): void {
+    this.armyLayer.setSelected(id);
   }
 
   zoomBy(factor: number): void {
@@ -152,20 +179,30 @@ export class MapRenderer {
 
   // --- Disegno ------------------------------------------------------------
 
+  /** Aggiorna i colori quando cambiano i proprietari delle province (es. conquiste). */
+  setOwners(owners: Record<string, string>): void {
+    this.owners = owners;
+    if (this.mounted) this.drawFills();
+  }
+
   private drawProvinces(): void {
-    const fills = new Graphics();
     const borders = new Graphics();
+    for (const shape of this.map.shapes)
+      for (const rings of shape.polygons)
+        for (const ring of rings) borders.poly(ring).stroke({ width: 1, color: BORDER_COLOR, alpha: 0.45, pixelLine: true });
+    this.drawFills();
+    this.world.addChild(this.fills, borders);
+  }
+
+  private drawFills(): void {
+    const fills = this.fills.clear();
     // Dalle più grandi alle più piccole: un'enclave viene disegnata sopra chi la contiene.
     const ordered = [...this.map.shapes].sort((a, b) => b.area - a.area);
     for (const shape of ordered) {
-      const p = this.map.provinces.get(shape.id);
-      const color = (p && this.map.nations.get(p.nation)?.color) ?? "#cccccc";
-      for (const rings of shape.polygons) {
-        fills.poly(rings[0]!).fill(color);
-        for (const ring of rings) borders.poly(ring).stroke({ width: 1, color: BORDER_COLOR, alpha: 0.45, pixelLine: true });
-      }
+      const owner = this.owners[shape.id] ?? this.map.provinces.get(shape.id)?.nation;
+      const color = (owner && this.map.nations.get(owner)?.color) ?? "#cccccc";
+      for (const rings of shape.polygons) fills.poly(rings[0]!).fill(color);
     }
-    this.world.addChild(fills, borders);
   }
 
   private drawMarkersAndLabels(): void {
@@ -217,16 +254,13 @@ export class MapRenderer {
         if (stroke) g.poly(rings[0]!).stroke({ color: stroke.color, width: stroke.width * px, join: "round" });
       }
     };
-    if (this.selected) {
-      const p = this.map.provinces.get(this.selected);
-      for (const n of p?.neighbors ?? []) outline(n.id, "#ffffff", 0.18, { color: "#ffffff", width: 1 });
-    }
     if (this.hovered && this.hovered !== this.selected) outline(this.hovered, "#ffffff", 0.28);
     if (this.selected) outline(this.selected, "#ffffff", 0.3, { color: SELECT_COLOR, width: 3 });
   }
 
   private updateScaleDependent(): void {
     const scale = this.cam.scale;
+    this.terrain.update(this.cam);
     for (const m of this.markers.children) m.scale.set(1 / scale);
     // Lontano si vedono solo le capitali, per non affollare la mappa.
     for (const m of this.cityMarkers) m.graphic.visible = m.kind === "capital" || scale >= CAPITAL_LABEL_SCALE;
@@ -336,8 +370,10 @@ export class MapRenderer {
       canvas.style.cursor = this.hovered ? "pointer" : "default";
       if (wasClick) {
         const pos = local(e);
-        const id = this.provinceAt(pos.x, pos.y);
-        this.callbacks.onSelect(id);
+        // Le armate stanno sopra le province: hanno la precedenza.
+        const army = this.armyLayer.armyAt(this.cam, pos.x, pos.y);
+        if (army) this.callbacks.onSelectArmy(army);
+        else this.callbacks.onSelect(this.provinceAt(pos.x, pos.y), unproject(screenToWorld(this.cam, pos.x, pos.y)));
       }
     };
 
