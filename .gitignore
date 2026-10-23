@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.DS_Store
+# Dati grezzi scaricati dallo script (pesanti, si riscaricano con npm run map:build)
+data/raw/
+dist-types/

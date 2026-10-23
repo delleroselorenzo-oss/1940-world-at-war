@@ -1,0 +1,24 @@
+{
+  "name": "world-at-war-1940",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "data",
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "start": "bash start.command",
+    "dev": "npm run dev --workspace client",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "map:build": "npm run build --workspace data"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}

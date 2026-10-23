@@ -1,0 +1,17 @@
+{
+  "name": "@waw/data",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsx scripts/build-europe-1933.ts"
+  },
+  "dependencies": {
+    "@turf/turf": "^7.2.0",
+    "@waw/shared": "*",
+    "polylabel": "^2.0.1"
+  },
+  "devDependencies": {
+    "@types/geojson": "^7946.0.16"
+  }
+}

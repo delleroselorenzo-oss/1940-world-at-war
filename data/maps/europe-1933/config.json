@@ -1,0 +1,243 @@
+{
+  "id": "europe-1933",
+  "name": "Europa 1933",
+  "date": "1933-06-01",
+  "bbox": [
+    -12,
+    34,
+    60,
+    72
+  ],
+  "rasterStepDeg": 0.02,
+  "minProvinceAreaKm2": 12000,
+  "maxProvinceAreaKm2": 60000,
+  "minProvincesPerNation": 3,
+  "urban": {
+    "maxPerNation": 5,
+    "areaPerCityKm2": 70000
+  },
+  "nations": [
+    {
+      "gwcode": 200,
+      "id": "GBR",
+      "name": "Regno Unito",
+      "color": "#c97b6b"
+    },
+    {
+      "gwcode": 205,
+      "id": "IRL",
+      "name": "Irlanda",
+      "color": "#7fb27a"
+    },
+    {
+      "gwcode": 210,
+      "id": "NLD",
+      "name": "Paesi Bassi",
+      "color": "#e0a458"
+    },
+    {
+      "gwcode": 211,
+      "id": "BEL",
+      "name": "Belgio",
+      "color": "#d8c46a"
+    },
+    {
+      "gwcode": 212,
+      "id": "LUX",
+      "name": "Lussemburgo",
+      "color": "#9fb6c9"
+    },
+    {
+      "gwcode": 220,
+      "id": "FRA",
+      "name": "Francia",
+      "color": "#6f8fc9"
+    },
+    {
+      "gwcode": 225,
+      "id": "CHE",
+      "name": "Svizzera",
+      "color": "#d98f8f"
+    },
+    {
+      "gwcode": 230,
+      "id": "ESP",
+      "name": "Spagna",
+      "color": "#e3c27d"
+    },
+    {
+      "gwcode": 235,
+      "id": "PRT",
+      "name": "Portogallo",
+      "color": "#8fbf8a"
+    },
+    {
+      "gwcode": 255,
+      "id": "GER",
+      "name": "Germania",
+      "color": "#8a8a8a"
+    },
+    {
+      "gwcode": 290,
+      "id": "POL",
+      "name": "Polonia",
+      "color": "#d47f9b"
+    },
+    {
+      "gwcode": 291,
+      "id": "DAN",
+      "name": "Città Libera di Danzica",
+      "color": "#c9b38f"
+    },
+    {
+      "gwcode": 305,
+      "id": "AUT",
+      "name": "Austria",
+      "color": "#e6e1d3"
+    },
+    {
+      "gwcode": 310,
+      "id": "HUN",
+      "name": "Ungheria",
+      "color": "#a7c48a"
+    },
+    {
+      "gwcode": 315,
+      "id": "CZE",
+      "name": "Cecoslovacchia",
+      "color": "#8fb0b8"
+    },
+    {
+      "gwcode": 325,
+      "id": "ITA",
+      "name": "Italia",
+      "color": "#6fae6b"
+    },
+    {
+      "gwcode": 339,
+      "id": "ALB",
+      "name": "Albania",
+      "color": "#b9876f"
+    },
+    {
+      "gwcode": 345,
+      "id": "YUG",
+      "name": "Jugoslavia",
+      "color": "#a58fc4"
+    },
+    {
+      "gwcode": 350,
+      "id": "GRC",
+      "name": "Grecia",
+      "color": "#7fb6d9"
+    },
+    {
+      "gwcode": 355,
+      "id": "BGR",
+      "name": "Bulgaria",
+      "color": "#9fc29f"
+    },
+    {
+      "gwcode": 360,
+      "id": "ROU",
+      "name": "Romania",
+      "color": "#d9c27f"
+    },
+    {
+      "gwcode": 365,
+      "id": "SOV",
+      "name": "Unione Sovietica",
+      "color": "#b85c5c",
+      "minProvinceAreaKm2": 40000,
+      "maxProvinceAreaKm2": 110000,
+      "excludeModernCountries": [
+        "KAZ",
+        "TKM",
+        "UZB"
+      ]
+    },
+    {
+      "gwcode": 366,
+      "id": "EST",
+      "name": "Estonia",
+      "color": "#7f9fc9"
+    },
+    {
+      "gwcode": 367,
+      "id": "LVA",
+      "name": "Lettonia",
+      "color": "#b07f7f"
+    },
+    {
+      "gwcode": 368,
+      "id": "LTU",
+      "name": "Lituania",
+      "color": "#c9c27f"
+    },
+    {
+      "gwcode": 375,
+      "id": "FIN",
+      "name": "Finlandia",
+      "color": "#e8e8f0",
+      "maxProvinceAreaKm2": 80000
+    },
+    {
+      "gwcode": 380,
+      "id": "SWE",
+      "name": "Svezia",
+      "color": "#6f9fd0",
+      "maxProvinceAreaKm2": 80000
+    },
+    {
+      "gwcode": 385,
+      "id": "NOR",
+      "name": "Norvegia",
+      "color": "#c98f6b",
+      "minProvinceAreaKm2": 25000,
+      "maxProvinceAreaKm2": 80000
+    },
+    {
+      "gwcode": 390,
+      "id": "DNK",
+      "name": "Danimarca",
+      "color": "#d97f7f"
+    },
+    {
+      "gwcode": 640,
+      "id": "TUR",
+      "name": "Turchia",
+      "color": "#c9a46f",
+      "minProvinceAreaKm2": 25000
+    }
+  ],
+  "renames": {
+    "Kaliningrad": "Königsberg",
+    "Kaliningrad Oblast": "Prussia Orientale",
+    "Saint Petersburg": "Leningrado",
+    "St. Petersburg": "Leningrado",
+    "San Pietroburgo": "Leningrado",
+    "Volgograd": "Stalingrado",
+    "Nizhny Novgorod": "Gor'kij",
+    "Samara": "Kujbyšev",
+    "Gdańsk": "Danzica",
+    "Gdansk": "Danzica",
+    "Wrocław": "Breslavia",
+    "Wroclaw": "Breslavia",
+    "Szczecin": "Stettino",
+    "Lviv": "Leopoli",
+    "Vilnius": "Wilno",
+    "Bratislava": "Presburgo",
+    "Dnipro": "Dnipropetrovs'k",
+    "Donetsk": "Stalino",
+    "Yekaterinburg": "Sverdlovsk",
+    "Danzig": "Danzica",
+    "Oblast' di Kaliningrad": "Prussia Orientale",
+    "Nižnij Novgorod": "Gor'kij",
+    "Ekaterinburg": "Sverdlovsk",
+    "Voivodato della Bassa Slesia": "Slesia",
+    "Voivodato di Opole": "Alta Slesia",
+    "Voivodato della Pomerania Occidentale": "Pomerania",
+    "Voivodato della Varmia-Masuria": "Masuria",
+    "Voivodato di Lubusz": "Brandeburgo Orientale"
+  }
+}
