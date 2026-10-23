@@ -201,7 +201,7 @@ describe("combattimento", () => {
 });
 
 describe("conquista", () => {
-  it("passando dal centro di una provincia senza difensori la si conquista", () => {
+  it("passando per una provincia senza difensori la si conquista", () => {
     let game = withoutArmy(newGame(), armyAt(newGame(), "B1")!.id);
     game = { ...game, production: { B1: [{ unitType: "infantry", durationMinutes: 1500, finishesAt: 1500 }] } };
     game = order(game, { type: "move", army: armyAt(game, "A1")!.id, target: cell(19, 2) });
@@ -209,8 +209,6 @@ describe("conquista", () => {
     expect(game.provinces.B1).toEqual({ owner: "AAA", morale: COMBAT.conqueredMorale });
     expect(game.production.B1).toBeUndefined();
     expect(game.events.find((e) => e.type === "conquest")).toMatchObject({ province: "B1", from: "BBB", to: "AAA" });
-    // Le province rurali attraversate senza passare dal loro centro restano a chi le aveva.
-    expect(game.provinces.A3!.owner).toBe("AAA");
   });
 
   it("dopo la conquista il morale risale ogni giorno", () => {

@@ -10,7 +10,10 @@ export const COMBAT = {
    * da quante volte si fa avanzare la partita.
    */
   sampleMinutes: 5,
-  /** Un'armata che passa entro questa distanza dal centro di una provincia nemica senza difensori la conquista. */
+  /**
+   * Senza rete di movimento (solo nei test) la provincia si conquista passando entro questa distanza dal centro.
+   * Con la rete basta attraversarla.
+   */
   captureKm: 3,
   /** Limite di gruppo: le prime `groupFull` unità colpiscono in pieno, poi il contributo cala fino a zero a `groupMax`. */
   groupFull: 10,
@@ -25,8 +28,13 @@ export const COMBAT = {
   hospitalHealPerTick: 0.1,
   /** Morale di una provincia appena conquistata. */
   conqueredMorale: 25,
-  /** A ogni cambio giorno il morale si sposta di questa frazione della distanza dall'obiettivo. */
+  /** A ogni cambio giorno il morale delle province core si sposta di questa frazione della distanza dall'obiettivo. */
   moraleDailyStep: 0.22,
+  /** Province conquistate: il morale sale di questi punti a ogni cambio giorno senza rivolte. */
+  conqueredMoraleDailyGain: 5,
+  /** Province conquistate senza armate dentro e con il morale sotto `revoltBelowMorale`: probabilità di rivolta a ogni cambio giorno. */
+  revoltChance: 0.05,
+  revoltBelowMorale: 30,
   moraleTarget: 100,
   /** Eventi conservati nel registro della partita (i più vecchi si scartano). */
   maxEvents: 200,

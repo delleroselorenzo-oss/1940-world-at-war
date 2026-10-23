@@ -3,6 +3,7 @@ import { COMBAT } from "../data/combat.js";
 import { MOVEMENT } from "../data/movement.js";
 import { UNIT_TYPES } from "../data/units.js";
 import { flatKm } from "../nav/grid.js";
+import { recruitMinutes } from "./buildings.js";
 import { advance, createGame } from "./engine.js";
 import { armyPosition, arrivalTime } from "./movement.js";
 import { applyOrder, type Order } from "./orders.js";
@@ -132,9 +133,11 @@ describe("arruolamento", () => {
     const size = capitalArmy(game).units.length;
     game = order(game, { type: "recruit", province: "A1", unitType: "infantry" });
     expect(game.nations.AAA!.stock.manpower).toBe(before - UNIT_TYPES.infantry.cost.manpower!);
-    const hours = UNIT_TYPES.infantry.productionHours * 60;
-    expect(capitalArmy(advance(game, world, hours - 1)).units).toHaveLength(size);
-    expect(capitalArmy(advance(game, world, hours)).units).toHaveLength(size + 1);
+    // La capitale parte con la caserma al livello 2: un po' più veloce del tempo base.
+    const minutes = recruitMinutes(game, "A1", "infantry");
+    expect(minutes).toBeLessThan(UNIT_TYPES.infantry.productionHours * 60);
+    expect(capitalArmy(advance(game, world, minutes - 1)).units).toHaveLength(size);
+    expect(capitalArmy(advance(game, world, minutes)).units).toHaveLength(size + 1);
   });
 
   it("la coda produce un'unità dopo l'altra", () => {

@@ -1,4 +1,5 @@
 import type { ResourceId } from "../map/types.js";
+import type { BuildingId } from "./buildings.js";
 
 // Tipi di unità e valori di partenza per il bilanciamento (vedi docs/game-design.md, §7).
 
@@ -21,6 +22,8 @@ export interface UnitType {
   id: UnitTypeId;
   name: string;
   role?: UnitRole;
+  /** Edificio della città che la produce. */
+  building: BuildingId;
   /** Velocità di marcia in km/h di gioco. */
   speedKmh: number;
   hp: number;
@@ -38,6 +41,7 @@ export interface UnitType {
 export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
   infantry: {
     id: "infantry",
+    building: "barracks",
     name: "Fanteria",
     speedKmh: 20,
     hp: 15,
@@ -50,6 +54,7 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
   },
   motorized: {
     id: "motorized",
+    building: "tankFactory",
     name: "Fanteria motorizzata",
     speedKmh: 32,
     hp: 15,
@@ -62,6 +67,7 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
   },
   armoredCar: {
     id: "armoredCar",
+    building: "tankFactory",
     name: "Autoblindo",
     speedKmh: 40,
     hp: 12,
@@ -74,6 +80,7 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
   },
   lightTank: {
     id: "lightTank",
+    building: "tankFactory",
     name: "Carro leggero",
     speedKmh: 30,
     hp: 20,
@@ -86,6 +93,7 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
   },
   artillery: {
     id: "artillery",
+    building: "artilleryFactory",
     name: "Artiglieria",
     speedKmh: 18,
     hp: 10,
@@ -98,6 +106,7 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
   },
   engineer: {
     id: "engineer",
+    building: "barracks",
     name: "Genio",
     role: "engineer",
     speedKmh: 20,
@@ -111,6 +120,7 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
   },
   medic: {
     id: "medic",
+    building: "barracks",
     name: "Sanità",
     role: "medic",
     speedKmh: 20,

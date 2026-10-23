@@ -9,6 +9,7 @@ import {
   wouldStartWar,
   type Army,
   type LngLat,
+  type BuildingId,
   type UnitTypeId,
   type WorkType,
 } from "@waw/shared";
@@ -183,6 +184,19 @@ function Game({ map }: { map: LoadedMap }) {
     [selection, game],
   );
 
+  const build = useCallback(
+    (building: BuildingId) => {
+      if (selection?.kind !== "province") return;
+      setOrderError(game.order({ type: "build", province: selection.id, building }));
+    },
+    [selection, game],
+  );
+
+  const cancelBuild = useCallback(() => {
+    if (selection?.kind !== "province") return;
+    setOrderError(game.order({ type: "cancelBuild", province: selection.id }));
+  }, [selection, game]);
+
   const provinces = state?.provinces;
   const owners = useMemo(
     () => (provinces ? Object.fromEntries(Object.entries(provinces).map(([id, p]) => [id, p.owner])) : undefined),
@@ -297,6 +311,8 @@ function Game({ map }: { map: LoadedMap }) {
           onDeclareWar={declareWar}
           onSelectArmy={(id) => select({ kind: "army", id })}
           onRecruit={recruit}
+          onBuild={build}
+          onCancelBuild={cancelBuild}
           onClose={() => select(null)}
         />
       )}

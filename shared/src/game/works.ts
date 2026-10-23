@@ -1,24 +1,38 @@
+import { BUILDING_TYPES, type BuildingId } from "../data/buildings.js";
 import { ENGINEERING } from "../data/engineering.js";
 import { UNIT_TYPES } from "../data/units.js";
-import type { LngLat } from "../map/types.js";
-import { cellAt, cellCenter, flatKm, isBlocked, passageKey } from "../nav/grid.js";
+import type { LngLat, MapData, ResourceId } from "../map/types.js";
+import { cellAt, cellCenter, flatKm, isBlocked, passageKey, provinceIdAt } from "../nav/grid.js";
 import type { NavData } from "../nav/types.js";
+import { allowedIn, buildingCost, buildingLevel, buildingMinutes } from "./buildings.js";
 import { segmentDistanceKm } from "./combat.js";
+import { canAfford } from "./economy.js";
+import { mapIndex } from "./mapIndex.js";
 import { armyPosition } from "./movement.js";
 import { bridgeIndex } from "./routing.js";
 import type { Army, GameState, WorkTarget, WorkType } from "./state.js";
 
 // Lavori sul campo: distruggere ponti (o ponti di barche), ripararli, gettare ponti di barche,
-// costruire ospedali da campo. Qui si decide cosa può fare un'armata e quanto ci mette;
-// il motore applica il risultato quando il lavoro finisce.
+// costruire ospedali da campo, fortificare la provincia, costruire aeroporti e porti.
+// Qui si decide cosa può fare un'armata e quanto ci mette; il motore applica il risultato quando il lavoro finisce.
 
-export const WORK_TYPES: readonly WorkType[] = ["demolish", "repair", "pontoon", "hospital"];
+export const WORK_TYPES: readonly WorkType[] = ["demolish", "repair", "pontoon", "hospital", "fortify", "airfield", "port"];
 
 export const WORK_NAMES: Record<WorkType, string> = {
   demolish: "Distruggi il ponte",
   repair: "Ripara il ponte",
   pontoon: "Ponte di barche",
   hospital: "Ospedale da campo",
+  fortify: "Fortifica la provincia",
+  airfield: "Costruisci l'aeroporto",
+  port: "Costruisci il porto",
+};
+
+/** Edificio costruito da un lavoro del genio. */
+export const WORK_BUILDINGS: Partial<Record<WorkType, BuildingId>> = {
+  fortify: "fortifications",
+  airfield: "airfield",
+  port: "port",
 };
 
 export interface WorkOption {
@@ -31,6 +45,10 @@ export interface WorkOption {
   missing: string | null;
   /** Fiume interessato, se c'è. */
   river: string | null;
+  /** Risorse da pagare all'inizio (solo per gli edifici). */
+  cost: Partial<Record<ResourceId, number>> | null;
+  /** Livello che avrà l'edificio a fine lavoro. */
+  level: number | null;
 }
 
 /** Quante unità dell'armata hanno il ruolo indicato. */
@@ -38,15 +56,26 @@ export function countRole(army: Army, role: "engineer" | "medic"): number {
   return army.units.filter((u) => UNIT_TYPES[u.type].role === role).length;
 }
 
-/** Durata di un lavoro: il genio lavora più in fretta se è più numeroso (fino a un limite). */
-export function workMinutes(work: WorkType, engineers: number): number {
+/**
+ * Durata di un lavoro: il genio lavora più in fretta se è più numeroso (fino a un limite).
+ * Per gli edifici conta il livello da costruire.
+ */
+export function workMinutes(work: WorkType, engineers: number, level = 1): number {
   if (work === "demolish") return ENGINEERING.demolishMinutes;
-  const base = work === "repair" ? ENGINEERING.repairMinutes : work === "pontoon" ? ENGINEERING.pontoonMinutes : ENGINEERING.hospitalMinutes;
+  const building = WORK_BUILDINGS[work];
+  const base = building
+    ? buildingMinutes(building, level)
+    : work === "repair"
+      ? ENGINEERING.repairMinutes
+      : work === "pontoon"
+        ? ENGINEERING.pontoonMinutes
+        : ENGINEERING.hospitalMinutes;
   return base / Math.max(1, Math.min(engineers, ENGINEERING.maxEngineers));
 }
 
 /** Tutti i lavori, ciascuno con il bersaglio più vicino e il motivo per cui non si può fare (se c'è). */
-export function availableWorks(state: GameState, nav: NavData, army: Army, now: number): WorkOption[] {
+export function availableWorks(state: GameState, world: { map: MapData; nav: NavData }, army: Army, now: number): WorkOption[] {
+  const { nav } = world;
   const at = armyPosition(army, now);
   const engineers = countRole(army, "engineer");
   const moving = army.move !== null || army.halted !== null;
@@ -71,6 +100,8 @@ export function availableWorks(state: GameState, nav: NavData, army: Army, now: 
     minutes: workMinutes("demolish", engineers),
     missing: general ?? (demolish ? null : `Nessun ponte entro ${ENGINEERING.bridgeRadiusKm} km.`),
     river: demolish?.river ?? null,
+    cost: null,
+    level: null,
   });
 
   const broken = nearestBridge(state, nav, at, true);
@@ -80,6 +111,8 @@ export function availableWorks(state: GameState, nav: NavData, army: Army, now: 
     minutes: workMinutes("repair", engineers),
     missing: general ?? noEngineer ?? (broken ? null : `Nessun ponte distrutto entro ${ENGINEERING.bridgeRadiusKm} km.`),
     river: broken?.river ?? null,
+    cost: null,
+    level: null,
   });
 
   const crossing = nearestRiverCrossing(state, nav, at);
@@ -89,6 +122,8 @@ export function availableWorks(state: GameState, nav: NavData, army: Army, now: 
     minutes: workMinutes("pontoon", engineers),
     missing: general ?? noEngineer ?? (crossing ? null : `Nessun fiume da attraversare entro ${ENGINEERING.riverRadiusKm} km.`),
     river: crossing?.river ?? null,
+    cost: null,
+    level: null,
   });
 
   const hospitalNear = Object.values(state.hospitals).some(
@@ -103,7 +138,49 @@ export function availableWorks(state: GameState, nav: NavData, army: Army, now: 
       noEngineer ??
       (countRole(army, "medic") === 0 ? "Serve la sanità." : hospitalNear ? "C'è già un tuo ospedale qui vicino." : null),
     river: null,
+    cost: null,
+    level: null,
   });
+
+  // Edifici del genio nella provincia in cui si trova l'armata (solo nelle proprie).
+  const provinceId = provinceIdAt(nav, at);
+  const province = provinceId ? mapIndex(world.map).provinces.get(provinceId) : undefined;
+  const own = province && state.provinces[province.id]?.owner === army.owner;
+  const stock = state.nations[army.owner]?.stock;
+  for (const work of ["fortify", "airfield", "port"] as const) {
+    const building = WORK_BUILDINGS[work]!;
+    const type = BUILDING_TYPES[building];
+    const current = province ? buildingLevel(state, province.id, building) : 0;
+    const level = Math.min(current + 1, type.maxLevel);
+    const cost = buildingCost(building, level);
+    const sameWork = Object.values(state.armies).some(
+      (a) => a.id !== army.id && a.owner === army.owner && a.task?.work === work && a.task.target.kind === "province" && a.task.target.id === province?.id,
+    );
+    options.push({
+      work,
+      target: province ? { kind: "province", id: province.id, at } : null,
+      minutes: workMinutes(work, engineers, level),
+      missing:
+        general ??
+        noEngineer ??
+        (!own
+          ? "Solo nelle tue province."
+          : !allowedIn(building, province)
+            ? "Solo nelle province costiere."
+            : current >= type.maxLevel
+              ? type.maxLevel > 1
+                ? "Livello massimo."
+                : "C'è già."
+              : sameWork
+                ? "Un'altra tua armata ci sta già lavorando."
+                : !stock || !canAfford(stock, cost)
+                  ? "Risorse insufficienti."
+                  : null),
+      river: null,
+      cost,
+      level,
+    });
+  }
   return options;
 }
 
@@ -204,8 +281,8 @@ function closestOnSegment(a: LngLat, b: LngLat, p: LngLat): LngLat {
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 }
 
-/** Il bersaglio è ancora valido? (es. il ponte non è stato già distrutto da altri) */
-export function targetStillValid(state: GameState, nav: NavData, work: WorkType, target: WorkTarget): boolean {
+/** Il bersaglio è ancora valido? (es. il ponte non è stato già distrutto da altri, la provincia è ancora sua) */
+export function targetStillValid(state: GameState, nav: NavData, army: Army, work: WorkType, target: WorkTarget): boolean {
   switch (target.kind) {
     case "bridge": {
       if (bridgeIndex(nav, target.id) < 0) return false;
@@ -221,5 +298,13 @@ export function targetStillValid(state: GameState, nav: NavData, work: WorkType,
     }
     case "here":
       return true;
+    case "province": {
+      const building = WORK_BUILDINGS[work];
+      return (
+        building !== undefined &&
+        state.provinces[target.id]?.owner === army.owner &&
+        buildingLevel(state, target.id, building) < BUILDING_TYPES[building].maxLevel
+      );
+    }
   }
 }

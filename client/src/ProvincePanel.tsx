@@ -1,20 +1,26 @@
 import type { Ref } from "react";
 import {
   atWar,
+  BUILDING_IDS,
+  BUILDING_TYPES,
+  buildOptions,
   canAfford,
   provinceIdAt,
   provinceProductionPerDay,
+  recruitMinutes,
+  recruitMissing,
   RESOURCE_IDS,
   RESOURCE_NAMES,
   UNIT_TYPE_IDS,
   UNIT_TYPES,
+  type BuildingId,
   type GameState,
   type Province,
   type UnitTypeId,
 } from "@waw/shared";
 import type { LoadedMap } from "./map/loadMap.js";
 import { CostList } from "./ui/CostList.js";
-import { formatAmount, formatCountdown, RESOURCE_COLORS } from "./ui/format.js";
+import { formatAmount, formatCountdown, formatDelay, RESOURCE_COLORS } from "./ui/format.js";
 import { groupUnits } from "./ui/units.js";
 
 interface ProvincePanelProps {
@@ -27,19 +33,35 @@ interface ProvincePanelProps {
   onDeclareWar(nation: string): void;
   onSelectArmy(id: string): void;
   onRecruit(unitType: UnitTypeId): void;
+  onBuild(building: BuildingId): void;
+  onCancelBuild(): void;
   onClose(): void;
   ref?: Ref<HTMLElement>;
 }
 
 const km = new Intl.NumberFormat("it-IT", { useGrouping: true });
 
-export function ProvincePanel({ map, province, game, now, error, onSelect, onDeclareWar, onSelectArmy, onRecruit, onClose, ref }: ProvincePanelProps) {
+export function ProvincePanel({
+  map,
+  province,
+  game,
+  now,
+  error,
+  onSelect,
+  onDeclareWar,
+  onSelectArmy,
+  onRecruit,
+  onBuild,
+  onCancelBuild,
+  onClose,
+  ref,
+}: ProvincePanelProps) {
   const ps = game?.provinces[province.id];
   const ownerId = ps?.owner ?? province.nation;
   const owner = map.nations.get(ownerId);
   const core = ownerId === province.nation;
   const isMine = game?.playerNation === ownerId;
-  const production = ps ? provinceProductionPerDay(province, ps) : null;
+  const production = ps ? provinceProductionPerDay(province, ps, game?.buildings[province.id]) : null;
   const neighbors = [...province.neighbors].sort((a, b) => a.distanceKm - b.distanceKm);
   const kind = province.isCapital ? "Capitale" : province.type === "urban" ? "Città" : "Provincia rurale";
   const armies = game ? Object.values(game.armies).filter((a) => !a.move && provinceIdAt(map.nav, a.position) === province.id) : [];
@@ -47,6 +69,11 @@ export function ProvincePanel({ map, province, game, now, error, onSelect, onDec
   const queue = game?.production[province.id] ?? [];
   const stock = game?.nations[game.playerNation]?.stock;
   const war = game && !isMine ? atWar(game, game.playerNation, ownerId) : false;
+  const buildings = game?.buildings[province.id] ?? {};
+  const built = BUILDING_IDS.filter((b) => (buildings[b] ?? 0) > 0);
+  const construction = game?.construction[province.id];
+  const options = game && isMine ? buildOptions(game, province, game.playerNation) : [];
+  const countdown = (t: number) => (game ? formatCountdown(((t - now) * 60) / game.clock.speed) : "");
 
   return (
     <aside className="panel" aria-label="Dettagli provincia" ref={ref}>
@@ -147,6 +174,68 @@ export function ProvincePanel({ map, province, game, now, error, onSelect, onDec
           </>
         )}
 
+        {game && (built.length > 0 || construction || isMine) && (
+          <>
+            <h3>Edifici</h3>
+            {built.length > 0 ? (
+              <ul className="buildings">
+                {built.map((b) => (
+                  <li key={b}>
+                    <strong>{BUILDING_TYPES[b].name}</strong>
+                    {BUILDING_TYPES[b].maxLevel > 1 && <span className="level">liv. {buildings[b]}</span>}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted">Nessun edificio.</p>
+            )}
+            {construction && (
+              <div className="task">
+                <p>
+                  In costruzione: {BUILDING_TYPES[construction.building].name}
+                  {construction.level > 1 && ` (livello ${construction.level})`} · finisce tra {countdown(construction.finishesAt)}
+                </p>
+                <span className="progress" aria-hidden>
+                  <span
+                    style={{
+                      width: `${Math.min(100, ((now - construction.startedAt) / (construction.finishesAt - construction.startedAt)) * 100)}%`,
+                    }}
+                  />
+                </span>
+                {isMine && (
+                  <button className="button small" onClick={onCancelBuild}>
+                    Annulla (rimborso)
+                  </button>
+                )}
+              </div>
+            )}
+            {isMine && stock && (
+              <ul className="recruit">
+                {options.map((o) => {
+                  const type = BUILDING_TYPES[o.building];
+                  const max = o.missing === "Livello massimo.";
+                  return (
+                    <li key={o.building}>
+                      <div className="recruit-head">
+                        <strong>{type.name}</strong>
+                        <span className="muted">{max ? "livello massimo" : `${o.level === 1 ? "nuovo" : `liv. ${o.level}`} · ${formatDelay(o.minutes)}`}</span>
+                        {!max && (
+                          <button className="button small" disabled={o.missing !== null} title={o.missing ?? undefined} onClick={() => onBuild(o.building)}>
+                            {o.level === 1 ? "Costruisci" : "Migliora"}
+                          </button>
+                        )}
+                      </div>
+                      <span className="muted small">{type.description}</span>
+                      {!max && <CostList cost={o.cost} stock={stock} />}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {isMine && <p className="muted small">Fortificazioni, aeroporto e porto li costruisce il genio: seleziona un'armata con il genio ferma nella provincia.</p>}
+          </>
+        )}
+
         {canRecruit && stock && game && (
           <>
             <h3>Arruolamento</h3>
@@ -174,18 +263,19 @@ export function ProvincePanel({ map, province, game, now, error, onSelect, onDec
               {UNIT_TYPE_IDS.map((t) => {
                 const type = UNIT_TYPES[t];
                 const affordable = canAfford(stock, type.cost);
+                const missing = recruitMissing(game, province.id, t);
                 return (
                   <li key={t}>
                     <div className="recruit-head">
                       <strong>{type.name}</strong>
                       <span className="muted">
-                        {type.speedKmh} km/h · {type.productionHours} h
+                        {missing ?? `${type.speedKmh} km/h · ${formatDelay(recruitMinutes(game, province.id, t))}`}
                       </span>
-                      <button className="button small" disabled={!affordable} onClick={() => onRecruit(t)}>
+                      <button className="button small" disabled={!affordable || missing !== null} onClick={() => onRecruit(t)}>
                         Arruola
                       </button>
                     </div>
-                    <CostList cost={type.cost} stock={stock} />
+                    {!missing && <CostList cost={type.cost} stock={stock} />}
                   </li>
                 );
               })}

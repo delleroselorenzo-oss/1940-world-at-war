@@ -51,9 +51,9 @@ Lo scopo è avere una versione privata da giocare con un piccolo gruppo di amici
 1. ✅ **Prototipo mappa**: rendering di una mappa con province cliccabili, zoom e spostamento (`client/`, PixiJS + React).
 2. ✅ **Stato di gioco locale**: province con proprietario e risorse; produzione a tick (`shared/src/game/`, partita salvata nel browser).
 3. ✅ **Unità e movimento**: creare un esercito, spostarlo tra province con tempo di viaggio (arruolamento nelle città, marcia nel proprio territorio).
-4. ✅ **Combattimento** base e conquista delle province (dichiarazione di guerra, battaglie automatiche, ritirata, conquista, morale), genio e sanità (ponti distruggibili, ponti di barche, ospedali da campo), treno, partenze ritardate, pannello dell'armata con le azioni Muovi/Attacca.
+4. ✅ **Combattimento** base e conquista delle province (dichiarazione di guerra, battaglie automatiche, ritirata, conquista per attraversamento, morale e rivolte), genio e sanità (ponti distruggibili, ponti di barche, ospedali da campo), treno, partenze ritardate, pannello dell'armata con le azioni Muovi/Attacca, **edifici** (caserma, fabbriche, industria, ufficio di reclutamento; fortificazioni, aeroporto e porto costruiti dal genio).
 5. **Server multiplayer**: partita condivisa, login, più giocatori via WebSocket.
-6. **Edifici, ricerca, diplomazia, nebbia di guerra**.
+6. **Ricerca, diplomazia, nebbia di guerra** (edifici: danni e riparazioni con i bombardamenti).
 7. Rifiniture: notifiche, velocità partita, IA per nazioni libere.
 
 ## Documentazione
@@ -64,22 +64,23 @@ Lo scopo è avere una versione privata da giocare con un piccolo gruppo di amici
 
 - `client/src/map/` — mappa: `projection.ts` (proiezione di Lambert sull'Europa, coordinate in km), `camera.ts` (zoom e spostamento), `geometry.ts` (forme proiettate e ricerca della provincia sotto il puntatore), `labels.ts` (etichette senza sovrapposizioni), `MapRenderer.ts` (disegno PixiJS e input mouse/tocco, senza React), `ArmyLayer.ts` (gettoni delle armate e percorso), `TerrainLayer.ts` (fiumi, strade, ferrovie, ponti, e i lavori: ponti distrutti, ponti di barche, ospedali), `MapView.tsx` (componente React che lo ospita).
 - `client/src/game/` — partita locale: `useLocalGame.ts` fa scorrere il tempo reale, chiama il motore di `/shared` e salva in `localStorage` (al rientro recupera il tempo passato offline).
-- `client/src/ArmyPanel.tsx` — pannello dell'armata: comandante con i pulsanti Muovi/Attacca (il prossimo tocco sulla mappa dà l'ordine, gestito in `App.tsx`), stato, Ritarda, lavori, composizione, riepilogo. `ProvincePanel.tsx` — provincia, arruolamento, rapporti.
+- `client/src/ArmyPanel.tsx` — pannello dell'armata: comandante con i pulsanti Muovi/Attacca (il prossimo tocco sulla mappa dà l'ordine, gestito in `App.tsx`), stato, Ritarda, lavori, composizione, riepilogo. `ProvincePanel.tsx` — provincia, edifici (costruzione e miglioramento), arruolamento (serve l'edificio giusto), rapporti.
 - `client/src/ui/` — scelta della nazione, barra delle risorse, avviso di rientro, `EventFeed.tsx` (notizie: guerre, battaglie, conquiste, armate distrutte).
 - La logica pura (proiezione, camera, geometria, etichette) ha test accanto ai file (`*.test.ts`).
 
 ## Motore di gioco (`shared/src/game/`)
 
-- `engine.ts` — `createGame` e `advance(stato, mondo, minuti)` (`EngineWorld` = mappa + rete di movimento): funzioni pure che elaborano gli eventi in ordine di tempo (arruolamenti completati; controlli ogni 5 minuti a orari fissi per sconfinamenti, contatti, conquiste e arrivi; combattimento e produzione ogni 30 minuti; morale a ogni cambio giorno). Recuperare molte ore in un colpo dà lo stesso risultato che giocarle passo passo (ci sono test).
-- `orders.ts` — ordini dei giocatori (`recruit`, `move` con `attack`, `delayMinutes` e `rail`, `stop`, `declareWar`, `work`, `cancelWork`) con tutte le validazioni: è il punto da cui passerà anche il server. `wouldStartWar` serve all'interfaccia per chiedere conferma prima di sconfinare.
+- `engine.ts` — `createGame` e `advance(stato, mondo, minuti)` (`EngineWorld` = mappa + rete di movimento): funzioni pure che elaborano gli eventi in ordine di tempo (arruolamenti, costruzioni e lavori completati; controlli ogni 5 minuti a orari fissi per sconfinamenti, contatti, conquiste e arrivi; combattimento e produzione ogni 30 minuti; morale e rivolte a ogni cambio giorno). Le rivolte usano un numero pseudo-casuale dato dal seme della partita (`seed`), dal giorno e dalla provincia. Recuperare molte ore in un colpo dà lo stesso risultato che giocarle passo passo (ci sono test).
+- `orders.ts` — ordini dei giocatori (`recruit`, `move` con `attack`, `delayMinutes` e `rail`, `stop`, `declareWar`, `work`, `cancelWork`, `build`, `cancelBuild`) con tutte le validazioni: è il punto da cui passerà anche il server. `wouldStartWar` serve all'interfaccia per chiedere conferma prima di sconfinare.
 - `routing.ts` — percorsi nello stato attuale della partita (`planRoute`): territorio percorribile (mai paesi terzi), ponti distrutti, ponti di barche, velocità del treno per cella (`railSpeeds`: più veloce in casa con morale alto, solo in territorio proprio o con diritto di passaggio).
-- `works.ts` — lavori sul campo: `availableWorks` dice cosa può fare un'armata (con durata e motivo se non può), il motore applica il risultato a fine lavoro (e fa cambiare strada a chi passava su un ponte distrutto).
+- `works.ts` — lavori sul campo: `availableWorks` dice cosa può fare un'armata (con durata, costo e motivo se non può), il motore applica il risultato a fine lavoro (e fa cambiare strada a chi passava su un ponte distrutto). Fortificazioni, aeroporto e porto sono lavori del genio che costruiscono edifici.
+- `buildings.ts` — edifici: cosa si può costruire in una provincia (`buildOptions`), edificio richiesto e tempi di arruolamento, effetto delle fortificazioni, perdita di livelli al cambio di padrone.
 - `combat.ts` — danni per tick senza casualità: valori di attacco (chi marcia o va all'assalto) o difesa per classe di corazza, limite di gruppo, efficienza legata alla salute. Un'armata fermata dal contatto riprende la marcia (`halted`) a fine combattimento; chi è fermo nel proprio territorio guarisce.
 - `diplomacy.ts` — rapporti per coppia di nazioni (`relations`, chiave `pairKey`): guerra, diritto di passaggio, visione condivisa; entrare senza accordi nel territorio altrui dichiara guerra. Registro eventi della partita (`events`, `logEvent`).
 - `movement.ts` (velocità, orari di passaggio con le soste per salire e scendere dal treno, posizione durante la marcia), `economy.ts` (produzione e mantenimento), `clock.ts` (orologio di gioco: tempo reale × velocità, formato "Giorno N, hh:mm").
 - Le armate hanno una posizione libera `[lng, lat]`; la marcia è una sequenza di punti con l'orario di passaggio.
 - Test di movimento, ordini, combattimento, lavori (`works.test.ts`) e treno/partenze (`train.test.ts`) su un mondo minimo con fiume, strada (o ferrovia) e ponte in `testMaps.ts`.
-- I valori di bilanciamento stanno in `shared/src/data/`: `economy.ts`, `units.ts`, `movement.ts`, `combat.ts` (distanze di contatto e conquista, limite di gruppo, guarigione, morale), `engineering.ts` (lavori del genio).
+- I valori di bilanciamento stanno in `shared/src/data/`: `economy.ts`, `units.ts`, `movement.ts`, `combat.ts` (distanze di contatto, limite di gruppo, guarigione, morale e rivolte), `engineering.ts` (lavori del genio), `buildings.ts` (edifici).
 - Se cambia la forma di `GameState`, aumentare `VERSION` in `client/src/game/storage.ts` (i salvataggi vecchi vengono ignorati).
 
 ## Rete di movimento (`shared/src/nav/`)
@@ -105,10 +106,12 @@ Monorepo con npm workspaces (`shared`, `data`, `client`, `server`), Node 24.
 - **Mappa**: prima versione solo **Europa**, con confini del **1933**. Le zone di mare si definiscono a mano sulla prima mappa (e così per le mappe future).
 - **Giocatori**: tutti gli stati sono selezionabili; massimo **8 giocatori umani**, la partita può partire anche con meno. Gli stati non scelti sono governati da **bot** (comportamento da definire).
 - **Velocità**: si sceglie a inizio partita; per ora si sviluppa e si prova solo **x1**.
-- **Niente casualità pura nel combattimento**: l'unica variabilità ammessa verrà dal **generale** al comando dell'armata (meccanica da definire).
+- **Niente casualità pura nel combattimento**: l'unica variabilità ammessa verrà dal **generale** al comando dell'armata (meccanica da definire). Fuori dal combattimento: le rivolte (5%).
 - **Gittate e distanze di ingaggio**: definite per singola unità, più avanti.
 - **Guerra**: si dichiara esplicitamente oppure scatta da sola quando si entra senza accordi nel territorio altrui (dichiara il padrone di casa). Accordi (passaggio, visione condivisa) evitano la guerra.
-- **Combattimento**: ci si può ritirare; la provincia si conquista passando dal centro senza difensori.
+- **Combattimento**: ci si può ritirare; la provincia si conquista attraversandola senza armate nemiche dentro.
+- **Conquista e rivolte**: provincia conquistata al 25% di morale, +5 punti al giorno; con il morale sotto il 30% e senza armate dentro ha il 5% al giorno di ribellarsi e tornare all'origine (edifici con un livello in meno, come una riconquista). È l'unica casualità ammessa oltre al generale.
+- **Edifici**: militari solo nelle città (caserma, fabbrica di mezzi corazzati, fabbrica di artiglieria, fabbrica aeronautica, cantiere navale); industria e ufficio di reclutamento ovunque; fortificazioni, aeroporto e porto li costruisce il genio.
 - **Interfaccia dell'armata**: prima si sceglie l'azione (Muovi, Attacca), poi si tocca la mappa. Velocità dell'armata = unità più lenta. Treno su scelta del giocatore: 55 km/h nel proprio territorio con morale ≥ 70%, altrimenti 35 km/h; salita e discesa 15 min per unità (max 2 h).
 
 ## Decisioni aperte

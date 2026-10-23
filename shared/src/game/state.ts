@@ -1,3 +1,4 @@
+import type { BuildingId } from "../data/buildings.js";
 import type { UnitTypeId } from "../data/units.js";
 import type { LngLat, NationId, ProvinceId, ResourceId } from "../map/types.js";
 
@@ -5,7 +6,7 @@ export type ResourceAmounts = Record<ResourceId, number>;
 
 export interface ProvinceState {
   owner: NationId;
-  /** Morale 0–100: moltiplica la produzione. Per ora resta al valore iniziale. */
+  /** Morale 0–100: moltiplica la produzione. */
   morale: number;
 }
 
@@ -76,20 +77,37 @@ export interface Army {
 }
 
 /** Lavori sul campo. */
-export type WorkType = "demolish" | "repair" | "pontoon" | "hospital";
+export type WorkType = "demolish" | "repair" | "pontoon" | "hospital" | "fortify" | "airfield" | "port";
 
 /** Su cosa si lavora: un ponte, un ponte di barche, un passaggio sul fiume (tra due celle) o il punto dov'è l'armata. */
 export type WorkTarget =
   | { kind: "bridge"; id: string; at: LngLat }
   | { kind: "pontoon"; id: string; at: LngLat }
   | { kind: "river"; cells: [number, number]; at: LngLat; river: string | null }
-  | { kind: "here"; at: LngLat };
+  | { kind: "here"; at: LngLat }
+  | { kind: "province"; id: ProvinceId; at: LngLat };
 
 export interface ArmyTask {
   work: WorkType;
   target: WorkTarget;
   startedAt: number;
   finishesAt: number;
+  /** Risorse pagate all'inizio (restituite se il lavoro viene interrotto). */
+  cost?: Partial<Record<ResourceId, number>>;
+}
+
+/** Livelli degli edifici di una provincia (assente = non c'è). */
+export type ProvinceBuildings = Partial<Record<BuildingId, number>>;
+
+/** Edificio in costruzione in una provincia (una costruzione alla volta). */
+export interface Construction {
+  building: BuildingId;
+  /** Livello che avrà a fine lavori. */
+  level: number;
+  startedAt: number;
+  finishesAt: number;
+  /** Risorse pagate (restituite se si annulla). */
+  cost: Partial<Record<ResourceId, number>>;
 }
 
 /** Ponte di barche: riapre il passaggio sul fiume tra due celle. Lo può usare chiunque. */
@@ -123,6 +141,10 @@ export type GameEvent =
   | { time: number; type: "war"; by: NationId; against: NationId }
   | { time: number; type: "battle"; at: LngLat; province: ProvinceId | null; nations: [NationId, NationId] }
   | { time: number; type: "conquest"; province: ProvinceId; from: NationId; to: NationId }
+  /** La provincia si è ribellata ed è tornata alla nazione d'origine. */
+  | { time: number; type: "revolt"; province: ProvinceId; from: NationId; to: NationId }
+  /** Edificio completato (dalla provincia o dal genio). */
+  | { time: number; type: "built"; by: NationId; province: ProvinceId; building: BuildingId; level: number }
   | { time: number; type: "armyDestroyed"; owner: NationId; by: NationId; at: LngLat; province: ProvinceId | null }
   | {
       time: number;
@@ -173,6 +195,12 @@ export interface GameState {
   events: GameEvent[];
   /** Code di arruolamento per provincia. */
   production: Record<ProvinceId, ProductionItem[]>;
+  /** Edifici per provincia. */
+  buildings: Record<ProvinceId, ProvinceBuildings>;
+  /** Costruzioni in corso per provincia. */
+  construction: Record<ProvinceId, Construction>;
+  /** Seme per gli eventi casuali (rivolte): stessa partita, stessi esiti. */
+  seed: number;
   /** Contatore per gli identificativi di armate e unità (deterministici). */
   nextId: number;
 }

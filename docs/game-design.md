@@ -58,6 +58,7 @@ Escluso per scelta: negozio, valuta premium (Gold), acceleratori a pagamento, al
 - **Effetti**: sotto l'80% il morale riduce produzione e velocità di costruzione/addestramento (al 25% i tempi di costruzione sono circa x2,6).
 - Le province conquistate partono dal **25%**. Conquistare una capitale nemica dà **+10%** a tutte le proprie province.
 - **Rivolte**: sotto circa il **31%**, a ogni cambio giorno c'è una probabilità di rivolta che cresce al calare del morale. Una **guarnigione** al centro della provincia la riduce o la azzera. Se riesce, la provincia passa all'ex proprietario o a un vicino.
+  - *Deciso per ora* (§10): rivolta al 5% al giorno nelle province conquistate con morale sotto il 30% e senza armate dentro.
 
 ## 5. Edifici
 
@@ -78,6 +79,27 @@ Escluso per scelta: negozio, valuta premium (Gold), acceleratori a pagamento, al
   - **Infrastrutture** → + velocità di movimento, + morale
   - **Pista d'atterraggio** → decollo/atterraggio aerei
 - Il livello dell'edificio di produzione determina il **livello massimo di unità** producibile lì.
+
+### Stato attuale (milestone 4)
+
+- Valori in `shared/src/data/buildings.ts`, regole in `shared/src/game/buildings.ts`.
+- Livelli **1–3** (aeroporto e porto: 1). Il livello n costa n volte il livello 1 e richiede n volte il tempo.
+- **Una costruzione alla volta** per provincia, pagata subito; annullandola le risorse tornano indietro.
+- **Città**:
+  - **Caserma**: fanteria, genio, sanità.
+  - **Fabbrica di mezzi corazzati**: carri, autoblindo, fanteria motorizzata (escono con l'equipaggio).
+  - **Fabbrica di artiglieria**: artiglieria.
+  - **Fabbrica aeronautica** e **cantiere navale** (solo città costiere): si costruiscono già, produrranno con aviazione e marina.
+  - Senza l'edificio giusto non si arruola. Ogni livello oltre il primo riduce del **15%** i tempi di arruolamento nella provincia.
+- **Ovunque**:
+  - **Industria**: +25% per livello della risorsa principale (denaro nelle province che non ne hanno).
+  - **Ufficio di reclutamento**: +25% di manodopera per livello.
+- **Genio** (lavoro di un'armata con il genio, ferma in una propria provincia; si paga all'inizio, si recupera interrompendo):
+  - **Fortificazioni** (1–3): chi difende nella provincia subisce il 15% di danni in meno per livello.
+  - **Aeroporto** e **porto** (solo province costiere): serviranno con aviazione e marina.
+  - La durata si divide per il numero di unità del genio (massimo 3).
+- **Edifici iniziali**: capitale con caserma 2, fabbrica di mezzi corazzati 1 e fabbrica di artiglieria 1; le altre città con caserma 1.
+- **Cambio di padrone** (conquista o rivolta): ogni edificio perde un livello; quelli al livello 1 sono distrutti. Costruzione in corso e coda di arruolamento si perdono.
 
 ## 6. Ricerca
 
@@ -201,8 +223,11 @@ Esempio: l'armata di una capitale (3 fanterie + 1 artiglieria) che assalta un'ar
 
 ## 10. Conquista e vittoria
 
-- Una provincia si conquista **passando dal suo centro** (entro 3 km, anche senza fermarsi) quando non ci sono armate nemiche entro 5 km dal centro. Serve essere in guerra con il proprietario.
-- Alla conquista la provincia passa al conquistatore con morale al **25%** e la sua coda di arruolamento si perde. A ogni cambio giorno il morale risale del 22% della distanza da 100 (per ora l'obiettivo è sempre 100; bonus e malus arriveranno con il morale completo, §4).
+- Una provincia si conquista **attraversandola** (anche senza fermarsi, in qualsiasi punto) quando dentro non ci sono armate nemiche. Serve essere in guerra con il proprietario (entrare senza accordi la fa scattare).
+- Alla conquista la provincia passa al conquistatore con morale al **25%**; edifici, costruzioni e arruolamenti come in §5.
+- **Province conquistate**: a ogni cambio giorno il morale sale di **5 punti** (25 → 30 → 35…) se non c'è stata una rivolta.
+- **Rivolte**: a ogni cambio giorno una provincia conquistata con il **morale sotto il 30%** e **senza armate dentro** (di nessuno) ha il **5%** di probabilità di ribellarsi e tornare alla nazione d'origine, come se fosse stata riconquistata (morale al 25%, edifici con un livello in meno). L'esito dipende da un seme della partita, così rigiocare lo stesso tempo dà lo stesso risultato.
+- **Province core**: a ogni cambio giorno il morale si avvicina a 100 del 22% della distanza (bonus e malus arriveranno con il morale completo, §4).
 - **Vittoria**: raggiungere una soglia di **punti vittoria** (dalle città possedute) oppure restare l'ultimo. Soglia configurabile per partita.
 
 ## 11. Diplomazia (versione semplice)

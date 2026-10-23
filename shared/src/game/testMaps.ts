@@ -43,7 +43,7 @@ export function testWorld(options: { withBridge?: boolean; neutralBetween?: bool
       resource: id === "A1" ? "goods" : null,
       center: cell(Math.round((c0 + c1) / 2), ROAD_ROW),
       areaKm2: 5000,
-      coastal: false,
+      coastal: id === "A1",
       neighbors: [],
     };
   });

@@ -76,7 +76,7 @@ describe("ponti", () => {
 
   it("riparare serve il genio; più genio lavora più in fretta", () => {
     let game = { ...place(newGame(), "x", "AAA", BY_BRIDGE, ["infantry"]), destroyedBridges: ["br1"] };
-    const repair = availableWorks(game, world.nav, game.armies.x!, 0).find((o) => o.work === "repair")!;
+    const repair = availableWorks(game, world, game.armies.x!, 0).find((o) => o.work === "repair")!;
     expect(repair.missing).toBe("Serve il genio.");
 
     game = place(game, "x", "AAA", BY_BRIDGE, ["engineer", "engineer"]);
@@ -102,7 +102,7 @@ describe("ponti di barche", () => {
   it("il genio getta un ponte di barche sul fiume vicino e si può attraversare", () => {
     let game = place(newGame(noBridge), "x", "AAA", RIVERBANK, ["engineer"]);
     expect(planRoute(game, noBridge.nav, "AAA", cell(5, 2), cell(12, 2))).toBeNull();
-    const option = availableWorks(game, noBridge.nav, game.armies.x!, 0).find((o) => o.work === "pontoon")!;
+    const option = availableWorks(game, noBridge, game.armies.x!, 0).find((o) => o.work === "pontoon")!;
     expect(option).toMatchObject({ missing: null, river: "Fiume", minutes: ENGINEERING.pontoonMinutes });
 
     game = order(game, { type: "work", army: "x", work: "pontoon" }, "AAA", noBridge);
@@ -111,7 +111,7 @@ describe("ponti di barche", () => {
     expect(planRoute(game, noBridge.nav, "AAA", cell(5, 2), cell(12, 2))).not.toBeNull();
 
     // Il passaggio già aperto non viene riproposto.
-    const again = availableWorks(game, noBridge.nav, game.armies.x!, game.time).find((o) => o.work === "pontoon")!;
+    const again = availableWorks(game, noBridge, game.armies.x!, game.time).find((o) => o.work === "pontoon")!;
     expect(again.target).not.toEqual(option.target);
   });
 
@@ -139,7 +139,7 @@ describe("sanità e ospedali", () => {
   it("genio e sanità costruiscono un ospedale da campo che cura più in fretta", () => {
     let game = place(newGame(), "x", "AAA", cell(7, 0), ["engineer", "medic"]);
     const onlyEngineer = place(game, "w", "AAA", cell(7, 0), ["engineer"]);
-    expect(availableWorks(onlyEngineer, world.nav, onlyEngineer.armies.w!, 0).find((o) => o.work === "hospital")!.missing).toBe("Serve la sanità.");
+    expect(availableWorks(onlyEngineer, world, onlyEngineer.armies.w!, 0).find((o) => o.work === "hospital")!.missing).toBe("Serve la sanità.");
     game = order(game, { type: "work", army: "x", work: "hospital" });
     game = advance(game, world, ENGINEERING.hospitalMinutes);
     expect(Object.values(game.hospitals)).toHaveLength(1);

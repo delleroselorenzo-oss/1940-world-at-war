@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { formatGameTime, type GameEvent, type GameState, type ProvinceId } from "@waw/shared";
+import { BUILDING_TYPES, formatGameTime, type GameEvent, type GameState, type ProvinceId } from "@waw/shared";
 import type { LoadedMap } from "../map/loadMap.js";
 
-// Notizie della partita che riguardano il giocatore: guerre, battaglie, conquiste, armate distrutte, lavori del genio.
+// Notizie della partita che riguardano il giocatore: guerre, battaglie, conquiste, rivolte, armate distrutte,
+// lavori del genio, edifici completati.
 
 const SHOWN = 4;
 
@@ -38,6 +39,16 @@ export function describeEvent(
       if (e.to === me) return { text: `Conquistata: ${province(e.province)} (${nation(e.from)})`, tone: "good", province: e.province };
       if (e.from === me) return { text: `Persa: ${province(e.province)}, ora di ${nation(e.to)}`, tone: "bad", province: e.province };
       return null;
+    case "revolt":
+      if (e.from === me) return { text: `Rivolta: ${province(e.province)} torna a ${nation(e.to)}`, tone: "bad", province: e.province };
+      if (e.to === me) return { text: `Rivolta: ${province(e.province)} torna a te`, tone: "good", province: e.province };
+      return null;
+    case "built": {
+      if (e.by !== me) return null;
+      const name = BUILDING_TYPES[e.building].name;
+      const level = BUILDING_TYPES[e.building].maxLevel > 1 ? ` (livello ${e.level})` : "";
+      return { text: `Costruzione finita: ${name}${level}, ${province(e.province)}`, tone: "good", province: e.province };
+    }
     case "armyDestroyed": {
       const where = province(e.province);
       const at = where ? ` presso ${where}` : "";

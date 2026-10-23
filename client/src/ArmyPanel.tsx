@@ -23,7 +23,8 @@ import {
   type WorkType,
 } from "@waw/shared";
 import type { LoadedMap } from "./map/loadMap.js";
-import { formatAmount, formatCountdown } from "./ui/format.js";
+import { CostList } from "./ui/CostList.js";
+import { formatAmount, formatCountdown, formatDelay } from "./ui/format.js";
 import { groupUnits } from "./ui/units.js";
 
 /** Cosa farà il prossimo tocco sulla mappa. */
@@ -80,7 +81,7 @@ export function ArmyPanel(props: ArmyPanelProps) {
     );
   };
 
-  const works = mine ? availableWorks(game, map.nav, army, now) : [];
+  const works = mine ? availableWorks(game, { map: map.data, nav: map.nav }, army, now) : [];
   const busy = army.move !== null || army.halted !== null || army.departure !== null;
 
   return (
@@ -220,8 +221,9 @@ export function ArmyPanel(props: ArmyPanelProps) {
                       {WORK_NAMES[w.work]}
                     </button>
                     <span className="muted">
-                      {w.missing ?? `${formatDelay(w.minutes)}${w.river ? ` · ${w.river}` : ""}`}
+                      {w.missing ?? `${formatDelay(w.minutes)}${w.river ? ` · ${w.river}` : ""}${w.level && w.level > 1 ? ` · livello ${w.level}` : ""}`}
                     </span>
+                    {w.cost && w.missing === null && <CostList cost={w.cost} stock={game.nations[army.owner]?.stock} />}
                   </li>
                 ))}
               </ul>
@@ -352,11 +354,3 @@ function upkeep(army: Army): string {
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
-
-/** "30 min", "2 h", "1 h 30". */
-function formatDelay(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = Math.round(minutes % 60);
-  if (h === 0) return `${m} min`;
-  return m === 0 ? `${h} h` : `${h} h ${m}`;
-}

@@ -930,3 +930,39 @@ button {
     display: none;
   }
 }
+
+.works .cost {
+  grid-column: 2;
+}
+
+.buildings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.buildings li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.buildings .level {
+  color: var(--muted);
+}
+
+.muted.small,
+p.small {
+  font-size: 12px;
+}
+
+.panel-body .task {
+  margin-bottom: 14px;
+}
