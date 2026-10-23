@@ -10,6 +10,10 @@ export const ENGINEERING = {
   repairMinutes: 8 * 60,
   pontoonMinutes: 6 * 60,
   hospitalMinutes: 4 * 60,
+  /** Sabotare i pozzi di petrolio della provincia (qualsiasi armata, nelle proprie province). */
+  sabotageWellsMinutes: 6 * 60,
+  /** Rimettere in funzione i pozzi sabotati (serve il genio). */
+  repairWellsMinutes: 3 * 24 * 60,
   /** Più unità del genio lavorano più in fretta: la durata si divide per il loro numero, fino a questo. */
   maxEngineers: 3,
   /** Raggio d'azione di un ospedale da campo (cura e difesa). */

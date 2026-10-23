@@ -17,6 +17,7 @@ export * from "./game/movement.js";
 export * from "./game/orders.js";
 export * from "./game/routing.js";
 export * from "./game/works.js";
+export * from "./game/trade.js";
 export * from "./nav/types.js";
 export * from "./nav/codec.js";
 export * from "./nav/grid.js";

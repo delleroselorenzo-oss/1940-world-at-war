@@ -41,6 +41,8 @@ export function testWorld(options: { withBridge?: boolean; neutralBetween?: bool
       city: urban ? id : undefined,
       terrain: null,
       resource: id === "A1" ? "goods" : null,
+      population: urban ? 2000 : 500,
+      gdpPerCapita: 4000,
       center: cell(Math.round((c0 + c1) / 2), ROAD_ROW),
       areaKm2: 5000,
       coastal: id === "A1",

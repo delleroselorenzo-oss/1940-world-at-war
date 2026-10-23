@@ -7,6 +7,7 @@ import {
   canAfford,
   provinceIdAt,
   provinceProductionPerDay,
+  syntheticPerDay,
   recruitMinutes,
   recruitMissing,
   RESOURCE_IDS,
@@ -40,6 +41,17 @@ interface ProvincePanelProps {
 }
 
 const km = new Intl.NumberFormat("it-IT", { useGrouping: true });
+const millions = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 1 });
+
+/** Popolazione in migliaia → testo ("3,7 milioni", "520.000"). */
+function formatPopulation(thousands: number): string {
+  return thousands >= 1000 ? `${millions.format(thousands / 1000)} milioni` : km.format(thousands * 1000);
+}
+
+/** Sviluppo a parole dal PIL pro capite (dollari del 1990). */
+function developmentLabel(gdpPerCapita: number): string {
+  return gdpPerCapita >= 4500 ? "alto" : gdpPerCapita >= 2500 ? "medio" : "basso";
+}
 
 export function ProvincePanel({
   map,
@@ -62,6 +74,7 @@ export function ProvincePanel({
   const core = ownerId === province.nation;
   const isMine = game?.playerNation === ownerId;
   const production = ps ? provinceProductionPerDay(province, ps, game?.buildings[province.id]) : null;
+  const synthetic = ps ? syntheticPerDay(province, ps, game?.buildings[province.id]) : null;
   const neighbors = [...province.neighbors].sort((a, b) => a.distanceKm - b.distanceKm);
   const kind = province.isCapital ? "Capitale" : province.type === "urban" ? "Città" : "Provincia rurale";
   const armies = game ? Object.values(game.armies).filter((a) => !a.move && provinceIdAt(map.nav, a.position) === province.id) : [];
@@ -100,6 +113,16 @@ export function ProvincePanel({
           <div>
             <dt>Risorsa principale</dt>
             <dd>{province.resource ? RESOURCE_NAMES[province.resource] : <span className="muted">nessuna</span>}</dd>
+          </div>
+          <div>
+            <dt>Popolazione</dt>
+            <dd>{formatPopulation(province.population)}</dd>
+          </div>
+          <div>
+            <dt>Sviluppo</dt>
+            <dd>
+              {developmentLabel(province.gdpPerCapita)} <span className="muted">({km.format(province.gdpPerCapita)} $ pro capite)</span>
+            </dd>
           </div>
           <div>
             <dt>Superficie</dt>
@@ -154,7 +177,23 @@ export function ProvincePanel({
                   <strong>+{formatAmount(production[r])}</strong>
                 </li>
               ))}
+              {synthetic && synthetic.oil > 0 && (
+                <li>
+                  <span className="dot" style={{ background: RESOURCE_COLORS.oil }} />
+                  <span>Carburante sintetico</span>
+                  <strong>
+                    +{formatAmount(synthetic.oil)} petrolio, −{formatAmount(synthetic.metal)} metallo
+                  </strong>
+                </li>
+              )}
             </ul>
+            {province.oilMtPerYear && (
+              <p className={ps?.wellsSabotaged ? "error-text" : "muted small"}>
+                {ps?.wellsSabotaged
+                  ? "Pozzi di petrolio sabotati: non producono finché il genio non li ripara."
+                  : `Giacimento di petrolio: ${millions.format(province.oilMtPerYear)} milioni di tonnellate all'anno nel 1938.`}
+              </p>
+            )}
           </>
         )}
 

@@ -11,6 +11,7 @@ import { buildingLevel, downgradeBuildings, fortDamageFactor } from "./buildings
 import { applyDamage, contactFraction, damageAgainst, engagements, heal, isAttacking, lerp, segmentDistanceKm } from "./combat.js";
 import { atWar, logEvent, mayEnter, startWar } from "./diplomacy.js";
 import { nationProductionPerDay, netPerDayByNation, refund } from "./economy.js";
+import { applyTradeTick } from "./trade.js";
 import { mapIndex } from "./mapIndex.js";
 import { armyPosition, moverOf, remainingRoute, scheduleRoute } from "./movement.js";
 import { planRoute } from "./routing.js";
@@ -56,6 +57,7 @@ export function createGame(map: MapData, options: NewGameOptions, economy: Econo
   for (const n of map.nations) {
     const perDay = nationProductionPerDay(map, state, n.id, economy);
     const stock = Object.fromEntries(RESOURCE_IDS.map((r) => [r, perDay[r] * economy.startingStockDays])) as ResourceAmounts;
+    stock.oil = Math.max(stock.oil, n.oilReserve ?? 0);
     state.nations[n.id] = { stock };
   }
   // Armate iniziali: una nella capitale e una in ogni altra città.
@@ -126,7 +128,7 @@ export function advance(state: GameState, world: EngineWorld, until: number, eco
 
     let changed = completeProduction(s, map, t);
     changed = completeConstruction(s, t) || changed;
-    completeWorks(s, world, t);
+    changed = completeWorks(s, world, t) || changed;
     depart(s, world, t);
     if (t === nextSample) changed = sample(s, world, t) || changed;
     if (t === nextTick) changed = fight(s, world, t) || changed;
@@ -138,6 +140,7 @@ export function advance(state: GameState, world: EngineWorld, until: number, eco
         // Il mantenimento non porta le scorte sotto zero (le carenze avranno effetto sul morale).
         for (const r of RESOURCE_IDS) stock[r] = Math.max(0, stock[r] + perDay[r] / ticksPerDay);
       }
+      applyTradeTick(s, map, ticksPerDay, economy);
       if (t % economy.dayMinutes === 0 && updateMorale(s, world, t)) rates = netPerDayByNation(map, s, economy);
     }
   }
@@ -181,7 +184,9 @@ function completeConstruction(s: GameState, t: number): boolean {
  * e costruzione in corso perse, ogni edificio perde un livello.
  */
 function transferProvince(s: GameState, provinceId: string, to: NationId) {
-  s.provinces[provinceId] = { owner: to, morale: COMBAT.conqueredMorale };
+  // I pozzi sabotati restano tali: il nuovo padrone deve ripararli.
+  const sabotaged = s.provinces[provinceId]?.wellsSabotaged;
+  s.provinces[provinceId] = { owner: to, morale: COMBAT.conqueredMorale, ...(sabotaged ? { wellsSabotaged: true } : {}) };
   delete s.production[provinceId];
   delete s.construction[provinceId];
   const buildings = downgradeBuildings(s.buildings[provinceId]);
@@ -395,8 +400,10 @@ function loseHospitals(s: GameState, world: EngineWorld, t: number) {
 }
 
 /** Lavori finiti al minuto `t`: si applica il risultato e, se un passaggio si chiude, chi ci passava cambia strada. */
-function completeWorks(s: GameState, world: EngineWorld, t: number) {
+/** Applica i lavori finiti; true se è cambiata la produzione (pozzi sabotati o riparati). */
+function completeWorks(s: GameState, world: EngineWorld, t: number): boolean {
   const { nav } = world;
+  let production = false;
   for (const a of Object.values(s.armies)) {
     const task = a.task;
     if (!task || task.finishesAt > t) continue;
@@ -421,6 +428,12 @@ function completeWorks(s: GameState, world: EngineWorld, t: number) {
       const id = `p${s.nextId++}`;
       s.pontoons[id] = { id, owner: a.owner, cells: target.cells, at, river: target.river };
       logEvent(s, { ...event, what: "pontoonBuilt", river: target.river });
+    } else if (target.kind === "province" && (task.work === "sabotageWells" || task.work === "repairWells")) {
+      const sabotage = task.work === "sabotageWells";
+      const { wellsSabotaged: _, ...rest } = s.provinces[target.id]!;
+      s.provinces[target.id] = sabotage ? { ...rest, wellsSabotaged: true } : rest;
+      logEvent(s, { ...event, province: target.id, what: sabotage ? "wellsSabotaged" : "wellsRepaired", river: null });
+      production = true;
     } else if (target.kind === "province") {
       const building = WORK_BUILDINGS[task.work]!;
       const level = buildingLevel(s, target.id, building) + 1;
@@ -432,6 +445,7 @@ function completeWorks(s: GameState, world: EngineWorld, t: number) {
       logEvent(s, { ...event, what: "hospitalBuilt", river: null });
     }
   }
+  return production;
 }
 
 /**

@@ -1,6 +1,7 @@
 import { BUILDING_TYPES, type BuildingId } from "../data/buildings.js";
+import { TRADE } from "../data/economy.js";
 import { UNIT_TYPES, type UnitTypeId } from "../data/units.js";
-import type { LngLat, MapData, NationId, ProvinceId } from "../map/types.js";
+import type { LngLat, MapData, NationId, ProvinceId, ResourceId } from "../map/types.js";
 import { provinceIdAt } from "../nav/grid.js";
 import type { NavData } from "../nav/types.js";
 import { atWar, mayEnter, startWar } from "./diplomacy.js";
@@ -30,7 +31,9 @@ export type Order =
   /** Costruisce il prossimo livello di un edificio nella provincia (non quelli del genio). */
   | { type: "build"; province: ProvinceId; building: BuildingId }
   /** Annulla la costruzione in corso: le risorse tornano indietro. */
-  | { type: "cancelBuild"; province: ProvinceId };
+  | { type: "cancelBuild"; province: ProvinceId }
+  /** Contratto con il mercato estero: quanto comprare al giorno (0 = nessun contratto). */
+  | { type: "setImport"; resource: ResourceId; perDay: number };
 
 export type OrderResult = { ok: true; state: GameState } | { ok: false; error: string };
 
@@ -61,6 +64,8 @@ export function applyOrder(state: GameState, world: World, nation: NationId, ord
       return build(state, world.map, nation, order.province, order.building);
     case "cancelBuild":
       return cancelBuild(state, nation, order.province);
+    case "setImport":
+      return setImport(state, nation, order.resource, order.perDay);
   }
 }
 
@@ -208,6 +213,15 @@ function cancelBuild(state: GameState, nation: NationId, provinceId: ProvinceId)
   refund(stock, construction.cost);
   const { [provinceId]: _, ...rest } = state.construction;
   return ok({ ...state, nations: { ...state.nations, [nation]: { ...state.nations[nation]!, stock } }, construction: rest });
+}
+
+function setImport(state: GameState, nation: NationId, resource: ResourceId, perDay: number): OrderResult {
+  if (TRADE.prices[resource] === undefined) return fail("Questa risorsa non si compra all'estero.");
+  if (!Number.isFinite(perDay) || perDay < 0 || perDay > TRADE.maxContractPerDay) return fail("Quantità non valida.");
+  const n = state.nations[nation]!;
+  const { [resource]: _, ...others } = n.imports ?? {};
+  const imports = perDay > 0 ? { ...others, [resource]: Math.round(perDay) } : others;
+  return ok({ ...state, nations: { ...state.nations, [nation]: { ...n, imports } } });
 }
 
 const ok = (state: GameState): OrderResult => ({ ok: true, state });

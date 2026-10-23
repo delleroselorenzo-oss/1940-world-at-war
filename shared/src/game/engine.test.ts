@@ -5,8 +5,8 @@ import { gameMinutesAt, formatGameTime, withSpeed } from "./clock.js";
 import { nationProductionPerDay, provinceProductionPerDay } from "./economy.js";
 import { advance, createGame } from "./engine.js";
 
-function province(id: string, nation: string, type: Province["type"], resource: Province["resource"]): Province {
-  return { id, name: id, nation, type, resource, isCapital: false, terrain: null, center: [0, 0], areaKm2: 1000, coastal: false, neighbors: [] };
+function province(id: string, nation: string, type: Province["type"], resource: Province["resource"], population = 1000, gdpPerCapita = 4000): Province {
+  return { id, name: id, nation, type, resource, population, gdpPerCapita, isCapital: false, terrain: null, center: [0, 0], areaKm2: 1000, coastal: false, neighbors: [] };
 }
 
 const map: MapData = {
@@ -18,42 +18,57 @@ const map: MapData = {
     { id: "BBB", name: "B", color: "#00f", capitalProvince: "b_city" },
   ],
   provinces: [
-    province("a_city", "AAA", "urban", "metal"),
-    province("a_farm", "AAA", "rural", "food"),
-    province("a_plain", "AAA", "rural", null),
-    province("b_city", "BBB", "urban", "oil"),
+    province("a_city", "AAA", "urban", "metal", 4000, 5000),
+    province("a_farm", "AAA", "rural", "food", 1000, 4000),
+    province("a_plain", "AAA", "rural", null, 1000, 1000),
+    { ...province("b_city", "BBB", "urban", "oil", 1000, 2000), oilMtPerYear: 3 },
   ],
 };
 
 const start = Date.UTC(2026, 0, 1);
+const rates = ECONOMY.perDay;
 
 describe("produzione", () => {
-  it("città: risorsa principale, denaro e manodopera", () => {
+  it("manodopera dalla popolazione, denaro e industria da popolazione e sviluppo", () => {
     const p = provinceProductionPerDay(map.provinces[0]!, { owner: "AAA", morale: 100 });
-    expect(p.metal).toBe(6000);
-    expect(p.money).toBe(3000);
-    expect(p.manpower).toBe(1500);
+    expect(p.metal).toBeCloseTo(4000 * 5 * rates.industryPerThousand);
+    expect(p.money).toBeCloseTo(4000 * 5 * rates.moneyPerThousand);
+    expect(p.manpower).toBeCloseTo(4000 * rates.manpowerPerThousand);
     expect(p.oil).toBe(0);
   });
 
-  it("provincia rurale senza risorsa: più manodopera", () => {
-    const p = provinceProductionPerDay(map.provinces[2]!, { owner: "AAA", morale: 100 });
-    expect(p.manpower).toBe(ECONOMY.ruralManpowerWithoutResource);
-    expect(p.food).toBe(0);
+  it("a parità di abitanti, la zona più sviluppata rende più denaro ma la stessa manodopera", () => {
+    const rich = provinceProductionPerDay(map.provinces[1]!, { owner: "AAA", morale: 100 });
+    const poor = provinceProductionPerDay(map.provinces[2]!, { owner: "AAA", morale: 100 });
+    expect(rich.money).toBeCloseTo(poor.money * 4);
+    expect(rich.manpower).toBeCloseTo(poor.manpower);
+    expect(rich.food).toBeCloseTo(1000 * 2 * rates.foodPerThousand);
+    expect(poor.food).toBe(0);
+  });
+
+  it("il petrolio dipende solo dal giacimento", () => {
+    const p = provinceProductionPerDay(map.provinces[3]!, { owner: "BBB", morale: 100 });
+    expect(p.oil).toBeCloseTo(3 * rates.oilPerMt);
+  });
+
+  it("le province poco abitate producono comunque il minimo della risorsa principale", () => {
+    const empty = province("x", "AAA", "rural", "goods", 10, 1000);
+    expect(provinceProductionPerDay(empty, { owner: "AAA", morale: 100 }).goods).toBe(rates.mainMinimum);
   });
 
   it("provincia conquistata: un quarto; morale: in proporzione", () => {
+    const full = provinceProductionPerDay(map.provinces[0]!, { owner: "AAA", morale: 100 }).metal;
     const conquered = provinceProductionPerDay(map.provinces[0]!, { owner: "BBB", morale: 100 });
-    expect(conquered.metal).toBe(1500);
+    expect(conquered.metal).toBeCloseTo(full * ECONOMY.nonCoreFactor);
     const unhappy = provinceProductionPerDay(map.provinces[0]!, { owner: "AAA", morale: 50 });
-    expect(unhappy.metal).toBe(3000);
+    expect(unhappy.metal).toBeCloseTo(full / 2);
   });
 
   it("la nazione somma solo le province che possiede", () => {
     const game = createGame(map, { playerNation: "AAA", realNowMs: start });
     const a = nationProductionPerDay(map, game, "AAA");
-    expect(a.metal).toBe(6000);
-    expect(a.food).toBe(1500);
+    expect(a.metal).toBeCloseTo(4000 * 5 * rates.industryPerThousand);
+    expect(a.manpower).toBeCloseTo(6000 * rates.manpowerPerThousand);
     expect(a.oil).toBe(0);
   });
 });
@@ -70,7 +85,7 @@ describe("createGame", () => {
   it("ogni provincia appartiene alla sua nazione e le scorte iniziali valgono alcuni giorni", () => {
     const game = createGame(map, { playerNation: "AAA", realNowMs: start });
     expect(game.provinces.b_city!.owner).toBe("BBB");
-    expect(game.nations.AAA!.stock.metal).toBe(6000 * ECONOMY.startingStockDays);
+    expect(game.nations.AAA!.stock.metal).toBeCloseTo(4000 * 5 * rates.industryPerThousand * ECONOMY.startingStockDays);
     expect(game.time).toBe(0);
   });
 
@@ -88,12 +103,12 @@ describe("advance", () => {
     expect(early.nations.AAA!.stock.metal).toBe(game.nations.AAA!.stock.metal);
     const after = advance(game, { map }, 30);
     expect(after.time).toBe(30);
-    expect(after.nations.AAA!.stock.metal - game.nations.AAA!.stock.metal).toBeCloseTo(6000 / 48);
+    expect(after.nations.AAA!.stock.metal - game.nations.AAA!.stock.metal).toBeCloseTo((4000 * 5 * rates.industryPerThousand) / 48);
   });
 
   it("un giorno intero aggiunge la produzione giornaliera", () => {
     const after = advance(game, { map }, 1440);
-    expect(after.nations.BBB!.stock.oil - game.nations.BBB!.stock.oil).toBeCloseTo(6000);
+    expect(after.nations.BBB!.stock.oil - game.nations.BBB!.stock.oil).toBeCloseTo(3 * rates.oilPerMt);
   });
 
   it("non modifica lo stato di partenza", () => {

@@ -6,9 +6,11 @@ import {
   engagements,
   formatGameTime,
   netPerDayByNation,
+  tradePerDay,
   wouldStartWar,
   type Army,
   type LngLat,
+  type ResourceId,
   type BuildingId,
   type UnitTypeId,
   type WorkType,
@@ -18,6 +20,7 @@ import { useLocalGame } from "./game/useLocalGame.js";
 import { loadMap, type LoadedMap } from "./map/loadMap.js";
 import { MapView, type MapViewHandle } from "./map/MapView.js";
 import { ProvincePanel } from "./ProvincePanel.js";
+import { TradePanel } from "./TradePanel.js";
 import { EventFeed } from "./ui/EventFeed.js";
 import { formatCountdown } from "./ui/format.js";
 import { NationPicker } from "./ui/NationPicker.js";
@@ -27,7 +30,7 @@ import { ResourceBar } from "./ui/ResourceBar.js";
 /** Velocità disponibili: x1 è quella vera; le altre servono solo per provare. */
 const SPEEDS = [1, 60, 600];
 
-type Selection = { kind: "province"; id: string } | { kind: "army"; id: string } | null;
+type Selection = { kind: "province"; id: string } | { kind: "army"; id: string } | { kind: "trade" } | null;
 
 export function App() {
   const [map, setMap] = useState<LoadedMap | null>(null);
@@ -197,6 +200,11 @@ function Game({ map }: { map: LoadedMap }) {
     setOrderError(game.order({ type: "cancelBuild", province: selection.id }));
   }, [selection, game]);
 
+  const setImport = useCallback(
+    (resource: ResourceId, perDay: number) => setOrderError(game.order({ type: "setImport", resource, perDay })),
+    [game],
+  );
+
   const provinces = state?.provinces;
   const owners = useMemo(
     () => (provinces ? Object.fromEntries(Object.entries(provinces).map(([id, p]) => [id, p.owner])) : undefined),
@@ -204,12 +212,19 @@ function Game({ map }: { map: LoadedMap }) {
   );
   const armiesRecord = state?.armies;
   const armies = useMemo(() => (armiesRecord ? Object.values(armiesRecord) : []), [armiesRecord]);
-  // Saldo giornaliero (produzione − mantenimento): cambia con province e armate, non a ogni tick.
+  // Saldo giornaliero (produzione − mantenimento ± commercio e carburante sintetico):
+  // cambia con province, armate, edifici, contratti e guerre, non a ogni tick.
   const playerNation = state?.playerNation;
+  const buildingsRecord = state?.buildings;
+  const imports = playerNation ? state?.nations[playerNation]?.imports : undefined;
+  const relationsRecord = state?.relations;
   const net = useMemo(() => {
     if (!state || !playerNation) return null;
-    return netPerDayByNation(map.data, state, ECONOMY).get(playerNation) ?? null;
-  }, [map, provinces, armiesRecord, playerNation]);
+    const base = netPerDayByNation(map.data, state, ECONOMY).get(playerNation);
+    if (!base) return null;
+    const trade = tradePerDay(map.data, state, playerNation);
+    return Object.fromEntries(Object.entries(base).map(([r, v]) => [r, v + trade[r as ResourceId]])) as typeof base;
+  }, [map, provinces, armiesRecord, playerNation, buildingsRecord, imports, relationsRecord]);
 
   // Chi combatte con chi in questo momento (si aggiorna ogni secondo, col tempo di gioco).
   const now = game.now;
@@ -249,6 +264,9 @@ function Game({ map }: { map: LoadedMap }) {
             ))}
           </select>
         </label>
+        <button className="text-button" onClick={() => select(selection?.kind === "trade" ? null : { kind: "trade" })}>
+          Commercio
+        </button>
         <button
           className="text-button"
           onClick={() => {
@@ -298,6 +316,17 @@ function Game({ map }: { map: LoadedMap }) {
       {game.offline && <OfflineBanner report={game.offline} onClose={game.dismissOffline} />}
 
       {state && <EventFeed map={map} game={state} onSelectProvince={selectProvinceAndFocus} />}
+
+      {selection?.kind === "trade" && state && (
+        <TradePanel
+          map={map}
+          game={state}
+          error={orderError}
+          onSetImport={setImport}
+          onSelectProvince={selectProvinceAndFocus}
+          onClose={() => select(null)}
+        />
+      )}
 
       {selectedProvince && (
         <ProvincePanel

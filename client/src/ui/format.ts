@@ -15,7 +15,6 @@ export const RESOURCE_COLORS: Record<ResourceId, string> = {
   goods: "#a0703c",
   metal: "#6f8496",
   oil: "#2b2b2b",
-  rare: "#8a5bb5",
   money: "#d1a41f",
   manpower: "#c0564b",
 };

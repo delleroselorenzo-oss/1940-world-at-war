@@ -13,10 +13,20 @@ import { bridgeIndex } from "./routing.js";
 import type { Army, GameState, WorkTarget, WorkType } from "./state.js";
 
 // Lavori sul campo: distruggere ponti (o ponti di barche), ripararli, gettare ponti di barche,
-// costruire ospedali da campo, fortificare la provincia, costruire aeroporti e porti.
+// costruire ospedali da campo, fortificare la provincia, costruire aeroporti e porti, sabotare e riparare i pozzi di petrolio.
 // Qui si decide cosa può fare un'armata e quanto ci mette; il motore applica il risultato quando il lavoro finisce.
 
-export const WORK_TYPES: readonly WorkType[] = ["demolish", "repair", "pontoon", "hospital", "fortify", "airfield", "port"];
+export const WORK_TYPES: readonly WorkType[] = [
+  "demolish",
+  "repair",
+  "pontoon",
+  "hospital",
+  "fortify",
+  "airfield",
+  "port",
+  "sabotageWells",
+  "repairWells",
+];
 
 export const WORK_NAMES: Record<WorkType, string> = {
   demolish: "Distruggi il ponte",
@@ -26,6 +36,8 @@ export const WORK_NAMES: Record<WorkType, string> = {
   fortify: "Fortifica la provincia",
   airfield: "Costruisci l'aeroporto",
   port: "Costruisci il porto",
+  sabotageWells: "Sabota i pozzi di petrolio",
+  repairWells: "Ripara i pozzi di petrolio",
 };
 
 /** Edificio costruito da un lavoro del genio. */
@@ -62,6 +74,7 @@ export function countRole(army: Army, role: "engineer" | "medic"): number {
  */
 export function workMinutes(work: WorkType, engineers: number, level = 1): number {
   if (work === "demolish") return ENGINEERING.demolishMinutes;
+  if (work === "sabotageWells") return ENGINEERING.sabotageWellsMinutes;
   const building = WORK_BUILDINGS[work];
   const base = building
     ? buildingMinutes(building, level)
@@ -181,6 +194,53 @@ export function availableWorks(state: GameState, world: { map: MapData; nav: Nav
       level,
     });
   }
+
+  // Pozzi di petrolio della provincia: chi si ritira li sabota, chi li possiede (anche conquistati) li ripara col genio.
+  const wells = province?.oilMtPerYear ? province : undefined;
+  const sabotaged = wells ? state.provinces[wells.id]?.wellsSabotaged === true : false;
+  const sameTask = (work: WorkType) =>
+    Object.values(state.armies).some(
+      (a) => a.id !== army.id && a.owner === army.owner && a.task?.work === work && a.task.target.kind === "province" && a.task.target.id === wells?.id,
+    );
+  options.push({
+    work: "sabotageWells",
+    target: wells ? { kind: "province", id: wells.id, at } : null,
+    minutes: workMinutes("sabotageWells", engineers),
+    missing:
+      general ??
+      (!wells
+        ? "Nessun giacimento di petrolio qui."
+        : !own
+          ? "Solo nelle tue province."
+          : sabotaged
+            ? "I pozzi sono già fuori uso."
+            : sameTask("sabotageWells")
+              ? "Un'altra tua armata ci sta già lavorando."
+              : null),
+    river: null,
+    cost: null,
+    level: null,
+  });
+  options.push({
+    work: "repairWells",
+    target: wells ? { kind: "province", id: wells.id, at } : null,
+    minutes: workMinutes("repairWells", engineers),
+    missing:
+      general ??
+      noEngineer ??
+      (!wells
+        ? "Nessun giacimento di petrolio qui."
+        : !own
+          ? "Solo nelle tue province."
+          : !sabotaged
+            ? "I pozzi funzionano."
+            : sameTask("repairWells")
+              ? "Un'altra tua armata ci sta già lavorando."
+              : null),
+    river: null,
+    cost: null,
+    level: null,
+  });
   return options;
 }
 
@@ -299,6 +359,9 @@ export function targetStillValid(state: GameState, nav: NavData, army: Army, wor
     case "here":
       return true;
     case "province": {
+      const ps = state.provinces[target.id];
+      if (work === "sabotageWells") return ps?.owner === army.owner && !ps.wellsSabotaged;
+      if (work === "repairWells") return ps?.owner === army.owner && ps.wellsSabotaged === true;
       const building = WORK_BUILDINGS[work];
       return (
         building !== undefined &&

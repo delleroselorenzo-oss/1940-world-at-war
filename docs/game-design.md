@@ -28,23 +28,38 @@ Escluso per scelta: negozio, valuta premium (Gold), acceleratori a pagamento, al
 | Risorsa | Uso principale |
 |---|---|
 | Cibo | Fanteria, morale (carenza = calo morale) |
-| Beni | Edifici, quasi tutte le unità |
+| Beni | Prodotti industriali (attrezzi, vestiario, tessuti, cemento, legname lavorato): edifici e quasi tutte le unità |
 | Metallo | Carri, artiglieria, navi |
 | Petrolio | Mezzi motorizzati, aerei, navi |
-| Materiali rari | Unità avanzate e speciali |
 | Denaro | Tutto (unità, edifici, ricerca) |
 | Manodopera | Tutte le unità |
 
 - Produzione sommata dalle province, moltiplicata per **morale** ed **edifici industriali**. Viene **accreditata a ogni tick di 30 minuti** di gioco (1/48 della produzione giornaliera); chi è offline la ritrova al rientro.
-- Valori di partenza indicativi (al 100% di morale, provincia core):
-  - città, risorsa principale: **6.000/giorno**
-  - provincia rurale con risorsa: **1.500/giorno**
-  - provincia rurale senza risorsa: tripla manodopera rispetto alle altre
+- **Economia storica** (deciso il 23/10/2026): ogni provincia ha una **popolazione stimata del 1933** e uno **sviluppo** (PIL pro capite di fine anni '30, Maddison Project, dollari del 1990; la media è quella nazionale, con correzioni regionali come Nord e Sud Italia). Valori al giorno, provincia core al 100% di morale:
+  - **manodopera**: 0,38 per migliaio di abitanti;
+  - **denaro**: 0,085 per migliaio di abitanti per ogni 1.000 $ di PIL pro capite;
+  - **beni e metallo** (se sono la risorsa principale): 0,27 per migliaio di abitanti per ogni 1.000 $;
+  - **cibo** (se è la risorsa principale): 0,8 per migliaio di abitanti per la radice del PIL pro capite in migliaia (anche le campagne povere rendono);
+  - **petrolio**: solo nei **giacimenti veri** (Baku, Grozny, Maikop, Baschiria, Ploiești, Galizia, Bassa Sassonia, Albania), 2.000 al giorno per ogni milione di tonnellate estratte nel 1938;
+  - minimo di 600 per la risorsa principale anche nelle province quasi vuote.
+  - Esempio: Baviera meridionale (3,7 milioni, sviluppo alto) ~1.550 di denaro e ~1.450 di manodopera; Orenburg ovest (1,4 milioni, sviluppo basso) ~235 e ~520.
+- **Stima della popolazione** (`economy` in `data/maps/europe-1933/config.json`): per ogni nazione popolazione del 1933, quota urbana e PIL pro capite; la parte urbana si divide secondo le città, quella rurale secondo la superficie (meno a nord e a est); alcune province hanno valori fissati a mano.
 - **Mantenimento**: le unità consumano risorse ogni giorno (proporzionale al costo). Carenze → morale in calo; per il cibo fino a -30.
 - **Nessun limite di magazzino**: le scorte possono crescere senza tetto (deciso il 23/10/2026).
 - **Mantenimento**: si scala a ogni tick come la produzione; le scorte non scendono sotto zero (le carenze agiranno sul morale).
-- Città: oltre alla risorsa principale producono 3.000 di denaro e 1.500 di manodopera al giorno; province rurali 1.000 di denaro e 800 di manodopera (2.400 se senza risorsa principale).
-- Le città di una nazione hanno risorse principali **diverse tra loro**; alcune province hanno risorse storiche (petrolio a Baku e Ploiești, metallo nella Ruhr, in Slesia, nel Donbass e a Kiruna…). Vedi `resources` in `data/maps/europe-1933/config.json`.
+- Le città di una nazione hanno risorse principali **diverse tra loro**; alcune province hanno risorse storiche (metallo nella Ruhr, in Slesia, nel Donbass e a Kiruna, grano in Ucraina…). Vedi `resources` in `data/maps/europe-1933/config.json`.
+
+### Petrolio e mercato estero (deciso il 23/10/2026)
+
+La mappa è solo l'Europa, ma nel 1938 quasi tutto il petrolio europeo veniva da fuori (Stati Uniti, Venezuela, Iran, Iraq). Il resto del mondo non si gioca: esiste come **mercato estero**. Valori in `shared/src/data/economy.ts` (`TRADE`), regole in `shared/src/game/trade.ts`.
+
+- **Contratto di importazione**: il giocatore sceglie quanto petrolio comprare al giorno (pannello "Commercio"). Si paga in denaro a ogni tick; senza denaro arriva solo la parte pagata. Prezzo: **1,2** di denaro per unità.
+- **Capacità di importazione** al giorno: **2.500** per ogni città costiera posseduta, **1.500** per ogni porto costruito dal genio, **800** per ogni nazione confinante con cui non si è in guerra (via terra, al massimo **2.400**). Oltre la capacità il contratto non arriva.
+- **Concessioni**: una quota al giorno a prezzo scontato (**0,5**) per le potenze con concessioni petrolifere all'estero: Regno Unito 8.000 (Iran e Iraq), Paesi Bassi 3.000 (Indie orientali), Francia 2.500 (Iraq). Arriva comunque attraverso la capacità di importazione.
+- **Riserve iniziali**: chi non ha pozzi parte con scorte storiche di petrolio (Regno Unito 40.000, Germania e Francia 30.000, Italia 20.000…; `oilReserve` in `config.json`).
+- **Carburante sintetico**: edificio nelle città (livelli 1–3); ogni livello trasforma **500 di metallo in 250 di petrolio** al giorno, fin dove basta il metallo. La strada della Germania storica (Leuna, Pölitz).
+- **Sabotaggio dei pozzi**: in una propria provincia con giacimento, qualsiasi armata ferma può sabotare i pozzi (**6 ore**); non producono più, anche per chi conquista la provincia, finché il genio non li ripara (**3 giorni**, diviso per il numero di unità del genio).
+- **Fase successiva**: blocco navale (le flotte nemiche tagliano le importazioni via mare) e commercio diretto tra giocatori.
 - Scorte iniziali: 3 giorni di produzione.
 - Valori nel codice: `shared/src/data/economy.ts`.
 - **Mercato** (fase successiva): scambio di risorse tra giocatori tramite offerte.
@@ -94,6 +109,7 @@ Escluso per scelta: negozio, valuta premium (Gold), acceleratori a pagamento, al
 - **Ovunque**:
   - **Industria**: +25% per livello della risorsa principale (denaro nelle province che non ne hanno).
   - **Ufficio di reclutamento**: +25% di manodopera per livello.
+- **Città, economia**: **impianto di carburante sintetico** (1–3): ogni livello trasforma 500 di metallo in 250 di petrolio al giorno (vedi §3).
 - **Genio** (lavoro di un'armata con il genio, ferma in una propria provincia; si paga all'inizio, si recupera interrompendo):
   - **Fortificazioni** (1–3): chi difende nella provincia subisce il 15% di danni in meno per livello.
   - **Aeroporto** e **porto** (solo province costiere): serviranno con aviazione e marina.
@@ -164,6 +180,7 @@ Le unità nel **ruolo preferito** sono circa 2–3x più efficaci; le "tuttofare
 - **Riparare un ponte** entro 3 km: serve il genio, **8 ore**.
 - **Ponte di barche**: serve il genio, **6 ore**, sul tratto di fiume più vicino entro 8 km. Lo può usare chiunque e si può distruggere.
 - **Ospedale da campo**: servono genio e sanità, **4 ore**. Le armate della stessa nazione ferme entro 5 km guariscono del 10% per tick. Va perso se ci sono nemici entro 5 km e nessuna armata amica a difenderlo.
+- **Sabotare i pozzi di petrolio** della provincia (solo nelle proprie, dove c'è un giacimento): qualsiasi armata ferma, **6 ore**. **Ripararli**: serve il genio, **3 giorni**.
 - Più genio lavora più in fretta: la durata si divide per il numero di unità del genio, fino a 3 (la distruzione dura sempre 1 ora). Un ordine di marcia o "Fermati qui" interrompe il lavoro.
 - **Guarigione** di un'armata ferma senza nemici a contatto: il valore più alto tra 3% per tick nel proprio territorio, 6% se ha la sanità (ovunque), 10% vicino a un proprio ospedale.
 - Valori: `shared/src/data/engineering.ts` e `shared/src/data/combat.ts`.

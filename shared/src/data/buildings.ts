@@ -10,6 +10,7 @@ export type BuildingId =
   | "shipyard"
   | "recruitmentOffice"
   | "industry"
+  | "syntheticFuel"
   | "fortifications"
   | "airfield"
   | "port";
@@ -97,6 +98,15 @@ export const BUILDING_TYPES: Record<BuildingId, BuildingType> = {
     cost: { goods: 1500, metal: 800, money: 2000 },
     hours: 18,
   },
+  syntheticFuel: {
+    id: "syntheticFuel",
+    name: "Impianto di carburante sintetico",
+    description: "Trasforma metallo (carbone) in petrolio: costoso e poco efficiente, ma non dipende da pozzi né da importazioni.",
+    where: "urban",
+    maxLevel: 3,
+    cost: { goods: 2000, metal: 2500, money: 3500 },
+    hours: 36,
+  },
   fortifications: {
     id: "fortifications",
     name: "Fortificazioni",
@@ -139,6 +149,9 @@ export const BUILDINGS = {
   industryBonusPerLevel: 0.25,
   /** Ufficio di reclutamento: + manodopera per livello. */
   recruitmentBonusPerLevel: 0.25,
+  /** Carburante sintetico: metallo consumato e petrolio prodotto al giorno, per livello. */
+  syntheticMetalPerLevel: 500,
+  syntheticOilPerLevel: 250,
   /** Fortificazioni: danno subito in meno, per livello, da chi difende nella provincia. */
   fortDefensePerLevel: 0.15,
   /** Livelli persi da ogni edificio quando la provincia cambia padrone (conquista o rivolta). */

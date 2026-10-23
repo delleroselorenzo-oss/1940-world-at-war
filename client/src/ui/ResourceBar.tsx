@@ -3,7 +3,7 @@ import { formatAmount, RESOURCE_COLORS } from "./format.js";
 
 interface ResourceBarProps {
   stock: ResourceAmounts;
-  /** Saldo giornaliero: produzione meno mantenimento delle unità. */
+  /** Saldo giornaliero: produzione meno mantenimento delle unità, più commercio estero e carburante sintetico. */
   perDay: ResourceAmounts;
 }
 
@@ -13,7 +13,7 @@ export function ResourceBar({ stock, perDay }: ResourceBarProps) {
   return (
     <ul className="resources" aria-label="Risorse">
       {RESOURCE_IDS.map((r) => {
-        const title = `${RESOURCE_NAMES[r]}: ${formatAmount(stock[r])} · ${sign(perDay[r])} al giorno (produzione meno mantenimento)`;
+        const title = `${RESOURCE_NAMES[r]}: ${formatAmount(stock[r])} · ${sign(perDay[r])} al giorno (produzione meno mantenimento, con commercio e carburante sintetico)`;
         return (
           <li key={r} className="resource" title={title}>
             <span className="dot" style={{ background: RESOURCE_COLORS[r] }} />

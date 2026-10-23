@@ -81,7 +81,12 @@ export function ArmyPanel(props: ArmyPanelProps) {
     );
   };
 
-  const works = mine ? availableWorks(game, { map: map.data, nav: map.nav }, army, now) : [];
+  // I lavori sui pozzi compaiono solo dove c'è un giacimento.
+  const works = mine
+    ? availableWorks(game, { map: map.data, nav: map.nav }, army, now).filter(
+        (w) => !((w.work === "sabotageWells" || w.work === "repairWells") && !w.target),
+      )
+    : [];
   const busy = army.move !== null || army.halted !== null || army.departure !== null;
 
   return (

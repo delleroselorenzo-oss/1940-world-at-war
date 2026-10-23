@@ -76,6 +76,10 @@ export function describeEvent(
           return mine ? { text: `Ospedale da campo pronto${at}`, tone: "good", province: e.province } : null;
         case "hospitalLost":
           return mine ? { text: `Ospedale da campo perduto${at}`, tone: "bad", province: e.province } : null;
+        case "wellsSabotaged":
+          return mine ? { text: `Pozzi di petrolio sabotati${at}`, tone: "neutral", province: e.province } : null;
+        case "wellsRepaired":
+          return mine ? { text: `Pozzi di petrolio di nuovo in funzione${at}`, tone: "good", province: e.province } : null;
       }
     }
   }

@@ -20,20 +20,28 @@ export function provinceProductionPerDay(
   economy: EconomyConfig = ECONOMY,
 ): ResourceAmounts {
   const out = emptyAmounts();
-  const base = province.type === "urban" ? economy.perDay.urban : economy.perDay.rural;
-  if (province.resource) out[province.resource] = base.main;
-  out.money = base.money;
-  out.manpower = province.type === "rural" && !province.resource ? economy.ruralManpowerWithoutResource : base.manpower;
+  const rates = economy.perDay;
+  const people = province.population;
+  const development = province.gdpPerCapita / 1000;
+  out.manpower = people * rates.manpowerPerThousand;
+  out.money = people * development * rates.moneyPerThousand;
+  if (province.resource === "oil") out.oil = state.wellsSabotaged ? 0 : (province.oilMtPerYear ?? 0) * rates.oilPerMt;
+  else if (province.resource === "food") out.food = Math.max(rates.mainMinimum, people * Math.sqrt(development) * rates.foodPerThousand);
+  else if (province.resource) out[province.resource] = Math.max(rates.mainMinimum, people * development * rates.industryPerThousand);
 
   // Industria: più risorsa principale (o denaro); ufficio di reclutamento: più manodopera.
   out[province.resource ?? "money"] *= 1 + BUILDINGS.industryBonusPerLevel * (buildings.industry ?? 0);
   out.manpower *= 1 + BUILDINGS.recruitmentBonusPerLevel * (buildings.recruitmentOffice ?? 0);
 
-  // Le province conquistate rendono meno; il morale moltiplica tutto.
-  const core = state.owner === province.nation;
-  const factor = (core ? 1 : economy.nonCoreFactor) * (state.morale / 100);
+  const factor = productionFactor(province, state, economy);
   for (const r of RESOURCE_IDS) out[r] *= factor;
   return out;
+}
+
+/** Le province conquistate rendono meno; il morale moltiplica tutto. */
+export function productionFactor(province: Province, state: ProvinceState, economy: EconomyConfig = ECONOMY): number {
+  const core = state.owner === province.nation;
+  return (core ? 1 : economy.nonCoreFactor) * (state.morale / 100);
 }
 
 /** Produzione giornaliera totale di una nazione, sommando le province che possiede. */

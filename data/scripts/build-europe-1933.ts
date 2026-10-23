@@ -79,6 +79,7 @@ interface MapConfig {
   nations: NationConfig[];
   renames: Record<string, string>;
   resources: ResourceConfig;
+  economy: EconomyStats;
 }
 
 interface ResourceConfig {
@@ -86,6 +87,13 @@ interface ResourceConfig {
   ruralShare: number;
   ruralWeights: Record<MainResourceId, number>;
   overrides: Record<string, MainResourceId>;
+}
+
+interface EconomyStats {
+  nations: Record<string, { population: number; urbanShare: number; gdpPerCapita: number; oilReserve?: number; oilConcessionPerDay?: number }>;
+  populationOverrides: Record<string, number>;
+  regionalDevelopment: Record<string, number>;
+  oilFields: Record<string, number>;
 }
 
 type Shape = Polygon | MultiPolygon;
@@ -270,6 +278,8 @@ async function main() {
       isCapital: false,
       terrain: null,
       resource: null,
+      population: 0,
+      gdpPerCapita: 0,
       center: visualCenter(geometry),
       areaKm2: Math.round(g.areaKm2),
       coastal: members.reduce((s, m) => s + (seaContacts.get(m.index) ?? 0), 0) >= MIN_COAST_CONTACTS,
@@ -316,7 +326,15 @@ async function main() {
     const p = provinceAt(cap.at);
     if (p && p.nation === n.id) makeUrban(p, near ? cityName(near) : cap.name, cap.at, true);
     else console.warn(`  ! capitale di ${n.id} (${cap.name}) non trovata in una provincia della nazione`);
-    return { id: n.id, name: n.name, color: n.color, capital: p && p.nation === n.id ? p : undefined };
+    const stats = config.economy.nations[n.id];
+    return {
+      id: n.id,
+      name: n.name,
+      color: n.color,
+      ...(stats?.oilReserve ? { oilReserve: stats.oilReserve } : {}),
+      ...(stats?.oilConcessionPerDay ? { oilConcessionPerDay: stats.oilConcessionPerDay } : {}),
+      capital: p && p.nation === n.id ? p : undefined,
+    };
   });
 
   // Città principali.
@@ -339,7 +357,8 @@ async function main() {
   const ids = new Set<string>();
   for (const p of provinces) p.id = uniqueId(`${p.nation}_${slug(p.name)}`, ids);
 
-  assignResources(provinces, config.resources);
+  assignResources(provinces, config.resources, config.economy.oilFields);
+  estimatePopulation(provinces, cities, population, provinceAt, config.economy);
 
   // Confini tra province, con le distanze tra i centri.
   const provinceLinks = new Map<Province, Map<Province, number>>();
@@ -518,12 +537,22 @@ function directionLabel(dirs: string[]): string {
  *    (la capitale per prima);
  *  - una parte delle province rurali (`ruralShare`) riceve una risorsa scelta con `ruralWeights`.
  */
-function assignResources(provinces: Province[], config: ResourceConfig) {
+function assignResources(provinces: Province[], config: ResourceConfig, oilFields: Record<string, number>) {
   const byId = new Map(provinces.map((p) => [p.id, p]));
   for (const [id, resource] of Object.entries(config.overrides)) {
     const p = byId.get(id);
     if (p) p.resource = resource;
     else console.warn(`  ! risorsa per provincia inesistente: ${id}`);
+  }
+  // Il petrolio c'è solo nei giacimenti veri.
+  for (const [id, mt] of Object.entries(oilFields)) {
+    const p = byId.get(id);
+    if (!p) console.warn(`  ! giacimento in provincia inesistente: ${id}`);
+    else if (config.overrides[id]) console.warn(`  ! ${id} ha già una risorsa in overrides`);
+    else {
+      p.resource = "oil";
+      p.oilMtPerYear = mt;
+    }
   }
 
   const nations = new Set(provinces.map((p) => p.nation));
@@ -542,7 +571,7 @@ function assignResources(provinces: Province[], config: ResourceConfig) {
   const weighted = Object.entries(config.ruralWeights) as [MainResourceId, number][];
   const totalWeight = weighted.reduce((s, [, w]) => s + w, 0);
   for (const p of provinces) {
-    if (p.type !== "rural" || p.resource || p.id in config.overrides) continue;
+    if (p.type !== "rural" || p.resource || p.id in config.overrides || p.id in oilFields) continue;
     if (hash01(`${p.id}#share`) >= config.ruralShare) continue;
     let pick = hash01(`${p.id}#kind`) * totalWeight;
     for (const [resource, weight] of weighted) {
@@ -553,6 +582,66 @@ function assignResources(provinces: Province[], config: ResourceConfig) {
       }
     }
   }
+}
+
+/**
+ * Popolazione del 1933 e sviluppo di ogni provincia. Per ogni nazione:
+ *  - la parte urbana della popolazione si divide secondo le città di Natural Earth che cadono nella provincia;
+ *  - la parte rurale secondo la superficie, con meno abitanti a nord (clima) e a est (steppe e Urali);
+ *  - `populationOverrides` fissa alcune province, le altre si riscalano per tenere il totale nazionale;
+ *  - lo sviluppo (PIL pro capite) è quello nazionale, spostato da `regionalDevelopment` mantenendo la media.
+ */
+function estimatePopulation(
+  provinces: Province[],
+  cities: Feature<Point, Record<string, any>>[],
+  cityPopulation: (c: Feature<Point, Record<string, any>>) => number,
+  provinceAt: (at: LngLat) => Province | undefined,
+  stats: EconomyStats,
+) {
+  const townPop = new Map<Province, number>();
+  for (const c of cities) {
+    const p = provinceAt(c.geometry.coordinates as LngLat);
+    if (p) townPop.set(p, (townPop.get(p) ?? 0) + cityPopulation(c));
+  }
+  const ruralWeight = (p: Province) => p.areaKm2 * northFactor(p.center[1]) * eastFactor(p.center[0]);
+
+  for (const [nation, n] of Object.entries(stats.nations)) {
+    const list = provinces.filter((p) => p.nation === nation);
+    if (list.length === 0) {
+      console.warn(`  ! dati economici per nazione inesistente: ${nation}`);
+      continue;
+    }
+    const towns = list.reduce((s, p) => s + (townPop.get(p) ?? 0), 0);
+    const rural = list.reduce((s, p) => s + ruralWeight(p), 0);
+    const total = n.population * 1000;
+    const urban = towns > 0 ? total * n.urbanShare : 0;
+    for (const p of list) p.population = (urban * (townPop.get(p) ?? 0)) / (towns || 1) + ((total - urban) * ruralWeight(p)) / rural;
+
+    const fixed = list.filter((p) => p.id in stats.populationOverrides);
+    for (const p of fixed) p.population = stats.populationOverrides[p.id]!;
+    const free = list.filter((p) => !(p.id in stats.populationOverrides));
+    const freeTotal = free.reduce((s, p) => s + p.population, 0);
+    const target = total - fixed.reduce((s, p) => s + p.population, 0);
+    for (const p of free) p.population = Math.max(1, Math.round((p.population * target) / freeTotal));
+    for (const p of fixed) p.population = Math.round(p.population);
+
+    const weighted = list.reduce((s, p) => s + p.population * (stats.regionalDevelopment[p.id] ?? 1), 0);
+    const scale = total / weighted;
+    for (const p of list) p.gdpPerCapita = Math.round(n.gdpPerCapita * (stats.regionalDevelopment[p.id] ?? 1) * scale);
+  }
+  for (const id of [...Object.keys(stats.populationOverrides), ...Object.keys(stats.regionalDevelopment)])
+    if (!provinces.some((p) => p.id === id)) console.warn(`  ! provincia inesistente nei dati economici: ${id}`);
+  for (const p of provinces) if (!p.gdpPerCapita) console.warn(`  ! mancano i dati economici di ${p.nation}`);
+}
+
+/** Densità rurale relativa al clima: piena fino a 57° di latitudine, quasi nulla oltre il 66°. */
+function northFactor(lat: number): number {
+  return lat <= 57 ? 1 : Math.max(0.05, 1 - ((lat - 57) / 9) * 0.95);
+}
+
+/** Densità rurale relativa alla distanza dal mare: piena fino a 35° di longitudine, 40% a 55°. */
+function eastFactor(lng: number): number {
+  return lng <= 35 ? 1 : Math.max(0.4, 1 - ((lng - 35) / 20) * 0.6);
 }
 
 /** Numero pseudo-casuale in [0, 1) ricavato da una stringa (FNV-1a): stabile tra una generazione e l'altra. */
@@ -707,6 +796,9 @@ function report(map: MapData) {
   const counts = new Map<string, number>();
   for (const p of map.provinces) counts.set(p.resource ?? "nessuna", (counts.get(p.resource ?? "nessuna") ?? 0) + 1);
   console.log(`Risorse principali: ${[...counts].map(([r, n]) => `${r} ${n}`).join(", ")}`);
+  const byPop = [...map.provinces].sort((a, b) => b.population - a.population);
+  const fmtPop = (p: Province) => `${p.id} (${(p.population / 1000).toLocaleString("it-IT", { maximumFractionDigits: 1 })} mln)`;
+  console.log(`Più popolose: ${byPop.slice(0, 8).map(fmtPop).join(", ")}`);
   console.log(`\nTotale: ${map.provinces.length} province. Anteprima: data/maps/europe-1933/preview.html`);
 }
 

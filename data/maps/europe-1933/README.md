@@ -20,7 +20,8 @@ Lo script è [`data/scripts/build-europe-1933.ts`](../../scripts/build-europe-19
 3. **Griglia** di ~2 km su cui vengono "dipinti" i pezzi, per capire chi confina con chi e chi tocca il mare.
 4. **Accorpamento**: i pezzi più piccoli della soglia si uniscono ai vicini della stessa nazione. I pezzi troppo grandi (nord della Russia) vengono tagliati a metà.
 5. **Città**: la capitale e le città più popolose (popolazione 1950) diventano province urbane, fino a 5 per nazione.
-6. **Risorse principali**: prima i riferimenti storici, poi le città di ogni nazione prendono risorse diverse tra loro, e circa un terzo delle province rurali riceve una risorsa.
+6. **Risorse principali**: prima i riferimenti storici e i giacimenti di petrolio (`economy.oilFields`), poi le città di ogni nazione prendono risorse diverse tra loro, e circa un terzo delle province rurali riceve una risorsa (mai il petrolio).
+7. **Popolazione e sviluppo** (`economy` in `config.json`): popolazione del 1933, quota urbana e PIL pro capite per nazione; la popolazione si divide tra le province secondo le città (parte urbana) e la superficie (parte rurale, meno a nord e a est), con alcune correzioni a mano; lo sviluppo è quello nazionale con correzioni regionali.
 
 ## Rete di movimento
 
@@ -48,5 +49,6 @@ Le strade sono **moderne** (Natural Earth): i grandi tracciati sono simili a que
 
 - **CShapes 2.0** — Schvitz, Girardin, Rüegger, Weidmann, Cederman, Gleditsch, *Mapping the International System, 1886–2019: The CShapes 2.0 Dataset*, Journal of Conflict Resolution, 2022. ETH Zurigo, <https://icr.ethz.ch/data/cshapes/>. Licenza **CC BY-NC-SA 4.0**: uso non commerciale con attribuzione. I dati derivati (questa mappa) vanno condivisi con la stessa licenza.
 - **Natural Earth** — suddivisioni amministrative e città, <https://www.naturalearthdata.com/>. **Pubblico dominio**.
+- **Dati economici** (`economy` in `config.json`): popolazioni nazionali dei censimenti degli anni '30 e PIL pro capite del Maddison Project (<https://www.rug.nl/ggdc/historicaldevelopment/maddison/>), arrotondati; produzione di petrolio del 1938 da statistiche storiche. Sono stime approssimate per il gioco.
 
 I file grezzi vengono scaricati in `data/raw/`, che è escluso dal versionamento.

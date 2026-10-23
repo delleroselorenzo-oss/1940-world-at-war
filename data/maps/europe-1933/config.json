@@ -241,31 +241,19 @@
     "Voivodato di Lubusz": "Brandeburgo Orientale"
   },
   "resources": {
-    "_note": "Le città di una nazione hanno risorse principali diverse tra loro (cityOrder). Le province rurali ne hanno una con probabilità ruralShare, scelta con i pesi ruralWeights. overrides fissa la risorsa di una provincia (per id) con riferimenti storici.",
+    "_note": "Le città di una nazione hanno risorse principali diverse tra loro (cityOrder). Le province rurali ne hanno una con probabilità ruralShare, scelta con i pesi ruralWeights. overrides fissa la risorsa di una provincia (per id) con riferimenti storici. Il petrolio non si assegna qui: c'è solo nei giacimenti veri (economy.oilFields).",
     "cityOrder": [
       "goods",
       "food",
-      "metal",
-      "oil",
-      "rare"
+      "metal"
     ],
     "ruralShare": 0.35,
     "ruralWeights": {
       "food": 4,
       "goods": 2,
-      "metal": 2,
-      "oil": 1,
-      "rare": 1
+      "metal": 2
     },
     "overrides": {
-      "SOV_baku": "oil",
-      "SOV_territorio_di_krasnodar": "oil",
-      "SOV_daghestan": "oil",
-      "SOV_baschiria_sud": "oil",
-      "ROU_bucarest": "oil",
-      "ROU_arges": "oil",
-      "POL_leopoli": "oil",
-      "ALB_coriza": "oil",
       "GER_essen": "metal",
       "GER_slesia": "metal",
       "POL_katowice": "metal",
@@ -281,15 +269,15 @@
       "GBR_glasgow": "metal",
       "GBR_northumberland": "metal",
       "ITA_sardegna": "metal",
-      "NOR_stavanger": "rare",
-      "TUR_diyarbak_r": "rare",
-      "YUG_regione_zaratina": "rare",
-      "YUG_branicevo": "rare",
-      "HUN_veszprem": "rare",
-      "PRT_castelo_branco": "rare",
-      "ESP_ciudad_real": "rare",
-      "FIN_murmansk": "rare",
-      "SOV_murmansk_est": "rare",
+      "NOR_stavanger": "metal",
+      "TUR_diyarbak_r": "metal",
+      "YUG_regione_zaratina": "metal",
+      "YUG_branicevo": "metal",
+      "HUN_veszprem": "metal",
+      "PRT_castelo_branco": "metal",
+      "ESP_ciudad_real": "metal",
+      "FIN_murmansk": "metal",
+      "SOV_murmansk_est": "metal",
       "SOV_poltava": "food",
       "SOV_vinnycja": "food",
       "SOV_charkiv": "food",
@@ -298,6 +286,266 @@
       "HUN_great_southern_plain": "food",
       "YUG_backa_meridionale": "food",
       "ROU_dolj": "food"
+    }
+  },
+  "economy": {
+    "_note": "Dati storici approssimati per l'economia. nations: popolazione nel 1933 (milioni di abitanti, solo la parte sulla mappa), quota di popolazione urbana, PIL pro capite di fine anni '30 (Maddison Project, dollari internazionali del 1990). La popolazione si divide tra le province: la parte urbana secondo le città di Natural Earth, quella rurale secondo la superficie (meno a nord e a est). populationOverrides fissa la popolazione di una provincia (migliaia). regionalDevelopment sposta lo sviluppo di una provincia rispetto alla media nazionale (che resta invariata). oilFields: giacimenti di petrolio con la produzione del 1938 (milioni di tonnellate all'anno). oilReserve: scorte di petrolio a inizio partita (per chi non ha pozzi). oilConcessionPerDay: petrolio delle concessioni all'estero (Iran e Iraq per il Regno Unito, Indie orientali per i Paesi Bassi, Iraq per la Francia), comprato a prezzo scontato dal mercato estero.",
+    "nations": {
+      "GBR": {
+        "population": 46.1,
+        "urbanShare": 0.8,
+        "gdpPerCapita": 5980,
+        "oilReserve": 40000,
+        "oilConcessionPerDay": 8000
+      },
+      "IRL": {
+        "population": 2.96,
+        "urbanShare": 0.38,
+        "gdpPerCapita": 2800,
+        "oilReserve": 3000
+      },
+      "NLD": {
+        "population": 8.2,
+        "urbanShare": 0.55,
+        "gdpPerCapita": 5250,
+        "oilReserve": 10000,
+        "oilConcessionPerDay": 3000
+      },
+      "BEL": {
+        "population": 8.2,
+        "urbanShare": 0.55,
+        "gdpPerCapita": 4730,
+        "oilReserve": 6000
+      },
+      "LUX": {
+        "population": 0.3,
+        "urbanShare": 0.4,
+        "gdpPerCapita": 5500,
+        "oilReserve": 1000
+      },
+      "FRA": {
+        "population": 41.8,
+        "urbanShare": 0.5,
+        "gdpPerCapita": 4470,
+        "oilReserve": 30000,
+        "oilConcessionPerDay": 2500
+      },
+      "CHE": {
+        "population": 4.1,
+        "urbanShare": 0.4,
+        "gdpPerCapita": 6390,
+        "oilReserve": 5000
+      },
+      "ESP": {
+        "population": 24.0,
+        "urbanShare": 0.4,
+        "gdpPerCapita": 2300,
+        "oilReserve": 8000
+      },
+      "PRT": {
+        "population": 6.9,
+        "urbanShare": 0.25,
+        "gdpPerCapita": 1700,
+        "oilReserve": 4000
+      },
+      "GER": {
+        "population": 66.0,
+        "urbanShare": 0.55,
+        "gdpPerCapita": 4990,
+        "oilReserve": 30000
+      },
+      "POL": {
+        "population": 33.0,
+        "urbanShare": 0.27,
+        "gdpPerCapita": 1900,
+        "oilReserve": 8000
+      },
+      "DAN": {
+        "population": 0.41,
+        "urbanShare": 0.65,
+        "gdpPerCapita": 3500,
+        "oilReserve": 1000
+      },
+      "AUT": {
+        "population": 6.76,
+        "urbanShare": 0.45,
+        "gdpPerCapita": 3560,
+        "oilReserve": 4000
+      },
+      "HUN": {
+        "population": 8.7,
+        "urbanShare": 0.35,
+        "gdpPerCapita": 2650,
+        "oilReserve": 4000
+      },
+      "CZE": {
+        "population": 14.7,
+        "urbanShare": 0.4,
+        "gdpPerCapita": 2880,
+        "oilReserve": 6000
+      },
+      "ITA": {
+        "population": 42.0,
+        "urbanShare": 0.45,
+        "gdpPerCapita": 3320,
+        "oilReserve": 20000
+      },
+      "ALB": {
+        "population": 1.0,
+        "urbanShare": 0.15,
+        "gdpPerCapita": 900
+      },
+      "YUG": {
+        "population": 14.5,
+        "urbanShare": 0.15,
+        "gdpPerCapita": 1360,
+        "oilReserve": 4000
+      },
+      "GRC": {
+        "population": 6.6,
+        "urbanShare": 0.33,
+        "gdpPerCapita": 2680,
+        "oilReserve": 4000
+      },
+      "BGR": {
+        "population": 6.0,
+        "urbanShare": 0.21,
+        "gdpPerCapita": 1600,
+        "oilReserve": 3000
+      },
+      "ROU": {
+        "population": 18.4,
+        "urbanShare": 0.2,
+        "gdpPerCapita": 1240
+      },
+      "SOV": {
+        "population": 125.0,
+        "urbanShare": 0.24,
+        "gdpPerCapita": 2150
+      },
+      "EST": {
+        "population": 1.13,
+        "urbanShare": 0.3,
+        "gdpPerCapita": 3000,
+        "oilReserve": 2000
+      },
+      "LVA": {
+        "population": 1.95,
+        "urbanShare": 0.35,
+        "gdpPerCapita": 3300,
+        "oilReserve": 2000
+      },
+      "LTU": {
+        "population": 2.4,
+        "urbanShare": 0.2,
+        "gdpPerCapita": 2000,
+        "oilReserve": 2000
+      },
+      "FIN": {
+        "population": 3.7,
+        "urbanShare": 0.22,
+        "gdpPerCapita": 3590,
+        "oilReserve": 4000
+      },
+      "SWE": {
+        "population": 6.2,
+        "urbanShare": 0.35,
+        "gdpPerCapita": 4730,
+        "oilReserve": 8000
+      },
+      "NOR": {
+        "population": 2.85,
+        "urbanShare": 0.3,
+        "gdpPerCapita": 4340,
+        "oilReserve": 4000
+      },
+      "DNK": {
+        "population": 3.6,
+        "urbanShare": 0.45,
+        "gdpPerCapita": 5760,
+        "oilReserve": 4000
+      },
+      "TUR": {
+        "population": 16.0,
+        "urbanShare": 0.24,
+        "gdpPerCapita": 1860,
+        "oilReserve": 5000
+      }
+    },
+    "populationOverrides": {
+      "GER_stoccarda": 5200,
+      "GER_sassonia": 5200,
+      "GER_sassonia_anhalt": 3300,
+      "GER_slesia": 4600,
+      "GER_pomerania": 1900,
+      "GER_masuria": 1100,
+      "GER_konigsberg": 1200,
+      "GER_meclemburgo_pomerania_anteriore": 1300,
+      "ITA_sardegna": 1000,
+      "ITA_foggia": 2500,
+      "SOV_mosca": 8500,
+      "SOV_leningrado": 5500,
+      "SOV_kiev": 3500,
+      "SOV_calmucchia": 500,
+      "SOV_territorio_di_krasnodar": 3200,
+      "FRA_lilla": 3200,
+      "POL_brest": 1200
+    },
+    "regionalDevelopment": {
+      "ITA_milano": 1.5,
+      "ITA_torino": 1.45,
+      "ITA_brescia": 1.2,
+      "ITA_bologna": 1.15,
+      "ITA_firenze": 1.1,
+      "ITA_roma": 1.2,
+      "ITA_udine": 0.9,
+      "ITA_perugia": 0.85,
+      "ITA_dell_aquila": 0.7,
+      "ITA_napoli": 0.75,
+      "ITA_foggia": 0.65,
+      "ITA_calabria": 0.55,
+      "ITA_catania": 0.6,
+      "ITA_palermo": 0.6,
+      "ITA_sardegna": 0.6,
+      "ESP_barcellona": 1.5,
+      "ESP_bilbao": 1.5,
+      "ESP_madrid": 1.3,
+      "ESP_valencia": 1.1,
+      "SOV_mosca": 1.6,
+      "SOV_leningrado": 1.6,
+      "GBR_londra": 1.15,
+      "GBR_northern_ireland": 0.75,
+      "GBR_highland": 0.8,
+      "GBR_ebridi_esterne": 0.8,
+      "FRA_parigi": 1.35,
+      "GER_berlino": 1.2,
+      "GER_amburgo": 1.2,
+      "GER_essen": 1.15,
+      "GER_masuria": 0.8,
+      "GER_konigsberg": 0.85,
+      "GER_pomerania": 0.85,
+      "POL_varsavia": 1.2,
+      "POL_katowice": 1.25,
+      "POL_odz": 1.15,
+      "POL_poznan": 1.15,
+      "POL_volinia": 0.75,
+      "POL_brest": 0.7,
+      "POL_hrodna": 0.75,
+      "POL_rivne": 0.75,
+      "POL_ternopil": 0.8,
+      "POL_ivano_frankivs_k": 0.8,
+      "POL_voivodato_della_podlachia": 0.8
+    },
+    "oilFields": {
+      "SOV_baku": 22,
+      "SOV_daghestan": 2.6,
+      "SOV_territorio_di_krasnodar": 2.3,
+      "SOV_baschiria_sud": 1.0,
+      "ROU_bucarest": 4.5,
+      "ROU_arges": 2.1,
+      "POL_leopoli": 0.5,
+      "GER_bassa_sassonia": 0.55,
+      "ALB_coriza": 0.13
     }
   }
 }

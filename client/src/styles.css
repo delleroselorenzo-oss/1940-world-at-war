@@ -966,3 +966,64 @@ p.small {
 .panel-body .task {
   margin-bottom: 14px;
 }
+
+/* Commercio estero */
+.import-row {
+  margin-bottom: 12px;
+}
+
+.import-row p {
+  margin: 0 0 6px;
+}
+
+.import-row .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.import-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.import-form label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.import-form input {
+  width: 100px;
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.warning {
+  color: var(--danger);
+}
+
+.plain-list {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}

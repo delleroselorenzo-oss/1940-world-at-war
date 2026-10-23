@@ -8,10 +8,14 @@ export interface ProvinceState {
   owner: NationId;
   /** Morale 0–100: moltiplica la produzione. */
   morale: number;
+  /** Pozzi di petrolio sabotati: non producono finché il genio non li ripara. */
+  wellsSabotaged?: boolean;
 }
 
 export interface NationState {
   stock: ResourceAmounts;
+  /** Contratti con il mercato estero: quanto comprare al giorno, per risorsa (si paga a ogni tick). */
+  imports?: Partial<Record<ResourceId, number>>;
 }
 
 export type ArmyId = string;
@@ -77,7 +81,16 @@ export interface Army {
 }
 
 /** Lavori sul campo. */
-export type WorkType = "demolish" | "repair" | "pontoon" | "hospital" | "fortify" | "airfield" | "port";
+export type WorkType =
+  | "demolish"
+  | "repair"
+  | "pontoon"
+  | "hospital"
+  | "fortify"
+  | "airfield"
+  | "port"
+  | "sabotageWells"
+  | "repairWells";
 
 /** Su cosa si lavora: un ponte, un ponte di barche, un passaggio sul fiume (tra due celle) o il punto dov'è l'armata. */
 export type WorkTarget =
@@ -149,7 +162,15 @@ export type GameEvent =
   | {
       time: number;
       type: "works";
-      what: "bridgeDestroyed" | "bridgeRepaired" | "pontoonBuilt" | "pontoonDestroyed" | "hospitalBuilt" | "hospitalLost";
+      what:
+        | "bridgeDestroyed"
+        | "bridgeRepaired"
+        | "pontoonBuilt"
+        | "pontoonDestroyed"
+        | "hospitalBuilt"
+        | "hospitalLost"
+        | "wellsSabotaged"
+        | "wellsRepaired";
       /** Chi ha fatto il lavoro (per "hospitalLost": chi l'ha perso). */
       by: NationId;
       at: LngLat;
