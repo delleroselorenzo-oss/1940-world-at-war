@@ -1782,3 +1782,23 @@ p.small {
     bottom: 74px;
   }
 }
+
+/* Effetto di un edificio (pannello Edifici) */
+.effect {
+  color: var(--good);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+p.effect {
+  margin: -4px 0 12px;
+}
+
+.choice-list button:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.choice-list button:disabled:hover {
+  border-color: var(--line);
+}

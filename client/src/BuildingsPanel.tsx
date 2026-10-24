@@ -16,6 +16,7 @@ import {
   type WorkType,
 } from "@waw/shared";
 import type { LoadedMap } from "./map/loadMap.js";
+import { buildingEffect, buildingEffectHere } from "./ui/buildingEffects.js";
 import { CostList } from "./ui/CostList.js";
 import { formatCountdown, formatDelay } from "./ui/format.js";
 
@@ -155,6 +156,7 @@ export function BuildingsPanel({
                     <button onClick={() => setBuilding(b)}>
                       <strong>{type.name}</strong>
                       <span className="muted small">{type.description}</span>
+                      <span className="effect small">{buildingEffect(b)}</span>
                       <span className="muted small">
                         {count === 0 ? "Nessuna provincia adatta" : `Si può costruire in ${count} ${count === 1 ? "provincia" : "province"}`}
                         {built > 0 && ` · già in ${built}`}
@@ -174,6 +176,7 @@ export function BuildingsPanel({
               {BUILDING_TYPES[building].coastal && " sul mare"}; fino al livello {BUILDING_TYPES[building].maxLevel}. Le province adatte sono
               evidenziate sulla mappa.
             </p>
+            <p className="effect small">{buildingEffect(building)}</p>
             {places.length === 0 ? (
               <p className="muted">Nessuna delle tue province è adatta.</p>
             ) : BUILDING_TYPES[building].byEngineers ? (
@@ -184,6 +187,7 @@ export function BuildingsPanel({
                   const option = buildOptions(game, p, me).find((o) => o.building === building)!;
                   const level = buildingLevel(game, p.id, building);
                   const max = option.missing === "Livello massimo.";
+                  const effect = max ? null : buildingEffectHere(building, p, game.provinces[p.id]!, game.buildings[p.id]);
                   return (
                     <li key={p.id}>
                       <div className="recruit-head">
@@ -202,6 +206,7 @@ export function BuildingsPanel({
                           </button>
                         )}
                       </div>
+                      {effect && <span className="effect small">{effect}</span>}
                       {max ? (
                         <span className="muted small">Livello massimo.</span>
                       ) : (
@@ -250,6 +255,7 @@ function EngineerPlaces({ map, game, now, building, places, onFocusProvince, sen
         {places.map((p) => {
           const level = buildingLevel(game, p.id, building);
           const here = engineers.filter((a) => provinceIdAt(map.nav, a.position) === p.id);
+          const effect = level < BUILDING_TYPES[building].maxLevel ? buildingEffectHere(building, p, game.provinces[p.id]!, game.buildings[p.id]) : null;
           return (
             <li key={p.id}>
               <div className="recruit-head">
@@ -258,6 +264,7 @@ function EngineerPlaces({ map, game, now, building, places, onFocusProvince, sen
                 </button>
                 <span className="muted small">{level > 0 ? `liv. ${level}` : "non c'è"}</span>
               </div>
+              {effect && <span className="effect small">{effect}</span>}
               {level >= BUILDING_TYPES[building].maxLevel ? (
                 <span className="muted small">Livello massimo.</span>
               ) : here.length === 0 ? (

@@ -53,7 +53,8 @@ Escluso per scelta: negozio, valuta premium (Gold), acceleratori a pagamento, al
 
 La mappa è solo l'Europa, ma nel 1938 quasi tutto il petrolio europeo veniva da fuori (Stati Uniti, Venezuela, Iran, Iraq). Il resto del mondo non si gioca: esiste come **mercato estero**. Valori in `shared/src/data/economy.ts` (`TRADE`), regole in `shared/src/game/trade.ts`.
 
-- **Contratto di importazione**: il giocatore sceglie quanto petrolio comprare al giorno (pannello "Commercio"). Si paga in denaro a ogni tick; senza denaro arriva solo la parte pagata. Prezzo: **1,2** di denaro per unità.
+- **Contratti di importazione** (deciso il 25/10/2026: per tutte le materie prime): il giocatore sceglie quanto comprare al giorno di cibo, beni, metallo e petrolio (pannello "Commercio" → "Mercato estero"). Si paga in denaro a ogni tick; senza denaro arriva solo la parte pagata. Prezzi per unità: cibo **0,6**, metallo **0,9**, beni **1**, petrolio **1,2**.
+- Tutti i contratti insieme **non possono superare la capacità di importazione** al momento della firma. Se poi la capacità cala (una guerra chiude una via di terra), i contratti arrivano tutti ridotti nella stessa proporzione.
 - **Capacità di importazione** al giorno: **2.500** per ogni città costiera posseduta, **1.500** per ogni porto costruito dal genio, **800** per ogni nazione confinante con cui non si è in guerra (via terra, al massimo **2.400**). Oltre la capacità il contratto non arriva.
 - **Concessioni**: una quota al giorno a prezzo scontato (**0,5**) per le potenze con concessioni petrolifere all'estero: Regno Unito 8.000 (Iran e Iraq), Paesi Bassi 3.000 (Indie orientali), Francia 2.500 (Iraq). Arriva comunque attraverso la capacità di importazione.
 - **Riserve iniziali**: chi non ha pozzi parte con scorte storiche di petrolio (Regno Unito 40.000, Germania e Francia 30.000, Italia 20.000…; `oilReserve` in `config.json`).
@@ -128,6 +129,10 @@ Valori in `shared/src/data/diplomacy.ts` (`MARKET`), regole in `shared/src/game/
 - **Edifici iniziali**: capitale con caserma 2, fabbrica di mezzi corazzati 1 e fabbrica di artiglieria 1; le altre città con caserma 1.
 - **Cambio di padrone** (conquista o rivolta): ogni edificio perde un livello; quelli al livello 1 sono distrutti. Costruzione in corso e coda di arruolamento si perdono.
 
+### Interfaccia degli edifici (deciso il 25/10/2026)
+
+- Nel pannello "Edifici" ogni edificio mostra il suo **effetto per livello** (industria +25% della risorsa principale, ufficio di reclutamento +25% di manodopera, fortificazioni −15% di danni in difesa, caserme e fabbriche −15% sui tempi di arruolamento, porto +1.500 di capacità di importazione…) e, provincia per provincia, **cosa cambierebbe** con il livello successivo (per esempio "Metallo: +639 al giorno, da 2.559 a 3.199").
+
 ## 6. Ricerca
 
 - Albero diviso per categoria (fanteria, corazzati, artiglieria, aerei, navi, speciali).
@@ -160,6 +165,8 @@ Fanteria, Corazzato leggero, Corazzato pesante, Aereo, Nave, Sottomarino, Edific
 - **Speciali** (fine partita, opzionali): razzi, armi atomiche
 
 Le unità nel **ruolo preferito** sono circa 2–3x più efficaci; le "tuttofare" sono più deboli in entrambi i ruoli.
+
+**Aeronautica e Marina** (25/10/2026): nel pannello "Produzione" ci sono già le due categorie con le prime unità **in arrivo** (non ancora arruolabili): caccia e bombardiere (fabbrica aeronautica); sottomarino, cacciatorpediniere, nave da battaglia e portaerei (cantiere navale). Statistiche e costi si decidono insieme al volo e alla navigazione (`PLANNED_UNITS` in `shared/src/data/units.ts`).
 
 ## 8. Movimento
 

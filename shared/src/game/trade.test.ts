@@ -94,10 +94,22 @@ describe("mercato estero", () => {
     expect(after.nations.AAA!.stock.oil).toBeCloseTo(3000 + production.oil);
   });
 
-  it("non si importa più della capacità", () => {
-    let game = withStock(newGame(), "AAA", { money: 1_000_000 });
-    game = order(game, { type: "setImport", resource: "oil", perDay: 50_000 });
-    expect(importFlows(map, game, "AAA")[0]!.perDay).toBe(TRADE.portCityPerDay + TRADE.overlandPerNeighbor);
+  it("i contratti di tutte le risorse insieme non superano la capacità", () => {
+    const capacity = TRADE.portCityPerDay + TRADE.overlandPerNeighbor;
+    let game = order(newGame(), { type: "setImport", resource: "oil", perDay: 2000 });
+    const r = applyOrder(game, world, "AAA", { type: "setImport", resource: "metal", perDay: capacity });
+    expect(r.ok).toBe(false);
+    game = order(game, { type: "setImport", resource: "metal", perDay: capacity - 2000 });
+    expect(importFlows(map, game, "AAA").reduce((sum, f) => sum + f.perDay, 0)).toBe(capacity);
+  });
+
+  it("se la capacità cala, i contratti arrivano tutti nella stessa proporzione", () => {
+    let game = order(newGame(), { type: "setImport", resource: "oil", perDay: 1650 });
+    game = order(game, { type: "setImport", resource: "food", perDay: 1650 });
+    // In guerra con BBB si perde la via di terra: resta solo il mare.
+    startWar(game, "AAA", "BBB", 0);
+    const flows = importFlows(map, game, "AAA");
+    expect(flows.map((f) => f.perDay)).toEqual([TRADE.portCityPerDay / 2, TRADE.portCityPerDay / 2]);
   });
 
   it("senza denaro si compra solo quello che si riesce a pagare", () => {

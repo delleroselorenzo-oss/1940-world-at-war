@@ -52,20 +52,23 @@ export interface ImportFlow {
   cost: number;
 }
 
-/** Importazioni di una nazione al giorno, con la capacità di adesso (prima di vedere se c'è il denaro). */
+/**
+ * Importazioni di una nazione al giorno, con la capacità di adesso (prima di vedere se c'è il denaro).
+ * I contratti si dividono la capacità: se non basta per tutti, ognuno arriva nella stessa proporzione.
+ */
 export function importFlows(map: MapData, state: GameState, nation: NationId, capacity?: ImportCapacity): ImportFlow[] {
   const contracts = state.nations[nation]?.imports ?? {};
-  const requested = Object.entries(contracts).filter(([r, v]) => (v ?? 0) > 0 && TRADE.prices[r as ResourceId] !== undefined);
+  const requested = RESOURCE_IDS.filter((r) => (contracts[r] ?? 0) > 0 && TRADE.prices[r] !== undefined).map((r) => [r, contracts[r]!] as const);
   if (requested.length === 0) return [];
-  let room = (capacity ?? importCapacityPerDay(map, state, nation)).total;
+  const room = (capacity ?? importCapacityPerDay(map, state, nation)).total;
+  const total = requested.reduce((sum, [, v]) => sum + v, 0);
+  const share = total > room ? room / total : 1;
   const quota = map.nations.find((n) => n.id === nation)?.oilConcessionPerDay ?? 0;
-  return requested.map(([r, v]) => {
-    const resource = r as ResourceId;
-    const perDay = Math.min(v!, room);
-    room -= perDay;
+  return requested.map(([resource, v]) => {
+    const perDay = v * share;
     const concession = resource === "oil" ? Math.min(perDay, quota) : 0;
     const cost = concession * TRADE.concessionPrice + (perDay - concession) * TRADE.prices[resource]!;
-    return { resource, requested: v!, perDay, concession, cost };
+    return { resource, requested: v, perDay, concession, cost };
   });
 }
 

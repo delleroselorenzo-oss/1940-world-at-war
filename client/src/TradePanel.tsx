@@ -34,6 +34,7 @@ export function TradePanel({ map, game, error, onSetImport, order, onSelectProvi
   const capacity = importCapacityPerDay(map.data, game, nation);
   const flows = importFlows(map.data, game, nation, capacity);
   const quota = map.nations.get(nation)?.oilConcessionPerDay ?? 0;
+  const contracted = Object.values(game.nations[nation]?.imports ?? {}).reduce((sum, v) => sum + (v ?? 0), 0);
   const plants = map.data.provinces
     .filter((p) => game.provinces[p.id]?.owner === nation && (game.buildings[p.id]?.syntheticFuel ?? 0) > 0)
     .map((p) => ({ province: p, level: game.buildings[p.id]!.syntheticFuel!, ...syntheticPerDay(p, game.provinces[p.id]!, game.buildings[p.id]) }));
@@ -79,6 +80,13 @@ export function TradePanel({ map, game, error, onSetImport, order, onSelectProvi
                 <dt>Via terra</dt>
                 <dd>{formatAmount(capacity.overland)} al giorno</dd>
               </div>
+              <div className="wide">
+                <dt>Impegnata dai contratti</dt>
+                <dd className={contracted > capacity.total ? "warning" : undefined}>
+                  {formatAmount(contracted)} su {formatAmount(capacity.total)} al giorno
+                  {contracted > capacity.total && " · i contratti arrivano ridotti in proporzione"}
+                </dd>
+              </div>
             </dl>
             <p className="muted small">
               Ogni città costiera vale {formatAmount(TRADE.portCityPerDay)}, ogni porto costruito dal genio {formatAmount(TRADE.portPerLevel)};
@@ -86,6 +94,7 @@ export function TradePanel({ map, game, error, onSetImport, order, onSelectProvi
             </p>
 
             <h3>Contratti</h3>
+            <p className="muted small">Tutti i contratti insieme non possono superare la capacità di importazione.</p>
             {TRADABLE.map((r) => (
               <ImportRow
                 key={r}
@@ -147,8 +156,8 @@ function ImportRow({ resource, requested, flow, quota, onSet }: ImportRowProps) 
       <p>
         <ResourceIcon resource={resource} /> <strong>{RESOURCE_NAMES[resource]}</strong>{" "}
         <span className="muted">
-          · {price} di denaro l'uno
-          {quota > 0 && ` (i primi ${formatAmount(quota)} al giorno dalle tue concessioni a ${TRADE.concessionPrice})`}
+          · {price.toLocaleString("it-IT")} di denaro l'uno
+          {quota > 0 && ` (i primi ${formatAmount(quota)} al giorno dalle tue concessioni a ${TRADE.concessionPrice.toLocaleString("it-IT")})`}
         </span>
       </p>
       <form

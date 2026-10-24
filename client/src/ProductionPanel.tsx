@@ -3,6 +3,7 @@ import {
   ARMOR_CLASS_NAMES,
   BUILDING_TYPES,
   canAfford,
+  PLANNED_UNITS,
   recruitMinutes,
   recruitMissing,
   UNIT_TYPE_IDS,
@@ -23,6 +24,8 @@ const CATEGORIES: { building: BuildingId; name: string }[] = [
   { building: "barracks", name: "Fanteria e supporto" },
   { building: "tankFactory", name: "Mezzi corazzati" },
   { building: "artilleryFactory", name: "Artiglieria" },
+  { building: "aircraftFactory", name: "Aeronautica" },
+  { building: "shipyard", name: "Marina" },
 ];
 
 interface ProductionPanelProps {
@@ -144,6 +147,19 @@ export function ProductionPanel({ map, game, now, only, order, onFocusProvince, 
                   </li>
                 );
               })}
+              {PLANNED_UNITS.filter((u) => u.building === category).map((u) => (
+                <li key={u.id}>
+                  <button disabled>
+                    <strong>
+                      {u.name} <span className="relation-tag">in arrivo</span>
+                    </strong>
+                    <span className="muted small">{u.description}</span>
+                    <span className="muted small">
+                      La produrrà: {BUILDING_TYPES[u.building].name.toLowerCase()}. Si potrà arruolare quando {u.building === "shipyard" ? "le navi potranno navigare" : "gli aerei potranno volare"}.
+                    </span>
+                  </button>
+                </li>
+              ))}
             </ul>
           </>
         ) : (

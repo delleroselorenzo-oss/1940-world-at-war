@@ -51,8 +51,11 @@ export type EconomyConfig = typeof ECONOMY;
  * ma vende risorse a chi può farle arrivare. Vedi docs/game-design.md, §3.
  */
 export const TRADE = {
-  /** Risorse in vendita e prezzo in denaro di ogni unità. */
-  prices: { oil: 1.2 } as Partial<Record<ResourceId, number>>,
+  /**
+   * Risorse in vendita e prezzo in denaro di ogni unità. I contratti di tutte le risorse
+   * si dividono la stessa capacità di importazione.
+   */
+  prices: { food: 0.6, goods: 1, metal: 0.9, oil: 1.2 } as Partial<Record<ResourceId, number>>,
   /** Prezzo del petrolio delle concessioni (fino alla quota della nazione). */
   concessionPrice: 0.5,
   /** Capacità di importazione al giorno di ogni città costiera posseduta (porto commerciale). */

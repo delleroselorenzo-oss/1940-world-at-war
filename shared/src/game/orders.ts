@@ -27,6 +27,7 @@ import { cancelMarketOrder, marketOrderMissing, placeMarketOrder, roundPrice } f
 import { armyPosition, moverOf, scheduleRoute } from "./movement.js";
 import { planRoute } from "./routing.js";
 import type { AgreementKind, Army, ArmyId, GameState, ProposalKind, WorkType } from "./state.js";
+import { importCapacityPerDay } from "./trade.js";
 import { availableWorks } from "./works.js";
 
 // Ordini dei giocatori. Ogni ordine viene validato qui: oggi lo usa il browser,
@@ -92,7 +93,7 @@ export function applyOrder(state: GameState, world: World, nation: NationId, ord
     case "cancelBuild":
       return cancelBuild(state, nation, order.province);
     case "setImport":
-      return setImport(state, nation, order.resource, order.perDay);
+      return setImport(state, world.map, nation, order.resource, order.perDay);
     case "propose":
       return propose(state, nation, order.to, order.kind);
     case "answerProposal":
@@ -258,10 +259,15 @@ function cancelBuild(state: GameState, nation: NationId, provinceId: ProvinceId)
   return ok({ ...state, nations: { ...state.nations, [nation]: { ...state.nations[nation]!, stock } }, construction: rest });
 }
 
-function setImport(state: GameState, nation: NationId, resource: ResourceId, perDay: number): OrderResult {
+function setImport(state: GameState, map: MapData, nation: NationId, resource: ResourceId, perDay: number): OrderResult {
   if (TRADE.prices[resource] === undefined) return fail("Questa risorsa non si compra all'estero.");
   if (!Number.isFinite(perDay) || perDay < 0 || perDay > TRADE.maxContractPerDay) return fail("Quantità non valida.");
   const n = state.nations[nation]!;
+  // Tutti i contratti insieme non possono superare la capacità di importazione di adesso.
+  const contracted = Object.entries(n.imports ?? {}).reduce((sum, [r, v]) => (r === resource ? sum : sum + (v ?? 0)), 0);
+  const capacity = importCapacityPerDay(map, state, nation).total;
+  if (perDay > 0 && contracted + Math.round(perDay) > capacity)
+    return fail(`Supera la capacità di importazione: restano ${Math.max(0, Math.floor(capacity - contracted))} al giorno.`);
   const { [resource]: _, ...others } = n.imports ?? {};
   const imports = perDay > 0 ? { ...others, [resource]: Math.round(perDay) } : others;
   return ok({ ...state, nations: { ...state.nations, [nation]: { ...n, imports } } });
