@@ -3,7 +3,7 @@ import { passageKey, provinceIdAt } from "../nav/grid.js";
 import { findRoute, type Route } from "../nav/route.js";
 import type { NavData } from "../nav/types.js";
 import { MOVEMENT } from "../data/movement.js";
-import { mayEnter, relationOf } from "./diplomacy.js";
+import { hasAgreement, mayEnter } from "./diplomacy.js";
 import type { Mover } from "./movement.js";
 import type { GameState } from "./state.js";
 
@@ -52,7 +52,7 @@ export function railSpeeds(state: GameState, nav: NavData, nation: NationId): (c
     const p = state.provinces[id];
     if (!p) return 0;
     if (p.owner === nation) return p.morale >= MOVEMENT.railHomeMinMorale ? MOVEMENT.railHomeSpeedKmh : MOVEMENT.railSpeedKmh;
-    return relationOf(state, nation, p.owner).passage ? MOVEMENT.railSpeedKmh : 0;
+    return hasAgreement(state, nation, p.owner, "passage") ? MOVEMENT.railSpeedKmh : 0;
   });
   return (cell) => speeds[nav.grid.province[cell]! - 1] ?? 0;
 }

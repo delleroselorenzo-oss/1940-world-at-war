@@ -1,16 +1,32 @@
 import { BUILDING_TYPES, type BuildingId } from "../data/buildings.js";
+import { DIPLOMACY } from "../data/diplomacy.js";
 import { TRADE } from "../data/economy.js";
 import { UNIT_TYPES, type UnitTypeId } from "../data/units.js";
-import type { LngLat, MapData, NationId, ProvinceId, ResourceId } from "../map/types.js";
+import type { LngLat, MainResourceId, MapData, NationId, ProvinceId, ResourceId } from "../map/types.js";
 import { provinceIdAt } from "../nav/grid.js";
 import type { NavData } from "../nav/types.js";
-import { atWar, mayEnter, startWar } from "./diplomacy.js";
+import {
+  addChatMessage,
+  applyAgreement,
+  atWar,
+  botAnswer,
+  closeProposal,
+  hasEmbargo,
+  isHuman,
+  logEvent,
+  mayEnter,
+  pairKey,
+  proposalMissing,
+  relationOf,
+  startWar,
+} from "./diplomacy.js";
 import { buildOptions, recruitMinutes, recruitMissing } from "./buildings.js";
 import { canAfford, pay, refund } from "./economy.js";
 import { mapIndex } from "./mapIndex.js";
+import { cancelMarketOrder, marketOrderMissing, placeMarketOrder, roundPrice } from "./market.js";
 import { armyPosition, moverOf, scheduleRoute } from "./movement.js";
 import { planRoute } from "./routing.js";
-import type { Army, ArmyId, GameState, WorkType } from "./state.js";
+import type { AgreementKind, Army, ArmyId, GameState, ProposalKind, WorkType } from "./state.js";
 import { availableWorks } from "./works.js";
 
 // Ordini dei giocatori. Ogni ordine viene validato qui: oggi lo usa il browser,
@@ -33,7 +49,18 @@ export type Order =
   /** Annulla la costruzione in corso: le risorse tornano indietro. */
   | { type: "cancelBuild"; province: ProvinceId }
   /** Contratto con il mercato estero: quanto comprare al giorno (0 = nessun contratto). */
-  | { type: "setImport"; resource: ResourceId; perDay: number };
+  | { type: "setImport"; resource: ResourceId; perDay: number }
+  /** Proposta diplomatica: un bot risponde subito, un giocatore entro la scadenza. */
+  | { type: "propose"; to: NationId; kind: ProposalKind }
+  | { type: "answerProposal"; id: string; accept: boolean }
+  | { type: "withdrawProposal"; id: string }
+  /** Revoca un accordo (passaggio, visione condivisa, alleanza): non serve il consenso dell'altro. */
+  | { type: "revokeAgreement"; with: NationId; kind: AgreementKind }
+  | { type: "setEmbargo"; against: NationId; on: boolean }
+  | { type: "sendMessage"; to: NationId; text: string }
+  /** Ordine in borsa: vendere o comprare `amount` unità a `price` di denaro l'una. */
+  | { type: "placeMarketOrder"; side: "buy" | "sell"; resource: MainResourceId; amount: number; price: number }
+  | { type: "cancelMarketOrder"; id: string };
 
 export type OrderResult = { ok: true; state: GameState } | { ok: false; error: string };
 
@@ -66,6 +93,22 @@ export function applyOrder(state: GameState, world: World, nation: NationId, ord
       return cancelBuild(state, nation, order.province);
     case "setImport":
       return setImport(state, nation, order.resource, order.perDay);
+    case "propose":
+      return propose(state, nation, order.to, order.kind);
+    case "answerProposal":
+      return answerProposal(state, nation, order.id, order.accept);
+    case "withdrawProposal":
+      return withdrawProposal(state, nation, order.id);
+    case "revokeAgreement":
+      return revokeAgreement(state, nation, order.with, order.kind);
+    case "setEmbargo":
+      return setEmbargo(state, world.map, nation, order.against, order.on);
+    case "sendMessage":
+      return sendMessage(state, nation, order.to, order.text);
+    case "placeMarketOrder":
+      return marketOrder(state, nation, order.side, order.resource, order.amount, order.price);
+    case "cancelMarketOrder":
+      return cancelOrder(state, nation, order.id);
   }
 }
 
@@ -222,6 +265,92 @@ function setImport(state: GameState, nation: NationId, resource: ResourceId, per
   const { [resource]: _, ...others } = n.imports ?? {};
   const imports = perDay > 0 ? { ...others, [resource]: Math.round(perDay) } : others;
   return ok({ ...state, nations: { ...state.nations, [nation]: { ...n, imports } } });
+}
+
+function propose(state: GameState, nation: NationId, to: NationId, kind: ProposalKind): OrderResult {
+  const missing = proposalMissing(state, nation, to, kind);
+  if (missing) return fail(missing);
+  const next: GameState = { ...state, relations: { ...state.relations }, events: [...state.events] };
+  const proposal = { id: `p${next.nextId++}`, from: nation, to, kind, time: state.time, expiresAt: state.time + DIPLOMACY.proposalHours * 60, status: "pending" as const };
+  next.proposals = [...state.proposals, proposal];
+  // I bot rispondono subito, con due parole nella chat.
+  if (!isHuman(state, to)) {
+    const answer = botAnswer(state, to, nation, kind);
+    if (answer.accept) applyAgreement(next, nation, to, kind, state.time);
+    closeProposal(next, proposal.id, answer.accept ? "accepted" : "rejected", state.time);
+    addChatMessage(next, to, nation, answer.reason, state.time);
+  }
+  return ok(next);
+}
+
+function answerProposal(state: GameState, nation: NationId, id: string, accept: boolean): OrderResult {
+  const p = state.proposals.find((x) => x.id === id);
+  if (!p || p.to !== nation) return fail("Proposta sconosciuta.");
+  if (p.status !== "pending" || p.expiresAt <= state.time) return fail("La proposta non è più valida.");
+  const next: GameState = { ...state, relations: { ...state.relations }, events: [...state.events] };
+  if (accept) {
+    // Nel frattempo le cose possono essere cambiate (per esempio la pace è già fatta).
+    const others = { ...next, proposals: state.proposals.filter((x) => x.id !== id) };
+    const missing = proposalMissing(others, p.from, p.to, p.kind);
+    if (missing) return fail(missing);
+    applyAgreement(next, p.from, p.to, p.kind, state.time);
+  }
+  closeProposal(next, id, accept ? "accepted" : "rejected", state.time);
+  return ok(next);
+}
+
+function withdrawProposal(state: GameState, nation: NationId, id: string): OrderResult {
+  const p = state.proposals.find((x) => x.id === id);
+  if (!p || p.from !== nation || p.status !== "pending") return fail("Proposta sconosciuta.");
+  const next = { ...state };
+  closeProposal(next, id, "withdrawn", state.time);
+  return ok(next);
+}
+
+function revokeAgreement(state: GameState, nation: NationId, other: NationId, kind: AgreementKind): OrderResult {
+  const r = relationOf(state, nation, other);
+  if (kind === "alliance" ? !r.alliance : !r[kind]) return fail("Non c'è questo accordo.");
+  const next: GameState = { ...state, relations: { ...state.relations, [pairKey(nation, other)]: { ...r, [kind]: false } }, events: [...state.events] };
+  logEvent(next, { time: state.time, type: "revoked", kind, by: nation, against: other });
+  return ok(next);
+}
+
+function setEmbargo(state: GameState, map: MapData, nation: NationId, against: NationId, on: boolean): OrderResult {
+  if (against === nation || !map.nations.some((n) => n.id === against)) return fail("Nazione non valida.");
+  if (hasEmbargo(state, nation, against) === on) return fail(on ? "L'embargo c'è già." : "Non c'è nessun embargo.");
+  const n = state.nations[nation]!;
+  const embargo = on ? [...(n.embargo ?? []), against].sort() : (n.embargo ?? []).filter((x) => x !== against);
+  const next: GameState = { ...state, nations: { ...state.nations, [nation]: { ...n, embargo } }, events: [...state.events] };
+  logEvent(next, { time: state.time, type: "embargo", by: nation, against, on });
+  return ok(next);
+}
+
+function sendMessage(state: GameState, nation: NationId, to: NationId, text: string): OrderResult {
+  const clean = text.trim();
+  if (to === nation || !state.nations[to]) return fail("Nazione non valida.");
+  if (!clean) return fail("Messaggio vuoto.");
+  if (clean.length > DIPLOMACY.messageMaxLength) return fail(`Al massimo ${DIPLOMACY.messageMaxLength} caratteri.`);
+  const next = { ...state };
+  addChatMessage(next, nation, to, clean, state.time);
+  return ok(next);
+}
+
+function marketOrder(state: GameState, nation: NationId, side: "buy" | "sell", resource: MainResourceId, amount: number, price: number): OrderResult {
+  const qty = Math.round(amount);
+  const p = roundPrice(price);
+  const missing = marketOrderMissing(state, nation, side, resource, qty, p);
+  if (missing) return fail(missing);
+  const next = { ...state };
+  placeMarketOrder(next, { id: `m${next.nextId++}`, nation, side, resource, amount: qty, price: p, time: state.time });
+  return ok(next);
+}
+
+function cancelOrder(state: GameState, nation: NationId, id: string): OrderResult {
+  const order = state.market.orders.find((o) => o.id === id);
+  if (!order || order.nation !== nation) return fail("Ordine sconosciuto.");
+  const next = { ...state };
+  cancelMarketOrder(next, id);
+  return ok(next);
 }
 
 const ok = (state: GameState): OrderResult => ({ ok: true, state });

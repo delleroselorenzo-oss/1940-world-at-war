@@ -69,27 +69,6 @@ button {
   color: var(--bar-text);
 }
 
-.player,
-.clock {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-}
-
-.player {
-  font-weight: 600;
-}
-
-.clock {
-  font-variant-numeric: tabular-nums;
-}
-
-.next-tick {
-  opacity: 0.65;
-  font-size: 13px;
-}
-
 .topbar-actions {
   display: flex;
   align-items: center;
@@ -124,8 +103,77 @@ button {
   background: rgb(255 255 255 / 0.1);
 }
 
+/* Barra in alto durante la partita: capo della nazione, risorse, calendario, comandi. */
+.topbar.in-game {
+  gap: 8px 14px;
+  padding: 6px 12px;
+}
+
+.leader-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  padding: 4px 12px 4px 4px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.07);
+}
+
+.portrait {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  box-sizing: border-box;
+  border: 2px solid;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.6);
+}
+
+.leader-text {
+  display: grid;
+  line-height: 1.2;
+}
+
+.leader-name {
+  font-size: 14px;
+}
+
+.leader-title {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.leader-nation {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.flag {
+  width: 21px;
+  height: 14px;
+  flex: none;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.35);
+}
+
+.resources-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .resources {
-  flex-basis: 100%;
   display: flex;
   gap: 6px;
   margin: 0;
@@ -136,30 +184,252 @@ button {
 }
 
 .resource {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  flex: none;
-  padding: 3px 9px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px 4px 4px;
+  border: 1px solid transparent;
   border-radius: 999px;
   background: rgb(255 255 255 / 0.08);
-  font-size: 13px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  cursor: pointer;
 }
 
-.resource-name {
-  opacity: 0.75;
+.resource:hover {
+  background: rgb(255 255 255 / 0.14);
+}
+
+.resource.active {
+  border-color: var(--accent);
+  background: rgb(255 255 255 / 0.16);
+}
+
+.resource .resource-icon {
+  box-shadow: 0 0 0 1.5px rgb(255 255 255 / 0.5);
+}
+
+.resource-values {
+  display: grid;
+  line-height: 1.15;
+  text-align: left;
+}
+
+.resource-values strong {
+  font-size: 14px;
 }
 
 .resource .rate {
-  opacity: 0.6;
-  font-size: 12px;
+  opacity: 0.65;
+  font-size: 11px;
 }
 
 .resource .negative {
   color: #ffb4a8;
   opacity: 1;
+}
+
+/* Icona tonda di una risorsa, ovunque nell'interfaccia. */
+.resource-icon {
+  flex: none;
+  align-self: center;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #fff;
+  vertical-align: middle;
+}
+
+/* Riepilogo di una risorsa, sotto la barra. */
+.resource-card {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 30;
+  display: flex;
+  gap: 14px;
+  width: min(380px, calc(100vw - 32px));
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.resource-photo {
+  width: 104px;
+  height: 104px;
+  flex: none;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #fff;
+}
+
+.resource-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.resource-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.resource-card h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.resource-stats {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.resource-stats div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.resource-stats dt {
+  color: var(--muted);
+}
+
+.resource-stats dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.resource-stats .total {
+  margin-top: 3px;
+  padding-top: 5px;
+  border-top: 1px solid var(--line);
+}
+
+.resource-stats .positive {
+  color: var(--good);
+}
+
+.resource-stats .negative {
+  color: var(--danger);
+}
+
+.resource-breakdown {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.resource-breakdown li {
+  display: flex;
+  justify-content: space-between;
+}
+
+.resource-warning {
+  margin: 8px 0 0;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.day-counter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar {
+  display: grid;
+  width: 46px;
+  overflow: hidden;
+  border-radius: 7px;
+  background: #fffdf7;
+  color: #1f2420;
+  text-align: center;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
+}
+
+.calendar-top {
+  padding: 1px 0;
+  background: #a3271f;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.calendar-day {
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.day-text {
+  display: grid;
+  line-height: 1.2;
+  font-size: 14px;
+}
+
+.muted-on-bar {
+  font-size: 11px;
+  opacity: 0.65;
+}
+
+/* Telefono: capo e calendario sulla prima riga, risorse sotto, comandi in fondo. */
+@media (max-width: 760px) {
+  .topbar.in-game {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px 10px;
+  }
+
+  .topbar.in-game .resources-wrap {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .topbar.in-game .topbar-actions {
+    grid-column: 1 / -1;
+    margin-left: 0;
+    flex-wrap: wrap;
+  }
+
+  .leader-card {
+    padding-right: 10px;
+  }
+
+  .portrait {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
+
+  .resources {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .resource {
+    width: 100%;
+  }
+
+  .resource-card {
+    position: fixed;
+    top: auto;
+    left: 16px;
+    right: 16px;
+    width: auto;
+    margin-top: 8px;
+  }
 }
 
 .link {
@@ -260,10 +530,6 @@ button {
   gap: 4px;
 }
 
-.cost-item .dot {
-  box-shadow: none;
-}
-
 .cost-item.short {
   color: #b3261e;
   font-weight: 600;
@@ -290,15 +556,6 @@ button {
   background: var(--accent);
 }
 
-.dot {
-  display: inline-block;
-  width: 9px;
-  height: 9px;
-  flex: none;
-  align-self: center;
-  border-radius: 50%;
-  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.5);
-}
 
 .topbar h1 {
   margin: 0;
@@ -976,12 +1233,6 @@ p.small {
   margin: 0 0 6px;
 }
 
-.import-row .dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
 
 .import-form {
   display: flex;
@@ -1026,4 +1277,508 @@ p.small {
   font-weight: 600;
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* Barra in basso: diplomazia, commercio, edifici, produzione, ricerca */
+.dock {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--bar);
+  box-shadow: var(--shadow);
+}
+
+.dock-button {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 74px;
+  padding: 6px 8px 5px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--bar-text);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dock-button svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dock-button:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.1);
+}
+
+.dock-button.active,
+.dock-button.active:hover {
+  background: var(--accent);
+  color: #1b1b1b;
+}
+
+.dock-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.badge {
+  position: absolute;
+  top: 2px;
+  right: 10px;
+  min-width: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #a3271f;
+  color: #fff;
+  font-size: 11px;
+  line-height: 17px;
+}
+
+/* Pannelli delle funzioni della nazione: un po' più larghi. */
+.panel {
+  width: 360px;
+}
+
+.button.secondary {
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.relation .actions,
+.proposals .actions {
+  display: flex;
+  gap: 6px;
+}
+
+.province-actions {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 13px;
+}
+
+.filter .link-button {
+  margin-left: auto;
+  font-weight: 400;
+}
+
+/* Schede e filtri */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin: 12px 0 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tabs button {
+  padding: 6px 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tabs button.active {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 12px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.chip.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #1b1b1b;
+  font-weight: 600;
+}
+
+/* Scelte (edifici, unità) e luoghi dove realizzarle */
+.choice-list,
+.place-list {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.choice-list button {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.choice-list button:hover {
+  border-color: var(--accent);
+}
+
+.place-list li {
+  display: grid;
+  gap: 3px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.place-list .recruit-head .link-button {
+  flex: 1;
+  text-align: left;
+}
+
+.place-list .recruit-head .muted {
+  flex: none;
+}
+
+.engineer-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+.engineer-row .button {
+  margin-left: auto;
+}
+
+/* Diplomazia */
+.nation-list {
+  margin: 0 -8px;
+  padding: 0;
+  list-style: none;
+}
+
+.nation-list button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nation-list button:hover {
+  background: var(--bg);
+}
+
+.nation-list-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.nation-list .tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 3px;
+  max-width: 45%;
+}
+
+.relation-tag {
+  margin-left: 4px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.relation-tag.war {
+  background: #a3271f;
+  box-shadow: none;
+  color: #fff;
+}
+
+.relation-tag.good {
+  background: var(--good);
+  box-shadow: none;
+  color: #fff;
+}
+
+.relation-tag.pending {
+  background: var(--accent);
+  box-shadow: none;
+  color: #1b1b1b;
+}
+
+.nation-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0;
+}
+
+.nation-head > div {
+  display: grid;
+  gap: 2px;
+}
+
+.portrait.large {
+  width: 64px;
+  height: 64px;
+  font-size: 22px;
+}
+
+.diplomacy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 14px;
+}
+
+.agreements,
+.proposals {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.agreements li,
+.proposals li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.agreements li > span {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+}
+
+.agreements .relation-tag {
+  justify-self: start;
+  margin-left: 0;
+}
+
+.proposals li > span:first-child {
+  flex: 1;
+}
+
+.chat-log {
+  display: grid;
+  gap: 8px;
+  max-height: 260px;
+  margin: 0 0 8px;
+  padding: 8px;
+  overflow-y: auto;
+  border-radius: 8px;
+  background: var(--bg);
+  list-style: none;
+  font-size: 14px;
+}
+
+.chat-log li {
+  display: grid;
+  gap: 1px;
+  max-width: 85%;
+}
+
+.chat-log li.mine {
+  justify-self: end;
+  text-align: right;
+}
+
+.chat-log li.proposal-line {
+  justify-self: center;
+  max-width: 100%;
+  text-align: center;
+  font-size: 13px;
+}
+
+.chat-form,
+.market-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.chat-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+/* Borsa */
+.book {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.book h4 {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.book table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.book th {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: left;
+}
+
+.market-form label {
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.market-form input {
+  width: 110px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.market-form p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.segmented {
+  display: flex;
+  flex-basis: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.segmented button {
+  flex: 1;
+  padding: 5px 10px;
+  border: 0;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.segmented button.active {
+  background: var(--bar);
+  color: var(--bar-text);
+}
+
+.market-orders li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.market-orders li > span {
+  flex: 1;
+}
+
+/* Telefono: la barra in basso occupa tutta la larghezza; pannelli e notizie stanno sopra. */
+@media (max-width: 640px) {
+  .dock {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    justify-content: space-around;
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+    border-radius: 0;
+  }
+
+  .dock-button {
+    min-width: 0;
+    flex: 1;
+    padding: 5px 2px;
+    font-size: 10px;
+  }
+
+  .panel {
+    width: auto;
+    bottom: 58px;
+  }
+
+  .event-feed {
+    bottom: 74px;
+  }
 }

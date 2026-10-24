@@ -1,6 +1,6 @@
 import type { BuildingId } from "../data/buildings.js";
 import type { UnitTypeId } from "../data/units.js";
-import type { LngLat, NationId, ProvinceId, ResourceId } from "../map/types.js";
+import type { LngLat, MainResourceId, NationId, ProvinceId, ResourceId } from "../map/types.js";
 
 export type ResourceAmounts = Record<ResourceId, number>;
 
@@ -16,6 +16,8 @@ export interface NationState {
   stock: ResourceAmounts;
   /** Contratti con il mercato estero: quanto comprare al giorno, per risorsa (si paga a ogni tick). */
   imports?: Partial<Record<ResourceId, number>>;
+  /** Nazioni sotto embargo da parte di questa: niente scambi in borsa e niente importazioni attraverso di loro. */
+  embargo?: NationId[];
 }
 
 export type ArmyId = string;
@@ -140,18 +142,85 @@ export interface FieldHospital {
   at: LngLat;
 }
 
+/** Accordi tra due nazioni in pace, che una delle due può revocare quando vuole. */
+export type AgreementKind = "passage" | "sharedVision" | "alliance";
+
+/** Cosa si può proporre a un'altra nazione (la guerra si dichiara, l'embargo si decide da soli). */
+export type ProposalKind = "peace" | "truce" | AgreementKind;
+
 /** Rapporti tra due nazioni. Senza nessuna voce: pace, nessun accordo. */
 export interface Relation {
   war: boolean;
+  /** Minuto d'inizio della guerra in corso. */
+  warSince?: number;
+  /** Tregua in corso: niente combattimenti fino a questo minuto, poi la guerra riprende. */
+  truceUntil?: number;
+  /**
+   * Dopo una pace o una tregua: fino a questo minuto le armate rimaste nel territorio dell'altro
+   * possono muoversi (per ritirarsi) senza far ripartire la guerra.
+   */
+  withdrawUntil?: number;
   /** Diritto di passaggio reciproco. */
   passage: boolean;
   /** Visione condivisa della mappa. */
   sharedVision: boolean;
+  /** Alleanza: passaggio e visione condivisa insieme. */
+  alliance?: boolean;
+}
+
+/** Proposta diplomatica di `from` a `to`. */
+export interface Proposal {
+  id: string;
+  from: NationId;
+  to: NationId;
+  kind: ProposalKind;
+  time: number;
+  expiresAt: number;
+  status: "pending" | "accepted" | "rejected" | "expired" | "withdrawn";
+  /** Quando è stata chiusa. */
+  closedAt?: number;
+}
+
+/** Messaggio nella chat tra due nazioni. */
+export interface ChatMessage {
+  time: number;
+  from: NationId;
+  text: string;
+}
+
+/** Ordine aperto nella borsa degli scambi: le risorse (o il denaro) sono già accantonate. */
+export interface MarketOrder {
+  id: string;
+  nation: NationId;
+  side: "buy" | "sell";
+  resource: MainResourceId;
+  /** Quantità ancora da scambiare. */
+  amount: number;
+  /** Denaro per unità. */
+  price: number;
+  time: number;
+}
+
+/** Scambio concluso in borsa. */
+export interface MarketTrade {
+  time: number;
+  resource: MainResourceId;
+  amount: number;
+  price: number;
+  seller: NationId;
+  buyer: NationId;
 }
 
 /** Fatti da raccontare al giocatore (registro della partita). */
 export type GameEvent =
   | { time: number; type: "war"; by: NationId; against: NationId }
+  /** Pace o tregua firmata, accordo stretto. */
+  | { time: number; type: "agreement"; kind: ProposalKind; nations: [NationId, NationId] }
+  /** Accordo revocato da `by`. */
+  | { time: number; type: "revoked"; kind: AgreementKind; by: NationId; against: NationId }
+  /** Fine della tregua: la guerra riprende. */
+  | { time: number; type: "truceEnded"; nations: [NationId, NationId] }
+  | { time: number; type: "embargo"; by: NationId; against: NationId; on: boolean }
   | { time: number; type: "battle"; at: LngLat; province: ProvinceId | null; nations: [NationId, NationId] }
   | { time: number; type: "conquest"; province: ProvinceId; from: NationId; to: NationId }
   /** La provincia si è ribellata ed è tornata alla nazione d'origine. */
@@ -208,6 +277,12 @@ export interface GameState {
   armies: Record<ArmyId, Army>;
   /** Rapporti tra nazioni, per coppia (chiave di `pairKey`). */
   relations: Record<string, Relation>;
+  /** Proposte diplomatiche, dalla più vecchia (quelle chiuse restano come storico). */
+  proposals: Proposal[];
+  /** Chat tra nazioni, per coppia (chiave di `pairKey`). */
+  chats: Record<string, ChatMessage[]>;
+  /** Borsa degli scambi tra nazioni. */
+  market: { orders: MarketOrder[]; trades: MarketTrade[] };
   /** Ponti distrutti (id di `nav.bridges`), in ordine. */
   destroyedBridges: string[];
   pontoons: Record<string, Pontoon>;

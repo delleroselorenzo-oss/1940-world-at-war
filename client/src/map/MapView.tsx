@@ -24,6 +24,8 @@ interface MapViewProps {
   /** Si sta scegliendo un punto per un ordine: cursore a mirino. */
   targeting?: boolean;
   selectedArmyId: string | null;
+  /** Province da evidenziare (per esempio dove si può costruire quello che si è scelto). */
+  highlighted?: ReadonlySet<string>;
   /** Minuto di gioco attuale (chiamato a ogni fotogramma). */
   now(): number;
   onSelect(id: string | null, at: LngLat): void;
@@ -31,7 +33,7 @@ interface MapViewProps {
   ref?: Ref<MapViewHandle>;
 }
 
-export function MapView({ map, selectedId, owners, armies, engaged, playerNation, works, targeting, selectedArmyId, now, onSelect, onSelectArmy, ref }: MapViewProps) {
+export function MapView({ map, selectedId, owners, armies, engaged, playerNation, works, targeting, selectedArmyId, highlighted, now, onSelect, onSelectArmy, ref }: MapViewProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<MapRenderer | null>(null);
@@ -99,6 +101,10 @@ export function MapView({ map, selectedId, owners, armies, engaged, playerNation
   useEffect(() => {
     rendererRef.current?.setSelectedArmy(selectedArmyId);
   }, [selectedArmyId]);
+
+  useEffect(() => {
+    rendererRef.current?.setHighlighted(highlighted ?? new Set());
+  }, [highlighted]);
 
   useImperativeHandle(ref, () => ({
     zoomBy: (f) => rendererRef.current?.zoomBy(f),

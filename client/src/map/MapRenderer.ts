@@ -27,6 +27,8 @@ export interface MapRendererCallbacks {
 const SEA_COLOR = "#a9c4d4";
 const BORDER_COLOR = "#2a2a2a";
 const SELECT_COLOR = "#ffd23f";
+/** Province evidenziate da un pannello (es. dove si può costruire un porto). */
+const HIGHLIGHT_COLOR = "#ffffff";
 /** Spostamento in pixel oltre il quale un tocco è un trascinamento e non un clic. */
 const DRAG_THRESHOLD = 5;
 /** Limiti di zoom rispetto alla vista d'insieme. */
@@ -72,6 +74,7 @@ export class MapRenderer {
   private fitScale = 1;
   private hovered: string | null = null;
   private selected: string | null = null;
+  private highlighted: ReadonlySet<string> = new Set();
   private readonly pointers = new Map<number, { x: number; y: number }>();
   private dragDistance = 0;
   private animation: { from: Camera; to: Camera; start: number; duration: number } | null = null;
@@ -144,6 +147,11 @@ export class MapRenderer {
     if (this.mounted) this.drawOverlay();
   }
 
+  setHighlighted(ids: ReadonlySet<string>): void {
+    this.highlighted = ids;
+    if (this.mounted) this.drawOverlay();
+  }
+
   setArmies(armies: Army[], playerNation: string | null, engaged: ReadonlySet<string>): void {
     this.armyLayer.setArmies(armies, playerNation, engaged);
   }
@@ -193,7 +201,7 @@ export class MapRenderer {
     const borders = new Graphics();
     for (const shape of this.map.shapes)
       for (const rings of shape.polygons)
-        for (const ring of rings) borders.poly(ring).stroke({ width: 1, color: BORDER_COLOR, alpha: 0.45, pixelLine: true });
+        for (const ring of rings) borders.poly(ring).stroke({ width: 1, color: BORDER_COLOR, alpha: 0.8, pixelLine: true });
     this.drawFills();
     this.world.addChild(this.fills, borders);
   }
@@ -258,6 +266,7 @@ export class MapRenderer {
         if (stroke) g.poly(rings[0]!).stroke({ color: stroke.color, width: stroke.width * px, join: "round" });
       }
     };
+    for (const id of this.highlighted) if (id !== this.selected) outline(id, HIGHLIGHT_COLOR, 0.4, { color: "#1b1b1b", width: 2 });
     if (this.hovered && this.hovered !== this.selected) outline(this.hovered, "#ffffff", 0.28);
     if (this.selected) outline(this.selected, "#ffffff", 0.3, { color: SELECT_COLOR, width: 3 });
   }

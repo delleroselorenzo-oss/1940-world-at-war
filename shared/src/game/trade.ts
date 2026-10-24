@@ -1,7 +1,7 @@
 import { BUILDINGS } from "../data/buildings.js";
 import { ECONOMY, RESOURCE_IDS, TRADE, type EconomyConfig } from "../data/economy.js";
 import type { MapData, NationId, Province, ResourceId } from "../map/types.js";
-import { atWar } from "./diplomacy.js";
+import { tradeBlocked } from "./diplomacy.js";
 import { emptyAmounts, productionFactor } from "./economy.js";
 import { mapIndex } from "./mapIndex.js";
 import type { GameState, ProvinceBuildings, ProvinceState, ResourceAmounts } from "./state.js";
@@ -35,7 +35,7 @@ export function importCapacityPerDay(map: MapData, state: GameState, nation: Nat
       if (owner && owner !== nation) neighbors.add(owner);
     }
   }
-  const peaceful = [...neighbors].filter((other) => !atWar(state, nation, other)).length;
+  const peaceful = [...neighbors].filter((other) => !tradeBlocked(state, nation, other)).length;
   const overland = Math.min(TRADE.overlandMax, peaceful * TRADE.overlandPerNeighbor);
   return { sea, overland, total: sea + overland };
 }

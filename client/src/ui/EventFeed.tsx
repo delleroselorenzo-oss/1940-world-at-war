@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { BUILDING_TYPES, formatGameTime, type GameEvent, type GameState, type ProvinceId } from "@waw/shared";
 import type { LoadedMap } from "../map/loadMap.js";
+import { PROPOSAL_NAMES } from "./diplomacyText.js";
 
 // Notizie della partita che riguardano il giocatore: guerre, battaglie, conquiste, rivolte, armate distrutte,
 // lavori del genio, edifici completati.
@@ -28,6 +29,24 @@ export function describeEvent(
     case "war":
       if (e.by === me) return { text: `Hai dichiarato guerra: ${nation(e.against)}`, tone: "neutral", province: null };
       if (e.against === me) return { text: `Dichiarazione di guerra da ${nation(e.by)}`, tone: "bad", province: null };
+      return null;
+    case "agreement": {
+      if (!e.nations.includes(me)) return null;
+      const other = nation(e.nations[0] === me ? e.nations[1] : e.nations[0]);
+      const text =
+        e.kind === "peace" ? `Pace con ${other}` : e.kind === "truce" ? `Tregua con ${other}` : `${PROPOSAL_NAMES[e.kind]} con ${other}`;
+      return { text, tone: "good", province: null };
+    }
+    case "revoked":
+      if (e.by === me) return { text: `Hai revocato: ${PROPOSAL_NAMES[e.kind].toLowerCase()} con ${nation(e.against)}`, tone: "neutral", province: null };
+      if (e.against === me) return { text: `${nation(e.by)} ha revocato: ${PROPOSAL_NAMES[e.kind].toLowerCase()}`, tone: "bad", province: null };
+      return null;
+    case "truceEnded":
+      if (!e.nations.includes(me)) return null;
+      return { text: `Finita la tregua: di nuovo in guerra con ${nation(e.nations[0] === me ? e.nations[1] : e.nations[0])}`, tone: "bad", province: null };
+    case "embargo":
+      if (e.by === me) return { text: `${e.on ? "Embargo contro" : "Tolto l'embargo a"} ${nation(e.against)}`, tone: "neutral", province: null };
+      if (e.against === me) return { text: `${nation(e.by)} ${e.on ? "ti ha messo sotto embargo" : "ha tolto l'embargo"}`, tone: e.on ? "bad" : "good", province: null };
       return null;
     case "battle": {
       if (!e.nations.includes(me)) return null;

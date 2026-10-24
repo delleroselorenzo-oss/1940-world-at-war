@@ -9,7 +9,7 @@ import { flatKm, provinceIdAt } from "../nav/grid.js";
 import type { NavData } from "../nav/types.js";
 import { buildingLevel, downgradeBuildings, fortDamageFactor } from "./buildings.js";
 import { applyDamage, contactFraction, damageAgainst, engagements, heal, isAttacking, lerp, segmentDistanceKm } from "./combat.js";
-import { atWar, logEvent, mayEnter, startWar } from "./diplomacy.js";
+import { atWar, expireDiplomacy, logEvent, mayEnter, startWar } from "./diplomacy.js";
 import { nationProductionPerDay, netPerDayByNation, refund } from "./economy.js";
 import { applyTradeTick } from "./trade.js";
 import { mapIndex } from "./mapIndex.js";
@@ -45,6 +45,9 @@ export function createGame(map: MapData, options: NewGameOptions, economy: Econo
     construction: {},
     seed: options.seed ?? options.realNowMs,
     relations: {},
+    proposals: [],
+    chats: {},
+    market: { orders: [], trades: [] },
     destroyedBridges: [],
     pontoons: {},
     hospitals: {},
@@ -130,7 +133,10 @@ export function advance(state: GameState, world: EngineWorld, until: number, eco
     changed = completeConstruction(s, t) || changed;
     changed = completeWorks(s, world, t) || changed;
     depart(s, world, t);
-    if (t === nextSample) changed = sample(s, world, t) || changed;
+    if (t === nextSample) {
+      changed = expireDiplomacy(s, t) || changed;
+      changed = sample(s, world, t) || changed;
+    }
     if (t === nextTick) changed = fight(s, world, t) || changed;
     if (changed) rates = netPerDayByNation(map, s, economy);
 

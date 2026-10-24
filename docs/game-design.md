@@ -3,7 +3,7 @@
 Documento di riferimento per le meccaniche del gioco. Le meccaniche sono **ricavate da guide pubbliche della community** (vedi Fonti in fondo) e riscritte con parole e numeri nostri.
 I numeri sono **valori di partenza per il bilanciamento**, da tenere in `/shared/data` e ritoccare giocando.
 
-Escluso per scelta: negozio, valuta premium (Gold), acceleratori a pagamento, alleanze/coalizioni ufficiali, forum, eventi, ricompense giornaliere.
+Escluso per scelta: negozio, valuta premium (Gold), acceleratori a pagamento, alleanze/coalizioni ufficiali, forum, eventi a premi, ricompense giornaliere. Gli eventi storici invece ci sono (§13).
 
 ---
 
@@ -59,10 +59,21 @@ La mappa è solo l'Europa, ma nel 1938 quasi tutto il petrolio europeo veniva da
 - **Riserve iniziali**: chi non ha pozzi parte con scorte storiche di petrolio (Regno Unito 40.000, Germania e Francia 30.000, Italia 20.000…; `oilReserve` in `config.json`).
 - **Carburante sintetico**: edificio nelle città (livelli 1–3); ogni livello trasforma **500 di metallo in 250 di petrolio** al giorno, fin dove basta il metallo. La strada della Germania storica (Leuna, Pölitz).
 - **Sabotaggio dei pozzi**: in una propria provincia con giacimento, qualsiasi armata ferma può sabotare i pozzi (**6 ore**); non producono più, anche per chi conquista la provincia, finché il genio non li ripara (**3 giorni**, diviso per il numero di unità del genio).
-- **Fase successiva**: blocco navale (le flotte nemiche tagliano le importazioni via mare) e commercio diretto tra giocatori.
+- **Embargo**: chi mette un vicino sotto embargo (o lo subisce) non importa più via terra attraverso di lui.
+- **Fase successiva**: blocco navale (le flotte nemiche tagliano le importazioni via mare).
 - Scorte iniziali: 3 giorni di produzione.
 - Valori nel codice: `shared/src/data/economy.ts`.
-- **Mercato** (fase successiva): scambio di risorse tra giocatori tramite offerte.
+
+### Borsa degli scambi tra nazioni (deciso il 25/10/2026)
+
+Valori in `shared/src/data/diplomacy.ts` (`MARKET`), regole in `shared/src/game/market.ts`, pannello "Commercio" → "Borsa tra nazioni".
+
+- Si scambiano cibo, beni, metallo e petrolio; si paga in denaro (manodopera e denaro non si scambiano).
+- Chi vende mette un'**offerta** (quantità e prezzo l'uno), chi compra una **richiesta**. Lo scambio avviene **solo quando qualcuno accetta**: una richiesta incontra le offerte allo stesso prezzo o più basse (prima le più convenienti, poi le più vecchie) e paga il prezzo di chi era già in borsa; lo stesso al contrario per un'offerta.
+- Finché un ordine è aperto, la merce (o il denaro) resta **accantonata**; ritirandolo torna indietro. Si può prendere anche solo una parte di un ordine.
+- Niente scambi tra nazioni **in guerra** o con un **embargo** in un verso o nell'altro.
+- Limiti: prezzo tra 0,05 e 50, quantità tra 100 e 1.000.000, al massimo 12 ordini aperti per nazione.
+- I bot per ora non usano la borsa: serve a chi gioca con gli amici.
 
 ## 4. Morale
 
@@ -247,15 +258,106 @@ Esempio: l'armata di una capitale (3 fanterie + 1 artiglieria) che assalta un'ar
 - **Province core**: a ogni cambio giorno il morale si avvicina a 100 del 22% della distanza (bonus e malus arriveranno con il morale completo, §4).
 - **Vittoria**: raggiungere una soglia di **punti vittoria** (dalle città possedute) oppure restare l'ultimo. Soglia configurabile per partita.
 
-## 11. Diplomazia (versione semplice)
+## 11. Diplomazia (deciso il 25/10/2026)
 
-- Stati: **guerra**, **pace**, **diritto di passaggio**, **visione condivisa**.
-- Messaggi privati tra giocatori e chat della partita.
-- Niente coalizioni ufficiali: le alleanze si fanno a parole tra amici.
+Pannello "Diplomazia" nella barra in basso: elenco delle nazioni con i rapporti, e per ognuna proposte, accordi, embargo e chat. Valori in `shared/src/data/diplomacy.ts`, regole in `shared/src/game/diplomacy.ts`.
+
+- **Guerra**: si dichiara da soli (o scatta entrando senza accordi nel territorio altrui). Fa cadere tregua e accordi.
+- **Pace** e **tregua**: si propongono in guerra e l'altro accetta o rifiuta. La **tregua** ferma i combattimenti per **7 giorni**, poi la guerra riprende da sola se nel frattempo non si fa la pace. Dopo una pace o una tregua le armate rimaste nel territorio dell'altro hanno **24 ore** per ritirarsi senza far ripartire la guerra; le province conquistate restano a chi le ha prese.
+- **Accordi** (in pace, si propongono, ognuno li può revocare da solo quando vuole):
+  - **mappa condivisa** (visione condivisa: servirà con la nebbia di guerra; intanto le armate possono entrare senza guerra);
+  - **diritto di passaggio** (attraversare il territorio dell'altro, anche in treno);
+  - **alleanza** (passaggio e mappa condivisa insieme). Non trascina automaticamente in guerra: chi è alleato decide da sé.
+- **Embargo**: si decide da soli contro una nazione; niente scambi in borsa con lei e niente importazioni via terra attraverso il suo territorio.
+- **Proposte**: scadono dopo **72 ore** di gioco senza risposta; si possono ritirare. Tra giocatori restano in attesa; i **bot** rispondono subito con una frase in chat, con regole provvisorie finché non avranno un comportamento proprio: tregua dopo 24 ore di guerra, pace dopo 3 giorni, mappa condivisa sì, passaggio solo agli alleati, alleanza solo con chi ha un nemico in comune.
+- **Chat** tra ogni coppia di nazioni (ultimi 100 messaggi), con le proposte e le risposte nello stesso filo. I bot rispondono alle proposte, non ai messaggi.
+- Niente coalizioni ufficiali con classifiche o bonus: l'alleanza è un accordo tra due nazioni.
 
 ## 12. Spionaggio (fase successiva, opzionale)
 
 - Spie che rivelano informazioni, sabotano edifici o abbassano il morale, con mantenimento giornaliero.
+
+## 13. Storia: eventi, scenari e salto nel tempo (deciso il 25/10/2026)
+
+La partita parte da una data storica, ma i giocatori possono cambiare la storia. Per questo gli eventi storici (Anschluss, Monaco, patto Molotov-Ribbentrop…) **non sono un copione**: sono **opportunità con condizioni**, che accadono solo se la partita ci arriva in una situazione in cui hanno senso. Le stesse regole valgono in ogni modalità: partita normale, partita in solitaria con il salto nel tempo, multigiocatore.
+
+### Com'è fatto un evento
+
+- **Finestra di date**: da quando l'evento può accadere e fino a quando (per esempio l'Anschluss dal 12 marzo 1938 a fine 1938). Prima della finestra non succede, dopo decade.
+- **Nazioni coinvolte**, ognuna con un ruolo: chi propone (la Germania chiede l'Austria), chi riceve (l'Austria), a volte chi può intervenire (Regno Unito e Francia come garanti a Monaco).
+- **Condizioni**: le nazioni esistono ancora, possiedono le province in questione, confinano, sono o non sono in guerra tra loro, è già successo un altro evento (l'invasione sovietica della Polonia richiede il patto Molotov-Ribbentrop), una provincia è in mano a qualcuno (l'armistizio francese richiede Parigi in mano tedesca), ecc.
+- **Scelte**: ogni nazione coinvolta ha due o tre risposte (accettare, rifiutare, resistere, intervenire…), ognuna con i suoi **effetti**.
+- **Effetti possibili**: province che passano di mano (con morale e regole delle conquiste, §10), annessione di un'intera nazione, guerra, pace, patto di non aggressione, diritto di passaggio, cambio di capo, risorse o morale.
+- **Risposta predefinita e scadenza**: ogni scelta ha un tempo per rispondere (di solito 3 giorni di gioco, mai oltre la fine della finestra). Se nessuno risponde vale la risposta predefinita, quasi sempre "rifiuta". Così chi non entra per qualche giorno non blocca la partita.
+
+### Chi decide
+
+1. **Tutte le nazioni coinvolte sono bot**: l'evento accade da solo quando le condizioni sono vere.
+2. **C'è almeno un giocatore umano**: l'evento diventa una **scelta** (notifica e riquadro con le risposte). Se gli umani sono più di uno, risponde prima chi propone, poi chi riceve, poi chi può intervenire.
+3. **Le condizioni non ci sono più**: l'evento salta, anche se era già in attesa di risposta. Se la Francia non si è arresa, Pétain non arriva.
+
+**Opzione di partita**: *storia fedele* (i bot scelgono sempre la risposta storica) oppure *storia libera* (i bot scelgono secondo la situazione, quando avranno un comportamento proprio). Gli umani scelgono sempre liberamente.
+
+Gli eventi si controllano a ogni **cambio giorno**, insieme a morale e rivolte. Le risposte sono ordini come gli altri (validati dal server), e le scelte dei bot dipendono solo dallo stato e dal seme della partita: stesse scelte, stessa storia, anche recuperando molte ore in un colpo.
+
+### Capi delle nazioni
+
+- **Per data**: i cambi che non dipendono dalla guerra (elezioni, rimpasti, morti naturali: Piłsudski 1935, Atatürk 1938, Boris III 1943) seguono il calendario, come già fa `leaderAt`.
+- **Per evento**: i capi nati dalla guerra arrivano solo con il loro evento: Seyss-Inquart (Anschluss), Pétain (armistizio francese), Antonescu (abdicazione di Carlo II), Badoglio (caduta di Mussolini), Dönitz (fine del Reich), i governi in esilio, Szálasi, ecc. Se l'evento non accade, resta il capo precedente e i cambi per data successivi di quella nazione si fermano dove la storia ha preso un'altra strada.
+
+### Partire da una data (scenari)
+
+- A inizio partita si sceglie la data dal calendario. La partita parte con la situazione storica di quel giorno: **confini** (da CShapes, che li ha giorno per giorno: si genera una mappa per data come quella del 1933), **capi** in carica, **guerre e accordi** in corso, eventi già accaduti (che non si ripetono).
+- Date proposte per i primi scenari: **1 giugno 1933** (attuale), **1 marzo 1938** (prima dell'Anschluss), **1 settembre 1939** (invasione della Polonia), **22 giugno 1941** (operazione Barbarossa).
+- Popolazione ed economia restano quelle del 1933 corrette per i confini (per ora); le riserve di petrolio e le scorte si adeguano alla data.
+
+### Saltare avanti nel tempo (solo partite in solitaria)
+
+- Il giocatore chiede "salta 6 mesi" (o fino a una data): il motore fa scorrere il tempo con le regole normali, molto più in fretta.
+- **Il salto si ferma** quando serve il giocatore:
+  - un **evento storico** che coinvolge la sua nazione: compare la scelta; dopo la risposta il salto riparte fino alla data chiesta o al prossimo stop;
+  - **minacce**: guerra dichiarata contro di lui, provincia persa, rivolta, armata distrutta (deciso: si ferma sempre).
+- Gli eventi tra soli bot **non fermano** il salto ma accadono lo stesso; a ogni stop e alla fine compare un **riepilogo** ("Nel frattempo: patto tra Unione Sovietica e Germania, Polonia invasa, nuovo capo in Romania…").
+- Il risultato è *una* storia possibile, non per forza quella vera: dipende dalle scelte del giocatore e dall'opzione storia fedele/libera.
+- Nel multigiocatore non si salta: le scelte arrivano come notifiche con la loro scadenza.
+- Dipende dai **bot**: finché non hanno un comportamento, il salto fa scorrere economia, costruzioni ed eventi, ma le nazioni bot non muovono armate.
+
+### Primi eventi (1933–1945)
+
+Le province coinvolte (Sudeti, Memel, Carelia, Bessarabia…) si definiranno come gruppi nella configurazione della mappa. Tra parentesi la data storica; "→" indica la risposta storica.
+
+| Evento | Finestra | Coinvolti | Condizioni principali | Scelte ed effetti |
+|---|---|---|---|---|
+| Anschluss (12/3/1938) | mar–dic 1938 | GER propone, AUT riceve | entrambe esistono, confinano, non in guerra | accetta → AUT annessa a GER, capo Seyss-Inquart per 2 giorni; rifiuta → nulla, GER può dichiarare guerra |
+| Sudeti / Monaco (29/9/1938) | set 1938 – mar 1939 | GER propone, CZE riceve, GBR e FRA garanti | GER confina con i Sudeti, CZE li possiede | CZE cede → Sudeti a GER; CZE rifiuta → GBR e FRA scelgono se garantire (guerra a GER se attacca) o lasciar fare (→ lasciano fare) |
+| Primo arbitrato di Vienna (2/11/1938) | nov 1938 – mar 1939 | HUN propone, CZE riceve | dopo i Sudeti | accetta → Slovacchia meridionale a HUN |
+| Fine della Cecoslovacchia (15/3/1939) | mar–dic 1939 | GER propone, CZE riceve | dopo i Sudeti | accetta → Boemia e Moravia a GER, Rutenia a HUN, capo Hácha; rifiuta → guerra |
+| Memel (22/3/1939) | mar–dic 1939 | GER propone, LTU riceve | GER confina con Memel | accetta → Memel a GER |
+| Albania (7/4/1939) | apr–dic 1939 | ITA propone, ALB riceve | non in guerra | accetta → ALB annessa a ITA; rifiuta → guerra (→ ITA attacca) |
+| Patto Molotov-Ribbentrop (23/8/1939) | ago 1939 – giu 1941 | GER propone, SOV riceve | non in guerra tra loro | accetta → non aggressione e sfere d'influenza: sblocca Polonia orientale, Baltici, Bessarabia, guerra d'inverno |
+| Danzica e Polonia (1/9/1939) | ago–dic 1939 | GER propone, POL riceve, GBR e FRA garanti | DAN e POL esistono | POL cede Danzica e corridoio → passano a GER; rifiuta → GER sceglie se attaccare (→ attacca), GBR e FRA se dichiarare guerra (→ la dichiarano) |
+| Polonia orientale (17/9/1939) | set 1939 – giu 1940 | SOV | dopo il patto, GER in guerra con POL | SOV entra in guerra con POL; alla pace le province a est della linea concordata vanno a SOV |
+| Guerra d'inverno (30/11/1939) | nov 1939 – 1940 | SOV propone, FIN riceve | dopo il patto | FIN cede la Carelia → passa a SOV; rifiuta → guerra (→ rifiuta) |
+| Entrata in guerra dell'Italia (10/6/1940) | mag–dic 1940 | ITA | GER in guerra con FRA | ITA dichiara guerra a FRA e GBR (→ sì) o resta neutrale |
+| Armistizio francese (22/6/1940) | 1940–1944 | FRA, GER | Parigi in mano tedesca, FRA e GER in guerra | FRA firma → pace con GER, il nord passa a GER, capo Pétain (Vichy); continua → capo de Gaulle, governo in esilio |
+| Baltici (giu 1940) | 1940–1941 | SOV propone, EST, LVA, LTU ricevono | dopo il patto | accetta → annessione a SOV; rifiuta → guerra |
+| Bessarabia e Bucovina (28/6/1940) | 1940–1941 | SOV propone, ROU riceve | dopo il patto | accetta → province a SOV; rifiuta → guerra |
+| Secondo arbitrato di Vienna (30/8/1940) | 1940–1941 | HUN propone, ROU riceve, GER arbitro | ROU possiede la Transilvania | accetta → Transilvania settentrionale a HUN, poi abdicazione di Carlo II (capo Antonescu) |
+| Dobrugia meridionale (7/9/1940) | 1940–1941 | BGR propone, ROU riceve | ROU possiede la Dobrugia meridionale | accetta → passa a BGR |
+| Patto tripartito (nov 1940 – mar 1941) | 1940–1941 | GER propone, HUN, ROU, BGR, YUG ricevono | non in guerra con GER | accetta → diritto di passaggio per GER; per YUG segue il colpo di stato (capo Pietro II) che lo annulla |
+| Caduta di Mussolini (25/7/1943) | 1943–1945 | ITA | nemici in una provincia italiana, ITA in guerra | capo Badoglio, poi armistizio: pace con i nemici, guerra con GER (→ sì) |
+| Cambi di campo (ago–set 1944) | 1944–1945 | ROU, BGR, FIN | truppe sovietiche nelle loro province | pace con SOV e guerra a GER (ROU, BGR) o armistizio (FIN); cambi di capo (Michele I, Georgiev) |
+| Fine del Reich (30/4/1945) | 1945 | GER | Berlino in mano nemica | capo Dönitz, resa |
+
+Regola generale, non legata a una data: una nazione che perde la capitale ma ha ancora province (o è in guerra con un alleato) forma un **governo in esilio** con il suo capo storico, se ne ha uno (Polonia, Paesi Bassi, Norvegia, Belgio, Grecia, Jugoslavia, Lussemburgo).
+
+### Cosa serve prima, nel motore
+
+- **Pace** e **patto di non aggressione** nella diplomazia (oggi c'è solo la guerra).
+- **Gruppi di province** per gli eventi nella configurazione della mappa.
+- **Stato degli eventi** nella partita: accaduti, in attesa di risposta (con scadenza), decaduti.
+- **Avanzare fino a uno stop**: una variante di `advance` che si ferma al primo evento che chiede una scelta (o a una minaccia), da usare per il salto.
+- Per gli scenari: mappe generate per altre date e un file di scenario (data, guerre e accordi in corso, eventi già accaduti).
 
 ---
 

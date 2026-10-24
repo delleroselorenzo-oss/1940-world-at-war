@@ -4,18 +4,17 @@ import {
   ECONOMY,
   enemiesOf,
   engagements,
-  formatGameTime,
-  netPerDayByNation,
-  tradePerDay,
   wouldStartWar,
   type Army,
   type LngLat,
   type ResourceId,
   type BuildingId,
-  type UnitTypeId,
   type WorkType,
 } from "@waw/shared";
 import { ArmyPanel, type ArmyMode } from "./ArmyPanel.js";
+import { BuildingsPanel } from "./BuildingsPanel.js";
+import { DiplomacyPanel } from "./DiplomacyPanel.js";
+import { ProductionPanel } from "./ProductionPanel.js";
 import { useLocalGame } from "./game/useLocalGame.js";
 import { loadMap, type LoadedMap } from "./map/loadMap.js";
 import { MapView, type MapViewHandle } from "./map/MapView.js";
@@ -25,12 +24,25 @@ import { EventFeed } from "./ui/EventFeed.js";
 import { formatCountdown } from "./ui/format.js";
 import { NationPicker } from "./ui/NationPicker.js";
 import { OfflineBanner } from "./ui/OfflineBanner.js";
+import { nationBalance } from "./ui/balance.js";
+import { Dock, type DockItem } from "./ui/Dock.js";
 import { ResourceBar } from "./ui/ResourceBar.js";
+import { DayCounter, LeaderCard } from "./ui/TopBar.js";
 
 /** Velocità disponibili: x1 è quella vera; le altre servono solo per provare. */
 const SPEEDS = [1, 60, 600];
 
-type Selection = { kind: "province"; id: string } | { kind: "army"; id: string } | { kind: "trade" } | null;
+type Selection =
+  | { kind: "province"; id: string }
+  | { kind: "army"; id: string }
+  | { kind: "diplomacy"; nation: string | null }
+  | { kind: "trade" }
+  /** `only`: limitato a una provincia (aperto dal suo pannello); `building`: edificio già scelto. */
+  | { kind: "buildings"; only?: string; building?: BuildingId }
+  | { kind: "production"; only?: string }
+  | null;
+
+const NO_HIGHLIGHT: ReadonlySet<string> = new Set();
 
 export function App() {
   const [map, setMap] = useState<LoadedMap | null>(null);
@@ -58,9 +70,8 @@ export function App() {
 function Shell({ children, bar }: { children: ReactNode; bar?: ReactNode }) {
   return (
     <div className="app">
-      <header className="topbar">
-        <h1>1940 World at War</h1>
-        {bar}
+      <header className={bar ? "topbar in-game" : "topbar"}>
+        {bar ?? <h1>1940 World at War</h1>}
       </header>
       <main className="stage">{children}</main>
     </div>
@@ -77,6 +88,8 @@ function Game({ map }: { map: LoadedMap }) {
   const [delayMinutes, setDelayMinutes] = useState(0);
   // Scelta del treno: resta impostata finché il giocatore non la cambia.
   const [useRail, setUseRail] = useState(false);
+  // Province evidenziate dai pannelli Edifici e Produzione.
+  const [highlighted, setHighlighted] = useState<ReadonlySet<string>>(NO_HIGHLIGHT);
   const mapRef = useRef<MapViewHandle>(null);
   const panelRef = useRef<HTMLElement>(null);
 
@@ -90,7 +103,7 @@ function Game({ map }: { map: LoadedMap }) {
   // Centra la vista su una provincia tenendo conto del pannello, che copre una parte della mappa
   // (a destra su schermi larghi, in basso sul telefono).
   const focus = useCallback((id: string) => {
-    const panel = panelRef.current?.getBoundingClientRect();
+    const panel = (panelRef.current ?? document.querySelector<HTMLElement>(".panel"))?.getBoundingClientRect();
     const narrow = window.matchMedia("(max-width: 640px)").matches;
     const cover = panel ? (narrow ? { right: 0, bottom: panel.height } : { right: panel.width + 16, bottom: 0 }) : undefined;
     mapRef.current?.focus(id, cover);
@@ -179,22 +192,6 @@ function Game({ map }: { map: LoadedMap }) {
     [map, game],
   );
 
-  const recruit = useCallback(
-    (unitType: UnitTypeId) => {
-      if (selection?.kind !== "province") return;
-      setOrderError(game.order({ type: "recruit", province: selection.id, unitType }));
-    },
-    [selection, game],
-  );
-
-  const build = useCallback(
-    (building: BuildingId) => {
-      if (selection?.kind !== "province") return;
-      setOrderError(game.order({ type: "build", province: selection.id, building }));
-    },
-    [selection, game],
-  );
-
   const cancelBuild = useCallback(() => {
     if (selection?.kind !== "province") return;
     setOrderError(game.order({ type: "cancelBuild", province: selection.id }));
@@ -212,19 +209,16 @@ function Game({ map }: { map: LoadedMap }) {
   );
   const armiesRecord = state?.armies;
   const armies = useMemo(() => (armiesRecord ? Object.values(armiesRecord) : []), [armiesRecord]);
-  // Saldo giornaliero (produzione − mantenimento ± commercio e carburante sintetico):
-  // cambia con province, armate, edifici, contratti e guerre, non a ogni tick.
+  // Entrate e uscite giornaliere (produzione, mantenimento, commercio, carburante sintetico):
+  // cambiano con province, armate, edifici, contratti e guerre, non a ogni tick.
   const playerNation = state?.playerNation;
   const buildingsRecord = state?.buildings;
   const imports = playerNation ? state?.nations[playerNation]?.imports : undefined;
   const relationsRecord = state?.relations;
-  const net = useMemo(() => {
-    if (!state || !playerNation) return null;
-    const base = netPerDayByNation(map.data, state, ECONOMY).get(playerNation);
-    if (!base) return null;
-    const trade = tradePerDay(map.data, state, playerNation);
-    return Object.fromEntries(Object.entries(base).map(([r, v]) => [r, v + trade[r as ResourceId]])) as typeof base;
-  }, [map, provinces, armiesRecord, playerNation, buildingsRecord, imports, relationsRecord]);
+  const balance = useMemo(
+    () => (state && playerNation ? nationBalance(map.data, state, playerNation) : null),
+    [map, provinces, armiesRecord, playerNation, buildingsRecord, imports, relationsRecord],
+  );
 
   // Chi combatte con chi in questo momento (si aggiorna ogni secondo, col tempo di gioco).
   const now = game.now;
@@ -235,24 +229,29 @@ function Game({ map }: { map: LoadedMap }) {
   const enemies = useMemo(() => (state && relations ? enemiesOf(state, state.playerNation) : []), [relations, playerNation]);
 
   const player = state ? map.nations.get(state.playerNation) : undefined;
+  const pendingProposals = state ? state.proposals.filter((p) => p.status === "pending" && p.to === state.playerNation).length : 0;
+  const dockActive: DockItem | null =
+    selection?.kind === "diplomacy" || selection?.kind === "trade" || selection?.kind === "buildings" || selection?.kind === "production" ? selection.kind : null;
+  const openDock = useCallback(
+    (item: DockItem) => {
+      if (selection?.kind === item) return select(null);
+      select(item === "diplomacy" ? { kind: "diplomacy", nation: null } : { kind: item });
+    },
+    [selection, select],
+  );
   const secondsToTick = state ? ((Math.floor(game.now / ECONOMY.tickMinutes + 1) * ECONOMY.tickMinutes - game.now) * 60) / state.clock.speed : 0;
 
-  const bar = state && player && net && (
+  const bar = state && player && balance && (
     <>
-      <span className="player">
-        <span className="swatch" style={{ background: player.color }} />
-        {player.name}
-      </span>
-      <span className="clock" title={`Prossimo accredito delle risorse tra ${formatCountdown(secondsToTick)}`}>
-        {formatGameTime(game.now)}
-        <span className="next-tick">⟳ {formatCountdown(secondsToTick)}</span>
-      </span>
-      {enemies.length > 0 && (
-        <span className="wars" title="Nazioni con cui sei in guerra">
-          ⚔ {enemies.map((id) => map.nations.get(id)?.name ?? id).join(", ")}
-        </span>
-      )}
+      <LeaderCard nation={player} minutes={game.now} />
+      <ResourceBar stock={state.nations[state.playerNation]!.stock} balance={balance} />
+      <DayCounter minutes={game.now} secondsToTick={secondsToTick} />
       <div className="topbar-actions">
+        {enemies.length > 0 && (
+          <span className="wars" title="Nazioni con cui sei in guerra">
+            ⚔ {enemies.map((id) => map.nations.get(id)?.name ?? id).join(", ")}
+          </span>
+        )}
         <label className="speed" title="Velocità della partita: x60 e x600 servono solo per provare">
           Velocità
           <select value={state.clock.speed} onChange={(e) => game.setSpeed(Number(e.target.value))}>
@@ -264,9 +263,6 @@ function Game({ map }: { map: LoadedMap }) {
             ))}
           </select>
         </label>
-        <button className="text-button" onClick={() => select(selection?.kind === "trade" ? null : { kind: "trade" })}>
-          Commercio
-        </button>
         <button
           className="text-button"
           onClick={() => {
@@ -279,7 +275,6 @@ function Game({ map }: { map: LoadedMap }) {
           Nuova partita
         </button>
       </div>
-      <ResourceBar stock={state.nations[state.playerNation]!.stock} perDay={net} />
     </>
   );
 
@@ -296,6 +291,7 @@ function Game({ map }: { map: LoadedMap }) {
         targeting={targeting}
         selectedId={selectedProvince?.id ?? null}
         selectedArmyId={selectedArmy?.id ?? null}
+        highlighted={highlighted}
         now={game.nowExact}
         onSelect={onMapProvince}
         onSelectArmy={onMapArmy}
@@ -323,10 +319,55 @@ function Game({ map }: { map: LoadedMap }) {
           game={state}
           error={orderError}
           onSetImport={setImport}
+          order={game.order}
           onSelectProvince={selectProvinceAndFocus}
           onClose={() => select(null)}
         />
       )}
+
+      {selection?.kind === "diplomacy" && state && (
+        <DiplomacyPanel
+          map={map}
+          game={state}
+          now={game.now}
+          nation={selection.nation}
+          onNation={(nation) => select({ kind: "diplomacy", nation })}
+          order={game.order}
+          onClose={() => select(null)}
+        />
+      )}
+
+      {selection?.kind === "buildings" && state && (
+        <BuildingsPanel
+          map={map}
+          game={state}
+          now={game.now}
+          initialBuilding={selection.building}
+          only={selection.only}
+          order={game.order}
+          onFocusProvince={focus}
+          onHighlight={setHighlighted}
+          onClearOnly={() => select({ kind: "buildings" })}
+          onClose={() => select(null)}
+        />
+      )}
+
+      {selection?.kind === "production" && state && (
+        <ProductionPanel
+          map={map}
+          game={state}
+          now={game.now}
+          only={selection.only}
+          order={game.order}
+          onFocusProvince={focus}
+          onHighlight={setHighlighted}
+          onBuild={(building) => select({ kind: "buildings", building })}
+          onClearOnly={() => select({ kind: "production" })}
+          onClose={() => select(null)}
+        />
+      )}
+
+      {state && <Dock active={dockActive} pending={pendingProposals} onOpen={openDock} />}
 
       {selectedProvince && (
         <ProvincePanel
@@ -336,11 +377,11 @@ function Game({ map }: { map: LoadedMap }) {
           game={state}
           now={game.now}
           error={orderError}
-          onSelect={selectProvinceAndFocus}
           onDeclareWar={declareWar}
+          onDiplomacy={(nation) => select({ kind: "diplomacy", nation })}
           onSelectArmy={(id) => select({ kind: "army", id })}
-          onRecruit={recruit}
-          onBuild={build}
+          onBuildings={() => select({ kind: "buildings", only: selectedProvince.id })}
+          onProduction={() => select({ kind: "production", only: selectedProvince.id })}
           onCancelBuild={cancelBuild}
           onClose={() => select(null)}
         />

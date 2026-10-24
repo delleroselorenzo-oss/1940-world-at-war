@@ -8,23 +8,28 @@ import {
   TRADABLE,
   TRADE,
   type GameState,
+  type Order,
   type ResourceId,
 } from "@waw/shared";
 import type { LoadedMap } from "./map/loadMap.js";
-import { formatAmount, RESOURCE_COLORS } from "./ui/format.js";
+import { MarketSection } from "./MarketSection.js";
+import { formatAmount } from "./ui/format.js";
+import { ResourceIcon } from "./ui/ResourceIcon.js";
 
-// Commercio con il mercato estero (il resto del mondo, fuori dalla mappa) e carburante sintetico.
+// Commercio: borsa degli scambi tra nazioni, mercato estero (il resto del mondo, fuori dalla mappa) e carburante sintetico.
 
 interface TradePanelProps {
   map: LoadedMap;
   game: GameState;
   error: string | null;
   onSetImport: (resource: ResourceId, perDay: number) => void;
+  order(o: Order): string | null;
   onSelectProvince: (id: string) => void;
   onClose: () => void;
 }
 
-export function TradePanel({ map, game, error, onSetImport, onSelectProvince, onClose }: TradePanelProps) {
+export function TradePanel({ map, game, error, onSetImport, order, onSelectProvince, onClose }: TradePanelProps) {
+  const [tab, setTab] = useState<"market" | "foreign">("market");
   const nation = game.playerNation;
   const capacity = importCapacityPerDay(map.data, game, nation);
   const flows = importFlows(map.data, game, nation, capacity);
@@ -34,73 +39,88 @@ export function TradePanel({ map, game, error, onSetImport, onSelectProvince, on
     .map((p) => ({ province: p, level: game.buildings[p.id]!.syntheticFuel!, ...syntheticPerDay(p, game.provinces[p.id]!, game.buildings[p.id]) }));
 
   return (
-    <aside className="panel" aria-label="Commercio estero">
+    <aside className="panel" aria-label="Commercio">
       <header className="panel-header">
         <div>
           <p className="panel-kicker">Economia</p>
-          <h2>Commercio estero</h2>
+          <h2>Commercio</h2>
         </div>
         <button className="icon-button" onClick={onClose} aria-label="Chiudi">
           ×
         </button>
       </header>
 
+      <div className="tabs" role="tablist">
+        <button role="tab" aria-selected={tab === "market"} className={tab === "market" ? "active" : ""} onClick={() => setTab("market")}>
+          Borsa tra nazioni
+        </button>
+        <button role="tab" aria-selected={tab === "foreign"} className={tab === "foreign" ? "active" : ""} onClick={() => setTab("foreign")}>
+          Mercato estero
+        </button>
+      </div>
+
       <div className="panel-body">
-        <p className="muted">
-          Il resto del mondo (Americhe, Medio Oriente, colonie) vende risorse a chi può farle arrivare: via mare dalle città costiere e
-          dai porti, via terra attraverso i vicini con cui non sei in guerra. Si paga in denaro a ogni accredito.
-        </p>
-
-        <h3>Capacità di importazione</h3>
-        <dl className="facts">
-          <div>
-            <dt>Via mare</dt>
-            <dd>{formatAmount(capacity.sea)} al giorno</dd>
-          </div>
-          <div>
-            <dt>Via terra</dt>
-            <dd>{formatAmount(capacity.overland)} al giorno</dd>
-          </div>
-        </dl>
-        <p className="muted small">
-          Ogni città costiera vale {formatAmount(TRADE.portCityPerDay)}, ogni porto costruito dal genio {formatAmount(TRADE.portPerLevel)};
-          ogni vicino in pace {formatAmount(TRADE.overlandPerNeighbor)} (al massimo {formatAmount(TRADE.overlandMax)}).
-        </p>
-
-        <h3>Contratti</h3>
-        {TRADABLE.map((r) => (
-          <ImportRow
-            key={r}
-            resource={r}
-            requested={game.nations[nation]?.imports?.[r] ?? 0}
-            flow={flows.find((f) => f.resource === r)}
-            quota={r === "oil" ? quota : 0}
-            onSet={(v) => onSetImport(r, v)}
-          />
-        ))}
-        {error && (
-          <p className="error-text" role="alert">
-            {error}
-          </p>
-        )}
-
-        <h3>Carburante sintetico</h3>
-        {plants.length === 0 ? (
-          <p className="muted small">
-            Nessun impianto. Si costruisce nelle città: ogni livello trasforma {formatAmount(BUILDINGS.syntheticMetalPerLevel)} di metallo
-            in {formatAmount(BUILDINGS.syntheticOilPerLevel)} di petrolio al giorno.
-          </p>
+        {tab === "market" ? (
+          <MarketSection map={map} game={game} order={order} />
         ) : (
-          <ul className="plain-list">
-            {plants.map((p) => (
-              <li key={p.province.id}>
-                <button className="link-button" onClick={() => onSelectProvince(p.province.id)}>
-                  {p.province.name}
-                </button>{" "}
-                liv. {p.level}: −{formatAmount(p.metal)} metallo, +{formatAmount(p.oil)} petrolio al giorno
-              </li>
+          <>
+            <p className="muted">
+              Il resto del mondo (Americhe, Medio Oriente, colonie) vende risorse a chi può farle arrivare: via mare dalle città costiere e
+              dai porti, via terra attraverso i vicini con cui non sei in guerra e senza embargo. Si paga in denaro a ogni accredito.
+            </p>
+
+            <h3>Capacità di importazione</h3>
+            <dl className="facts">
+              <div>
+                <dt>Via mare</dt>
+                <dd>{formatAmount(capacity.sea)} al giorno</dd>
+              </div>
+              <div>
+                <dt>Via terra</dt>
+                <dd>{formatAmount(capacity.overland)} al giorno</dd>
+              </div>
+            </dl>
+            <p className="muted small">
+              Ogni città costiera vale {formatAmount(TRADE.portCityPerDay)}, ogni porto costruito dal genio {formatAmount(TRADE.portPerLevel)};
+              ogni vicino in pace {formatAmount(TRADE.overlandPerNeighbor)} (al massimo {formatAmount(TRADE.overlandMax)}).
+            </p>
+
+            <h3>Contratti</h3>
+            {TRADABLE.map((r) => (
+              <ImportRow
+                key={r}
+                resource={r}
+                requested={game.nations[nation]?.imports?.[r] ?? 0}
+                flow={flows.find((f) => f.resource === r)}
+                quota={r === "oil" ? quota : 0}
+                onSet={(v) => onSetImport(r, v)}
+              />
             ))}
-          </ul>
+            {error && (
+              <p className="error-text" role="alert">
+                {error}
+              </p>
+            )}
+
+            <h3>Carburante sintetico</h3>
+            {plants.length === 0 ? (
+              <p className="muted small">
+                Nessun impianto. Si costruisce nelle città: ogni livello trasforma {formatAmount(BUILDINGS.syntheticMetalPerLevel)} di metallo
+                in {formatAmount(BUILDINGS.syntheticOilPerLevel)} di petrolio al giorno.
+              </p>
+            ) : (
+              <ul className="plain-list">
+                {plants.map((p) => (
+                  <li key={p.province.id}>
+                    <button className="link-button" onClick={() => onSelectProvince(p.province.id)}>
+                      {p.province.name}
+                    </button>{" "}
+                    liv. {p.level}: −{formatAmount(p.metal)} metallo, +{formatAmount(p.oil)} petrolio al giorno
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
       </div>
     </aside>
@@ -125,7 +145,7 @@ function ImportRow({ resource, requested, flow, quota, onSet }: ImportRowProps) 
   return (
     <div className="import-row">
       <p>
-        <span className="dot" style={{ background: RESOURCE_COLORS[resource] }} /> <strong>{RESOURCE_NAMES[resource]}</strong>{" "}
+        <ResourceIcon resource={resource} /> <strong>{RESOURCE_NAMES[resource]}</strong>{" "}
         <span className="muted">
           · {price} di denaro l'uno
           {quota > 0 && ` (i primi ${formatAmount(quota)} al giorno dalle tue concessioni a ${TRADE.concessionPrice})`}
