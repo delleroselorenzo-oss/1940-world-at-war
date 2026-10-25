@@ -90,14 +90,17 @@ const PATHS: Record<CategoryIconId, ReactNode> = {
       <path d="M8 24h2M14 24h2" />
     </>
   ),
-  // Pala e piccone incrociati.
+  // Pala e piccone incrociati: il piccone col manico da sinistra in basso e la testa a mezzaluna
+  // in alto a destra; sopra la pala, con la lama a punta in alto a sinistra e l'impugnatura a D.
   engineer: (
     <>
-      <path d="M8 26L22 8" />
-      <path d="M19.5 5.5l5 5c-1.5 1.5-3.5 2-5 1.5" fill="currentColor" strokeWidth="1" />
-      <path d="M24 26L10 10" />
-      <path d="M6 7c3-1 6 0 7.5 2.5" />
-      <path d="M5.5 23.5l5 5" />
+      <path d="M5 27L23 9" strokeWidth="2.6" />
+      <path d="M14.5 3.5Q27.2 4.8 28.5 17.5Q25 7 14.5 3.5z" fill="currentColor" strokeWidth="1" />
+      <path d="M21.2 8.6l2.2 2.2" strokeWidth="3.4" strokeLinecap="butt" />
+      <path d="M13.8 8.2L8.2 13.8Q4 11 4.6 4.6Q11 4 13.8 8.2z" fill="currentColor" strokeWidth="1" />
+      <path d="M11.5 11.5l3 3" strokeWidth="2.8" />
+      <path d="M14 14l10 10" />
+      <path d="M24 24l1.5 5L29 25.5z" />
     </>
   ),
 };

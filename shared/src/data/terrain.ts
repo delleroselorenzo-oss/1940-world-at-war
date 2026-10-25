@@ -42,6 +42,7 @@ export const TERRAIN_EFFECTS: Record<UnitTypeId, Row> = {
   motorized: { urban: e(1, 1.1), plains: e(1, 1), hills: e(0.8, 1.1), forest: e(0.7, 1.1), mountains: e(0.55, 1.15) },
   armoredCar: { urban: e(0.9, 0.75), plains: e(1, 1.1), hills: e(0.75, 0.9), forest: e(0.55, 0.75), mountains: e(0.45, 0.65) },
   lightTank: { urban: e(0.85, 0.8), plains: e(1, 1.15), hills: e(0.8, 1), forest: e(0.6, 0.8), mountains: e(0.5, 0.7) },
+  heavyTank: { urban: e(0.8, 0.8), plains: e(1, 1.1), hills: e(0.75, 1), forest: e(0.55, 0.75), mountains: e(0.4, 0.65) },
   artillery: towed({ urban: 0.85, plains: 1.1, hills: 1.1, forest: 0.85, mountains: 1 }),
   antiTank: towed({ urban: 1.15, plains: 1, hills: 1.1, forest: 1.15, mountains: 1.1 }),
   antiAircraft: towed({ urban: 1, plains: 1, hills: 1, forest: 0.9, mountains: 0.9 }),

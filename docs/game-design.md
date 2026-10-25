@@ -275,7 +275,7 @@ Al massimo 5 tipi. I valori staranno in un file di bilanciamento (`shared/src/da
 - **Controlli ogni 5 minuti** a orari fissi: ingresso nei territori, contatti, conquiste, arrivi. Tra un controllo e l'altro ogni armata si considera in moto rettilineo; gli orari fissi fanno sì che il risultato non dipenda da quante volte si fa avanzare la partita.
 - **Contatto**: due armate nemiche che arrivano entro 5 km si fermano. Chi marciava con l'ordine **Attacca** va all'**assalto** (valori offensivi); con **Muovi** si ferma e **difende**, come chi era già fermo (valori difensivi). Durante la marcia si usano i valori offensivi. Vinto lo scontro, l'armata fermata riprende da sola la marcia interrotta.
 - **Bersaglio**: ogni armata colpisce l'armata nemica più vicina; i danni del tick si calcolano tutti insieme sullo stato di inizio tick.
-- **Classi di armatura**: non corazzati (fanteria, motorizzata, artiglieria, anticarro, antiaerea, genio, sanità), armatura leggera (autoblindo, carro leggero), armatura pesante (nessuna unità per ora: carri medi e pesanti in arrivo). Valori in `shared/src/data/units.ts`, parametri in `shared/src/data/combat.ts`.
+- **Classi di armatura**: non corazzati (fanteria, motorizzata, artiglieria, anticarro, antiaerea, genio, sanità), armatura leggera (autoblindo, carro leggero), armatura pesante (carro pesante). Valori in `shared/src/data/units.ts`, parametri in `shared/src/data/combat.ts`.
 - **Tiro a distanza** (artiglieria, gittata 12 km): un'armata ferma da almeno 30 minuti (messa in batteria) e non a contatto colpisce a ogni tick l'armata nemica più vicina entro la gittata, con i valori d'attacco delle sole unità a gittata, senza risposta. Le fortificazioni del bersaglio contano. Chi è sotto il fuoco non guarisce. A contatto l'artiglieria combatte normalmente, con i valori di difesa se è ferma.
 - **Morale della provincia**: il tiro dell'artiglieria e gli attacchi aerei tolgono punti di morale alla provincia dove si trova il bersaglio (se non è di chi spara), con il limite di gruppo e l'efficienza per salute; da soli non lo portano sotto il **20%** (la storia insegna che i bombardamenti non spezzano il morale: il resto lo fanno conquista e accerchiamento). Gli effetti del morale basso nelle province di casa arriveranno con generali, capi di stato ed eventi storici.
 - **Guarigione**: vedi §8, "Lavori sul campo".
@@ -290,6 +290,7 @@ Valori decisi il 25/10/2026: attacco / difesa ogni 30 minuti di combattimento, c
 | Fanteria motorizzata | non corazzata | 15 | 2,5 / 3,5 | 1,25 / 1,75 | 0,75 / 1 | 0,5 | edifici 0,25 |
 | Autoblindo | armatura leggera | 12 | 4 / 2,5 | 1,75 / 1,25 | 0,75 / 0,75 | 1 | edifici 0,25 |
 | Carro leggero | armatura leggera | 20 | 3,5 / 2 | 2,5 / 2 | 1 / 0,75 | 0,5 | edifici 0,5 |
+| Carro pesante | armatura pesante | 30 | 3 / 3 | 3 / 3 | 3 / 3 | 0,5 | edifici 1; 22 km/h, 20 ore, costa il doppio del leggero |
 | Artiglieria | non corazzata | 10 | 3 / 4 | 1,5 / 3 | 1 / 2 | 0,5 | gittata 12 km, navi 1 / 1, edifici 2, morale 0,1 |
 | Anticarro | non corazzata | 10 | 1,5 / 3 | 2 / 4 | 1,5 / 4,5 | 0,5 | — |
 | Antiaerea | non corazzata | 10 | 1 / 2,5 | 0,5 / 2 | 0,5 / 2 | 4 | — |
@@ -329,6 +330,7 @@ Esempio: l'armata di una capitale (3 fanterie + 1 artiglieria) che assalta un'ar
 | Fanteria motorizzata | 100% · +10% | 100% · — | 80% · +10% | 70% · +10% | 55% · +15% |
 | Autoblindo | 90% · −25% | 100% · +10% | 75% · −10% | 55% · −25% | 45% · −35% |
 | Carro leggero | 85% · −20% | 100% · +15% | 80% · — | 60% · −20% | 50% · −30% |
+| Carro pesante | 80% · −20% | 100% · +10% | 75% · — | 55% · −25% | 40% · −35% |
 | Artiglieria | 100% · −15% | 100% · +10% | 80% · +10% | 70% · −15% | 55% · — |
 | Anticarro | 100% · +15% | 100% · — | 80% · +10% | 70% · +15% | 55% · +10% |
 | Antiaerea | 100% · — | 100% · — | 80% · — | 70% · −10% | 55% · −10% |

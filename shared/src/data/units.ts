@@ -8,6 +8,7 @@ export type UnitTypeId =
   | "motorized"
   | "armoredCar"
   | "lightTank"
+  | "heavyTank"
   | "artillery"
   | "antiTank"
   | "antiAircraft"
@@ -133,6 +134,22 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
     cost: { goods: 300, metal: 900, oil: 500, money: 1300, manpower: 600 },
     productionHours: 14,
     upkeepPerDay: { metal: 50, oil: 80, money: 100 },
+  },
+  heavyTank: {
+    id: "heavyTank",
+    description: "Carro dalla corazza spessa, come il Matilda II, il Char B1 e il KV-1: lento e costoso, ma i cannoni leggeri non lo scalfiscono. Lo ferma l'anticarro.",
+    building: "tankFactory",
+    name: "Carro pesante",
+    speedKmh: 22,
+    hp: 30,
+    armor: "heavy",
+    attack: { soft: 3, light: 3, heavy: 3 },
+    defense: { soft: 3, light: 3, heavy: 3 },
+    antiAir: 0.5,
+    vsBuilding: 1,
+    cost: { goods: 500, metal: 1500, oil: 700, money: 2000, manpower: 800 },
+    productionHours: 20,
+    upkeepPerDay: { metal: 80, oil: 110, money: 140 },
   },
   artillery: {
     id: "artillery",
