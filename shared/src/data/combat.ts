@@ -26,6 +26,10 @@ export const COMBAT = {
   medicHealPerTick: 0.06,
   /** Entro il raggio di un proprio ospedale da campo. */
   hospitalHealPerTick: 0.1,
+  /** Messa in batteria: minuti da fermo prima che le unità con gittata (artiglieria) possano sparare da lontano. */
+  setupMinutes: 30,
+  /** Artiglieria e aerei da soli non portano il morale di una provincia sotto questa soglia: il resto lo fanno conquista e accerchiamento. */
+  moraleFloor: 20,
   /** Morale di una provincia appena conquistata. */
   conqueredMorale: 25,
   /** A ogni cambio giorno il morale delle province core si sposta di questa frazione della distanza dall'obiettivo. */

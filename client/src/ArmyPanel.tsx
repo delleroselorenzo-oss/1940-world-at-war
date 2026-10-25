@@ -2,10 +2,14 @@ import type { ReactNode, Ref } from "react";
 import {
   ARMOR_CLASSES,
   ARMOR_CLASS_NAMES,
+  armyAntiAir,
   armyDamage,
   armyHealth,
   armyPosition,
+  armyRangeKm,
   armySpeedKmh,
+  canFireAtRange,
+  COMBAT,
   arrivalTime,
   availableWorks,
   destination,
@@ -63,6 +67,7 @@ export function ArmyPanel(props: ArmyPanelProps) {
   const nation = map.nations.get(army.owner);
   const mine = army.owner === game.playerNation;
   const health = armyHealth(army);
+  const range = armyRangeKm(army);
   const fighting = foes.length > 0;
   const speed = armySpeedKmh(army);
   // Tempo reale che manca a un minuto di gioco.
@@ -150,6 +155,15 @@ export function ArmyPanel(props: ArmyPanelProps) {
           <p className="muted">
             Salute {Math.round(health * 100)}% · {speed} km/h · {isAttacking(army) ? "assalto" : "difesa"}
           </p>
+          {range > 0 && (
+            <p className="muted small">
+              {army.move
+                ? `Artiglieria in marcia: sparerà da ferma, dopo ${COMBAT.setupMinutes} minuti di messa in batteria.`
+                : canFireAtRange(army, now)
+                  ? `Artiglieria in batteria: colpisce il nemico più vicino entro ${range} km, se non è a contatto.`
+                  : `Artiglieria in messa in batteria: pronta tra ${countdown(army.settledAt! + COMBAT.setupMinutes)}.`}
+            </p>
+          )}
         </div>
 
         {fighting && (
@@ -250,8 +264,9 @@ export function ArmyPanel(props: ArmyPanelProps) {
               <th>Unità</th>
               <th>Salute</th>
               <th title="Velocità in km/h">km/h</th>
-              <th title="Attacco contro fanteria / corazzati">Att.</th>
-              <th title="Difesa contro fanteria / corazzati">Dif.</th>
+              <th title="Attacco contro non corazzati / armatura leggera / armatura pesante">Att.</th>
+              <th title="Difesa contro non corazzati / armatura leggera / armatura pesante">Dif.</th>
+              <th title="Contraerea: danno agli aerei che attaccano">AA</th>
             </tr>
           </thead>
           <tbody>
@@ -272,11 +287,12 @@ export function ArmyPanel(props: ArmyPanelProps) {
                     {t.speedKmh}
                   </td>
                   <td>
-                    {t.attack.infantry}/{t.attack.armored}
+                    {ARMOR_CLASSES.map((c) => t.attack[c].toLocaleString("it-IT")).join(" / ")}
                   </td>
                   <td>
-                    {t.defense.infantry}/{t.defense.armored}
+                    {ARMOR_CLASSES.map((c) => t.defense[c].toLocaleString("it-IT")).join(" / ")}
                   </td>
+                  <td>{t.antiAir}</td>
                 </tr>
               );
             })}
@@ -297,6 +313,10 @@ export function ArmyPanel(props: ArmyPanelProps) {
               </dd>
             </div>
           ))}
+          <div>
+            <dt>Contro gli aerei</dt>
+            <dd>contraerea {round1(armyAntiAir(army))}</dd>
+          </div>
           <div className="wide">
             <dt>Mantenimento al giorno</dt>
             <dd>{upkeep(army) || "—"}</dd>

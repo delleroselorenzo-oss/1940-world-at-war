@@ -75,6 +75,21 @@ export function describeEvent(
       if (e.by === me) return { text: `Armata nemica distrutta${at} (${nation(e.owner)})`, tone: "good", province: e.province };
       return null;
     }
+    case "airStrike": {
+      const where = province(e.province);
+      const at = where ? ` presso ${where}` : "";
+      const losses = (n: number, none: string, one: string, many: string) => (n === 0 ? none : `${n} ${n === 1 ? one : many}`);
+      if (e.by === me) {
+        const result = e.armyDestroyed ? "armata nemica distrutta" : losses(e.unitsLost, "bersaglio danneggiato", "unità nemica distrutta", "unità nemiche distrutte");
+        const own = e.squadronDestroyed ? "; squadriglia abbattuta" : e.aircraftLost > 0 ? `; abbattuti ${e.aircraftLost} tuoi aerei` : "";
+        return { text: `Attacco aereo${at}: ${result}${own}`, tone: e.squadronDestroyed ? "bad" : "good", province: e.province };
+      }
+      if (e.against === me) {
+        const shot = e.aircraftLost > 0 ? `; la contraerea ha abbattuto ${e.aircraftLost} aerei` : "";
+        return { text: `Attacco aereo di ${nation(e.by)}${at}: ${losses(e.unitsLost, "unità danneggiate", "unità persa", "unità perse")}${shot}`, tone: "bad", province: e.province };
+      }
+      return null;
+    }
     case "squadronLost": {
       if (e.owner !== me) return null;
       const where = province(e.province);

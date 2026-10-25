@@ -21,7 +21,7 @@ import {
   relationOf,
   startWar,
 } from "./diplomacy.js";
-import { startTransfer, transferMissing } from "./air.js";
+import { abortStrike, planStrike, startStrike, startTransfer, transferMissing } from "./air.js";
 import { buildOptions, recruitMinutes, recruitMissing } from "./buildings.js";
 import { canAfford, pay, refund } from "./economy.js";
 import { mapIndex } from "./mapIndex.js";
@@ -40,6 +40,10 @@ export type Order =
   | { type: "recruit"; province: ProvinceId; unitType: ProducibleId }
   /** Trasferisce una squadriglia a terra in un'altra base entro la portata. */
   | { type: "fly"; squadron: SquadronId; base: ProvinceId }
+  /** Attacco aereo a un'armata nemica (anche a una squadriglia in volo: cambia rotta). */
+  | { type: "airStrike"; squadron: SquadronId; target: ArmyId }
+  /** Annulla l'attacco: la squadriglia rientra (o atterra allo scalo verso cui volava). */
+  | { type: "cancelStrike"; squadron: SquadronId }
   /**
    * Marcia verso un punto. `attack`: al contatto va all'assalto ("Attacca") invece di difendersi ("Muovi").
    * `delayMinutes`: parte dopo questo tempo ("Ritarda"); intanto resta ferma dov'è.
@@ -87,6 +91,10 @@ export function applyOrder(state: GameState, world: World, nation: NationId, ord
       return move(state, world.nav, nation, order.army, order.target, order.attack ?? false, order.delayMinutes ?? 0, order.rail ?? false);
     case "fly":
       return flyTo(state, world.map, nation, order.squadron, order.base);
+    case "airStrike":
+      return airStrike(state, world.map, nation, order.squadron, order.target);
+    case "cancelStrike":
+      return cancelStrike(state, world.map, nation, order.squadron);
     case "stop":
       return stop(state, nation, order.army);
     case "declareWar":
@@ -158,6 +166,27 @@ function flyTo(state: GameState, map: MapData, nation: NationId, id: SquadronId,
   return ok({ ...state, squadrons: { ...state.squadrons, [id]: sq } });
 }
 
+function airStrike(state: GameState, map: MapData, nation: NationId, id: SquadronId, target: ArmyId): OrderResult {
+  const current = state.squadrons[id];
+  if (!current || current.owner !== nation) return fail("Squadriglia sconosciuta.");
+  const plan = planStrike(state, map, current, target, state.time);
+  if (typeof plan === "string") return fail(plan);
+  const sq = { ...current };
+  startStrike(state, map, sq, plan, state.time);
+  return ok({ ...state, squadrons: { ...state.squadrons, [id]: sq } });
+}
+
+function cancelStrike(state: GameState, map: MapData, nation: NationId, id: SquadronId): OrderResult {
+  const current = state.squadrons[id];
+  if (!current || current.owner !== nation) return fail("Squadriglia sconosciuta.");
+  if (!current.mission) return fail("Nessun attacco da annullare.");
+  const next = { ...state, squadrons: { ...state.squadrons }, events: [...state.events] };
+  const sq = { ...current };
+  next.squadrons[id] = sq;
+  abortStrike(next, map, sq, state.time);
+  return ok(next);
+}
+
 /**
  * Se un'armata di `nation` marcia verso `target`, con chi entra in guerra?
  * Restituisce la nazione padrona del punto se oggi non c'è guerra né accordo, altrimenti null.
@@ -197,7 +226,7 @@ function move(
   // Con il ritardo si ferma subito; il percorso si ricalcola alla partenza (nel frattempo la mappa può cambiare).
   const next =
     delayMinutes > 0
-      ? { ...base, move: null, departure: { at: state.time + delayMinutes, target } }
+      ? { ...base, move: null, departure: { at: state.time + delayMinutes, target }, settledAt: army.move ? state.time : army.settledAt }
       : { ...base, move: scheduleRoute(route, mover, state.time), departure: null };
   return ok({ ...refunded, armies: { ...state.armies, [armyId]: next } });
 }
@@ -226,7 +255,18 @@ function stop(state: GameState, nation: NationId, armyId: ArmyId): OrderResult {
   // Si ferma dove si trova in questo momento (e non riprenderà la marcia dopo un combattimento).
   return ok({
     ...refundTask(state, army),
-    armies: { ...state.armies, [armyId]: { ...army, position: armyPosition(army, state.time), move: null, halted: null, task: null, departure: null } },
+    armies: {
+      ...state.armies,
+      [armyId]: {
+        ...army,
+        position: armyPosition(army, state.time),
+        move: null,
+        halted: null,
+        task: null,
+        departure: null,
+        settledAt: army.move ? state.time : army.settledAt,
+      },
+    },
   });
 }
 

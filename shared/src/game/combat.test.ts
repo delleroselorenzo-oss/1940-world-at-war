@@ -152,23 +152,23 @@ describe("combattimento", () => {
   });
 
   it("danno: pieno fino a 10 unità, poi cala, oltre 20 non cresce", () => {
-    const inf = (n: number) => armyDamage(army("AAA", Array(n).fill("infantry")), "infantry", true);
-    expect(inf(10)).toBeCloseTo(10 * UNIT_TYPES.infantry.attack.infantry);
-    expect(inf(15) - inf(10)).toBeLessThan(5 * UNIT_TYPES.infantry.attack.infantry);
+    const inf = (n: number) => armyDamage(army("AAA", Array(n).fill("infantry")), "soft", true);
+    expect(inf(10)).toBeCloseTo(10 * UNIT_TYPES.infantry.attack.soft);
+    expect(inf(15) - inf(10)).toBeLessThan(5 * UNIT_TYPES.infantry.attack.soft);
     expect(inf(15)).toBeGreaterThan(inf(10));
     expect(inf(30)).toBeCloseTo(inf(20));
   });
 
   it("efficienza: a metà salute il danno è il 60%", () => {
-    const full = armyDamage(army("AAA", ["infantry", "infantry"]), "infantry", false);
-    const half = armyDamage(army("AAA", ["infantry", "infantry"], UNIT_TYPES.infantry.hp / 2), "infantry", false);
+    const full = armyDamage(army("AAA", ["infantry", "infantry"]), "soft", false);
+    const half = armyDamage(army("AAA", ["infantry", "infantry"], UNIT_TYPES.infantry.hp / 2), "soft", false);
     expect(half / full).toBeCloseTo(0.6);
   });
 
   it("il danno colpisce prima l'unità più malconcia, così le perdite arrivano una alla volta", () => {
     const units = army("AAA", ["infantry", "infantry", "lightTank"]).units;
     units[1]!.hp = 5;
-    const left = applyDamage(units, { infantry: 8, armored: 0 });
+    const left = applyDamage(units, { soft: 8, light: 0, heavy: 0 });
     expect(left).toHaveLength(2);
     expect(left[0]!.hp).toBe(12);
     expect(left[1]!.type).toBe("lightTank");
@@ -240,5 +240,52 @@ describe("conquista", () => {
     expect(stepped.armies).toEqual(once.armies);
     expect(stepped.provinces).toEqual(once.provinces);
     expect(stepped.events).toEqual(once.events);
+  });
+});
+
+describe("artiglieria: tiro a distanza", () => {
+  const WAR = { "AAA|BBB": { war: true, passage: false, sharedVision: false } };
+  const km = 1 / 111.32;
+  const foeAt = center("B1");
+  /** Artiglieria di AAA a `dist` km a ovest di un'armata di BBB (una fanteria) ferma al centro di B1. */
+  function duel(dist: number, gun: Partial<Army> = {}): GameState {
+    const guns = { ...army("AAA", ["artillery"]), id: "g", position: [foeAt[0] - dist * km, foeAt[1]] as [number, number], ...gun };
+    const foe = { ...army("BBB", ["infantry"]), id: "f", position: foeAt };
+    return { ...newGame(), relations: WAR, armies: { g: guns, f: foe } };
+  }
+  const foeHp = (game: GameState) => game.armies.f!.units[0]!.hp;
+
+  it("colpisce entro la gittata senza risposta e abbassa il morale della provincia", () => {
+    const game = advance(duel(10), world, 30);
+    expect(foeHp(game)).toBeCloseTo(UNIT_TYPES.infantry.hp - UNIT_TYPES.artillery.attack.soft);
+    expect(game.armies.g!.units[0]!.hp).toBe(UNIT_TYPES.artillery.hp);
+    expect(game.provinces.B1!.morale).toBeCloseTo(100 - UNIT_TYPES.artillery.moraleDamage!);
+  });
+
+  it("oltre la gittata non spara", () => {
+    const game = advance(duel(UNIT_TYPES.artillery.rangeKm! + 2), world, 30);
+    expect(foeHp(game)).toBe(UNIT_TYPES.infantry.hp);
+  });
+
+  it("spara solo dopo la messa in batteria", () => {
+    let game = advance(duel(10, { settledAt: 15 }), world, 30);
+    expect(foeHp(game)).toBe(UNIT_TYPES.infantry.hp);
+    game = advance(game, world, 15 + COMBAT.setupMinutes + 15);
+    expect(foeHp(game)).toBeLessThan(UNIT_TYPES.infantry.hp);
+  });
+
+  it("a contatto combatte normalmente, con i valori di difesa", () => {
+    const game = advance(duel(3), world, 30);
+    // La fanteria ferma difende e colpisce l'artiglieria; l'artiglieria ferma difende.
+    expect(game.armies.g!.units[0]!.hp).toBeCloseTo(UNIT_TYPES.artillery.hp - UNIT_TYPES.infantry.defense.soft);
+    expect(foeHp(game)).toBeCloseTo(UNIT_TYPES.infantry.hp - UNIT_TYPES.artillery.defense.soft);
+  });
+
+  it("il morale non scende sotto la soglia, e se è già più basso resta com'è", () => {
+    const near = duel(10);
+    let game = advance({ ...near, provinces: { ...near.provinces, B1: { owner: "BBB", morale: COMBAT.moraleFloor + 0.05 } } }, world, 30);
+    expect(game.provinces.B1!.morale).toBe(COMBAT.moraleFloor);
+    game = advance({ ...near, provinces: { ...near.provinces, B1: { owner: "BBB", morale: 15 } } }, world, 30);
+    expect(game.provinces.B1!.morale).toBe(15);
   });
 });

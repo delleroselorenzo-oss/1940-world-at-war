@@ -113,9 +113,9 @@ Valori in `shared/src/data/diplomacy.ts` (`MARKET`), regole in `shared/src/game/
 - Livelli **1–3** (aeroporto e porto: 1). Il livello n costa n volte il livello 1 e richiede n volte il tempo.
 - **Una costruzione alla volta** per provincia, pagata subito; annullandola le risorse tornano indietro.
 - **Città**:
-  - **Caserma**: fanteria, genio, sanità.
-  - **Fabbrica di mezzi corazzati**: carri, autoblindo, fanteria motorizzata (escono con l'equipaggio).
-  - **Fabbrica di artiglieria**: artiglieria.
+  - **Caserma**: fanteria, fanteria motorizzata (con i camion, quindi più beni), genio, sanità.
+  - **Fabbrica di mezzi corazzati**: carri, autoblindo (escono con l'equipaggio).
+  - **Fabbrica di artiglieria**: artiglieria, anticarro, antiaerea.
   - **Fabbrica aeronautica** e **cantiere navale** (solo città costiere): si costruiscono già, produrranno con aviazione e marina.
   - Senza l'edificio giusto non si arruola. Ogni livello oltre il primo riduce del **15%** i tempi di arruolamento nella provincia.
 - **Ovunque**:
@@ -145,6 +145,17 @@ Valori in `shared/src/data/diplomacy.ts` (`MARKET`), regole in `shared/src/game/
 
 ### Classi di armatura (bersaglio)
 Fanteria, Corazzato leggero, Corazzato pesante, Aereo, Nave, Sottomarino, Edificio.
+
+### Scheda dell'unità (deciso il 25/10/2026, da realizzare a passi)
+Ogni unità avrà:
+- **Attacco e difesa** contro: non corazzati, armatura leggera, armatura pesante, aerei, navi, sottomarini, edifici.
+- **Danno al morale della provincia** contesa: bombardamenti aerei e artiglieria lo abbassano molto. Una provincia molto bombardata cade più facilmente e si ribella più facilmente.
+- **Costo** di produzione, **tempo** e **mantenimento** al giorno.
+- **Terreno**: per ogni tipo, un effetto sulla velocità e uno sulla forza (es. fanteria in montagna più lenta ma +30% di forza; nel bosco solo più forza). Il terreno è **semplificato e per provincia** (pianeggiante, collinare, montuosa…), assegnato con realismo: niente rilievi copiati cella per cella.
+- Classi: **non corazzati** (fanteria, motorizzata, genio, sanità, artiglieria, antiaerea), **armatura leggera** (autoblindo, carro leggero), **armatura pesante** (carri medi e pesanti, in arrivo con l'elenco completo).
+- Più avanti: **morale dell'armata**, legato anche ai generali (alcuni tengono alto il morale meglio di altri). I **livelli** delle unità arriveranno con la ricerca.
+
+**Interfaccia (fatta il 25/10/2026)**: nel pannello Produzione una striscia di 5 riquadri (Fanteria, Corazzati, Artiglieria, Aeronautica, Marina); per ogni unità una riga con il riquadro dell'immagine, i costi (solo icone e numeri), il tempo e il tasto Arruola (elenco delle città, evidenziate sulla mappa). Toccando la riga si apre la **scheda** in una colonna al centro: immagine storica dell'unità (in arrivo), descrizione, tabella di combattimento (le voci non ancora definite hanno un trattino), caratteristiche, terreno, costi.
 
 ### Statistiche di ogni unità
 - **Punti salute**
@@ -183,7 +194,7 @@ Le unità nel **ruolo preferito** sono circa 2–3x più efficaci; le "tuttofare
 - **Aerei**: hanno una portata; oltre quella atterrano e proseguono via terra come convoglio (vedi "Aviazione" in §9).
 
 ### Stato attuale (milestone 3 e 4)
-- Unità disponibili: fanteria, fanteria motorizzata, autoblindo, carro leggero, artiglieria (valori in `shared/src/data/units.ts`).
+- Unità disponibili: fanteria, fanteria motorizzata, autoblindo, carro leggero, artiglieria, anticarro, antiaerea, genio, sanità (valori in `shared/src/data/units.ts` e nella tabella del §9). Ogni unità ha un valore di **contraerea**.
 - Ogni nazione parte con un'armata in ogni città (3 fanterie + 1 artiglieria nella capitale, 2 fanterie nelle altre).
 - Si arruola **solo nelle proprie città**: il costo si paga subito, l'unità esce dopo il tempo di produzione; più ordini formano una coda.
 - Un'armata in marcia che riceve un nuovo ordine cambia strada dal punto in cui si trova; "Fermati qui" la ferma dov'è.
@@ -256,26 +267,45 @@ Al massimo 5 tipi. I valori staranno in un file di bilanciamento (`shared/src/da
 - **trasferimento** da una base all'altra entro la portata (ordine `fly`), in linea retta, poi rifornimento; l'aeroporto arriva al livello 3 e ogni livello oltre il primo toglie il 15% ai tempi a terra;
 - se la base d'arrivo non è più utilizzabile la squadriglia ripiega sulla base più vicina che raggiunge con la portata rimasta; lo stesso per gli aerei a terra in una base conquistata o non più alleata; senza una base raggiungibile la squadriglia va persa.
 - **Interfaccia**: gli aerei si costruiscono dal pannello Produzione (categoria Aeronautica); le squadriglie compaiono sulla mappa accanto alla base (in volo lungo la rotta); il pannello della squadriglia mostra stato, composizione e mantenimento, e con "Vola" si tocca sulla mappa una delle basi evidenziate entro il cerchio della portata (oppure si sceglie dall'elenco).
-- Prossimi passi: spostamento verso un punto qualsiasi con il convoglio, unire e dividere le squadriglie, attacco, pattuglia (con l'intercettazione), contraerea e riparazioni.
+- **Attacco** (25/10/2026): pulsante "Attacca" nel pannello della squadriglia, poi si tocca un'armata nemica (solo nazioni in guerra). Vale anche in volo: la squadriglia cambia rotta se il bersaglio è nel raggio d'azione da dove si trova e dopo può arrivare a una base; altrimenti fa scalo (con rifornimento) nelle basi necessarie e decolla da quella abbastanza vicina. Mira al punto dove il bersaglio sarà al suo arrivo; se il bersaglio cambia strada lo insegue solo dentro il raggio d'azione, poi l'attacco decade e rientra. Un solo passaggio: prima spara la **contraerea** (somma di quella del bersaglio e delle armate della stessa nazione entro 5 km, con limite di gruppo ed efficienza per salute; colpisce prima l'aereo più malconcio), poi gli aerei rimasti colpiscono con i loro valori d'attacco (limite di gruppo, efficienza per salute, fortificazioni). Dopo l'attacco rientro alla base più vicina e rifornimento. L'attacco si può annullare. Valori d'attacco: caccia 1,5/0,5, bombardiere tattico 6/5, aerosilurante 2/1,5, strategico 4/3, ricognitore 0,5/0,25 (contro fanteria/corazzati).
+- Prossimi passi: pattuglia (con l'intercettazione tra caccia), spostamento verso un punto qualsiasi con il convoglio (anche per gli attacchi fuori portata), unire e dividere le squadriglie, riparazioni.
 
 ### Stato attuale (milestone 4)
 - **Guerra**: si può dichiarare guerra dal pannello di una provincia straniera, oppure entrare senza accordi nel suo territorio: in quel caso è il padrone di casa a dichiarare guerra. Con un accordo (diritto di passaggio o visione condivisa) non succede nulla. Pace e accordi si potranno negoziare con la diplomazia vera (milestone 6); prima di entrare in un paese neutrale l'interfaccia chiede conferma.
 - **Controlli ogni 5 minuti** a orari fissi: ingresso nei territori, contatti, conquiste, arrivi. Tra un controllo e l'altro ogni armata si considera in moto rettilineo; gli orari fissi fanno sì che il risultato non dipenda da quante volte si fa avanzare la partita.
 - **Contatto**: due armate nemiche che arrivano entro 5 km si fermano. Chi marciava con l'ordine **Attacca** va all'**assalto** (valori offensivi); con **Muovi** si ferma e **difende**, come chi era già fermo (valori difensivi). Durante la marcia si usano i valori offensivi. Vinto lo scontro, l'armata fermata riprende da sola la marcia interrotta.
 - **Bersaglio**: ogni armata colpisce l'armata nemica più vicina; i danni del tick si calcolano tutti insieme sullo stato di inizio tick.
-- **Classi di armatura** per ora due: fanteria (fanteria, motorizzata, artiglieria) e corazzati (autoblindo, carro leggero). Valori in `shared/src/data/units.ts`, parametri in `shared/src/data/combat.ts`.
+- **Classi di armatura**: non corazzati (fanteria, motorizzata, artiglieria, anticarro, antiaerea, genio, sanità), armatura leggera (autoblindo, carro leggero), armatura pesante (nessuna unità per ora: carri medi e pesanti in arrivo). Valori in `shared/src/data/units.ts`, parametri in `shared/src/data/combat.ts`.
+- **Tiro a distanza** (artiglieria, gittata 12 km): un'armata ferma da almeno 30 minuti (messa in batteria) e non a contatto colpisce a ogni tick l'armata nemica più vicina entro la gittata, con i valori d'attacco delle sole unità a gittata, senza risposta. Le fortificazioni del bersaglio contano. Chi è sotto il fuoco non guarisce. A contatto l'artiglieria combatte normalmente, con i valori di difesa se è ferma.
+- **Morale della provincia**: il tiro dell'artiglieria e gli attacchi aerei tolgono punti di morale alla provincia dove si trova il bersaglio (se non è di chi spara), con il limite di gruppo e l'efficienza per salute; da soli non lo portano sotto il **20%** (la storia insegna che i bombardamenti non spezzano il morale: il resto lo fanno conquista e accerchiamento). Gli effetti del morale basso nelle province di casa arriveranno con generali, capi di stato ed eventi storici.
 - **Guarigione**: vedi §8, "Lavori sul campo".
-- Non ancora: gittata dell'artiglieria (per ora combatte solo da vicino), bonus di terreno e fortificazioni, generali.
+- Non ancora: bonus di terreno, generali, morale dell'armata.
 
-| Unità | Classe | Salute | Attacco (fant./corazz.) | Difesa (fant./corazz.) |
-|---|---|---|---|---|
-| Fanteria | fanteria | 15 | 2 / 1 | 3 / 1,5 |
-| Fanteria motorizzata | fanteria | 15 | 2,5 / 1 | 3 / 1,5 |
-| Autoblindo | corazzati | 12 | 2,5 / 1 | 1,5 / 0,75 |
-| Carro leggero | corazzati | 20 | 3,5 / 2,5 | 2 / 1,5 |
-| Artiglieria | fanteria | 10 | 3 / 1,5 | 2 / 1 |
-| Genio | fanteria | 12 | 1 / 0,5 | 1,5 / 0,75 |
-| Sanità | fanteria | 10 | 0,5 / 0,25 | 1 / 0,5 |
+Valori decisi il 25/10/2026: attacco / difesa ogni 30 minuti di combattimento, contro non corazzati, armatura leggera e armatura pesante.
+
+| Unità | Classe | Salute | Non corazzati | Armatura leggera | Armatura pesante | Contraerea | Altro |
+|---|---|---|---|---|---|---|---|
+| Fanteria | non corazzata | 15 | 2 / 3 | 1 / 1,5 | 0,5 / 0,75 | 0,5 | edifici 0,25 |
+| Fanteria motorizzata | non corazzata | 15 | 2,5 / 3,5 | 1,25 / 1,75 | 0,75 / 1 | 0,5 | edifici 0,25 |
+| Autoblindo | armatura leggera | 12 | 4 / 2,5 | 1,75 / 1,25 | 0,75 / 0,75 | 1 | edifici 0,25 |
+| Carro leggero | armatura leggera | 20 | 3,5 / 2 | 2,5 / 2 | 1 / 0,75 | 0,5 | edifici 0,5 |
+| Artiglieria | non corazzata | 10 | 3 / 4 | 1,5 / 3 | 1 / 2 | 0,5 | gittata 12 km, navi 1 / 1, edifici 2, morale 0,1 |
+| Anticarro | non corazzata | 10 | 1,5 / 3 | 2 / 4 | 1,5 / 4,5 | 0,5 | — |
+| Antiaerea | non corazzata | 10 | 1 / 2,5 | 0,5 / 2 | 0,5 / 2 | 4 | — |
+| Genio | non corazzata | 12 | 1 / 1,5 | 0,5 / 0,75 | 0,25 / 0,5 | 0,25 | edifici 1 |
+| Sanità | non corazzata | 10 | 0,5 / 1 | 0,25 / 0,5 | 0 / 0,25 | 0 | — |
+
+Aerei (danni per attacco; contro gli aerei attacco / difesa):
+
+| Aereo | Non corazzati | Armatura leggera | Armatura pesante | Aerei | Navi | Sottomarini | Edifici | Morale |
+|---|---|---|---|---|---|---|---|---|
+| Caccia | 1,5 | 0,5 | 0,25 | 3,5 / 3 | 0,5 | — | 0,5 | 0,1 |
+| Bombardiere tattico | 6 | 5 | 3 | 0 / 1 | 2 | 0,5 | 3 | 0,3 |
+| Aerosilurante | 2 | 1,5 | 1 | 0 / 1 | 8 | 2 | 1 | 0,2 |
+| Bombardiere strategico | 4 | 3 | 2 | 0 / 2 | 1 | — | 8 | 1 |
+| Ricognitore | 0,5 | 0,25 | 0 | 0 / 0,5 | 0,5 | 1 | 0,25 | — |
+
+Navi, sottomarini, edifici e combattimento tra aerei sono già nei dati ma conteranno con la marina, i bombardamenti degli edifici (20 punti di integrità per livello: a zero l'edificio perde un livello, il genio lo ripara pagando) e l'intercettazione.
 
 Esempio: l'armata di una capitale (3 fanterie + 1 artiglieria) che assalta un'armata uguale in difesa perde, dopo alcune ore di combattimento: chi difende è avvantaggiato.
 
@@ -421,3 +451,4 @@ Regola generale, non legata a una data: una nazione che perde la capitale ma ha 
 - Mercato tra giocatori nella prima versione?
 - Soglia di punti vittoria di default.
 - Valori numerici di ogni unità (prossimo passo: `/shared/data/units.ts`).
+- **Ostacoli naturali** (idea del 25/10/2026, da riprendere dopo il combattimento): oggi la marcia conosce strade, ferrovie e grandi fiumi, ma non i rilievi. Milano–Rimini è pianura, Milano–Berna attraversa le Alpi: deciso (25/10/2026) un terreno **semplificato per provincia** (pianeggiante, collinare, montuosa…), con effetti su velocità e forza di ogni unità (vedi §7, "Scheda dell'unità"); restano da decidere i valichi come passaggi obbligati.

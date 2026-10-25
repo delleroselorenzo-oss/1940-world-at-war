@@ -4,7 +4,7 @@ import type { GameState } from "@waw/shared";
 // disponibile (navigazione privata, spazio pieno): in quel caso si gioca senza.
 
 // Va aumentata quando cambia la forma di GameState: i salvataggi vecchi vengono ignorati.
-const VERSION = 11;
+const VERSION = 12;
 const key = (mapId: string) => `waw.local-game.${mapId}.v${VERSION}`;
 
 export function loadGame(mapId: string): GameState | null {

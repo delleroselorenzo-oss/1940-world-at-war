@@ -33,29 +33,84 @@ export function armyDamage(army: Army, vs: ArmorClass, offensive = isAttacking(a
   const values = army.units.map((u) => (offensive ? UNIT_TYPES[u.type].attack : UNIT_TYPES[u.type].defense)[vs]).sort((a, b) => b - a);
   let total = 0;
   values.forEach((v, i) => (total += v * groupWeight(i)));
-  return total * (COMBAT.minEfficiency + (1 - COMBAT.minEfficiency) * armyHealth(army));
+  return total * efficiency(armyHealth(army));
 }
 
 /** Peso dell'i-esima unità (0 = la più forte): pieno fino a groupFull, poi cala fino a zero a groupMax. */
-function groupWeight(i: number): number {
+export function groupWeight(i: number): number {
   if (i < COMBAT.groupFull) return 1;
   if (i >= COMBAT.groupMax) return 0;
   return (COMBAT.groupMax - i) / (COMBAT.groupMax - COMBAT.groupFull + 1);
+}
+
+/** Contraerea dell'armata contro gli aerei che la attaccano: come il danno, con il limite di gruppo e l'efficienza per salute. */
+export function armyAntiAir(army: Army): number {
+  const values = army.units.map((u) => UNIT_TYPES[u.type].antiAir).sort((a, b) => b - a);
+  let total = 0;
+  values.forEach((v, i) => (total += v * groupWeight(i)));
+  return total * efficiency(armyHealth(army));
 }
 
 /**
  * Danno che `attacker` infligge a `target` in un tick, diviso per classe: ogni classe riceve
  * il danno contro di lei in proporzione a quante unità di quella classe ha il bersaglio.
  */
-export function damageAgainst(attacker: Army, target: Army): Record<ArmorClass, number> {
-  const out = { infantry: 0, armored: 0 } as Record<ArmorClass, number>;
+export function damageAgainst(attacker: Army, target: Army, offensive = isAttacking(attacker)): Record<ArmorClass, number> {
+  const out = noDamage();
   const n = target.units.length;
   if (n === 0) return out;
   for (const c of ARMOR_CLASSES) {
     const count = target.units.filter((u) => UNIT_TYPES[u.type].armor === c).length;
-    if (count > 0) out[c] = armyDamage(attacker, c) * (count / n);
+    if (count > 0) out[c] = armyDamage(attacker, c, offensive) * (count / n);
   }
   return out;
+}
+
+export function noDamage(): Record<ArmorClass, number> {
+  return { soft: 0, light: 0, heavy: 0 };
+}
+
+// --- Tiro a distanza (artiglieria) ---
+
+/** Le unità con gittata dell'armata, come un'armata a sé (stessa posizione e padrone). */
+export function rangedPart(army: Army): Army {
+  return { ...army, units: army.units.filter((u) => UNIT_TYPES[u.type].rangeKm) };
+}
+
+/** Gittata dell'armata: la più lunga tra le sue unità (0 se non ne ha). */
+export function armyRangeKm(army: Army): number {
+  return Math.max(0, ...army.units.map((u) => UNIT_TYPES[u.type].rangeKm ?? 0));
+}
+
+/** L'armata può sparare da lontano al minuto `t`: ha unità con gittata ed è ferma da almeno la messa in batteria. */
+export function canFireAtRange(army: Army, t: number): boolean {
+  return army.move === null && armyRangeKm(army) > 0 && t - (army.settledAt ?? -Infinity) >= COMBAT.setupMinutes;
+}
+
+/**
+ * Punti di morale che un gruppo toglie alla provincia del bersaglio in un colpo: somma dei valori
+ * con il limite di gruppo, per l'efficienza (salute) di chi spara.
+ */
+export function moraleDamage(values: number[], efficiency: number): number {
+  let total = 0;
+  [...values].sort((a, b) => b - a).forEach((v, i) => (total += v * groupWeight(i)));
+  return total * efficiency;
+}
+
+/** Efficienza dovuta alla salute: piena a salute piena, `minEfficiency` a salute zero. */
+export function efficiency(health: number): number {
+  return COMBAT.minEfficiency + (1 - COMBAT.minEfficiency) * health;
+}
+
+/**
+ * Abbassa il morale della provincia di `amount` punti, ma non sotto `COMBAT.moraleFloor`
+ * (se è già più basso resta com'è). Modifica `s`. Restituisce true se è cambiato.
+ */
+export function lowerMorale(s: GameState, province: string | null, amount: number): boolean {
+  const ps = province ? s.provinces[province] : undefined;
+  if (!ps || amount <= 0 || ps.morale <= COMBAT.moraleFloor) return false;
+  s.provinces[province!] = { ...ps, morale: Math.max(COMBAT.moraleFloor, ps.morale - amount) };
+  return true;
 }
 
 /**

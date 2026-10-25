@@ -3,8 +3,10 @@ import {
   AIRCRAFT_TYPES,
   AIRCRAFT_TYPE_IDS,
   airBases,
+  armyPosition,
   flatKm,
   flightMinutes,
+  provinceIdAt,
   squadronPosition,
   squadronRangeKm,
   squadronSpeedKmh,
@@ -17,7 +19,11 @@ import { CostList } from "./ui/CostList.js";
 import { formatAmount, formatCountdown, formatDelay } from "./ui/format.js";
 
 // Pannello della squadriglia: stato (a terra, in rifornimento, in volo), trasferimento a un'altra base
-// (dall'elenco o toccando sulla mappa una delle basi evidenziate), composizione e mantenimento.
+// (dall'elenco o toccando sulla mappa una delle basi evidenziate), attacco a un'armata nemica (toccandola sulla mappa,
+// anche mentre la squadriglia vola), composizione e mantenimento.
+
+/** Cosa farà il prossimo tocco sulla mappa: scegliere la base d'arrivo o il bersaglio. */
+export type SquadronMode = "fly" | "strike" | null;
 
 interface SquadronPanelProps {
   map: LoadedMap;
@@ -25,10 +31,10 @@ interface SquadronPanelProps {
   game: GameState;
   now: number;
   error: string | null;
-  /** Il prossimo tocco sulla mappa sceglie la base d'arrivo. */
-  choosing: boolean;
-  onChoose(choosing: boolean): void;
+  mode: SquadronMode;
+  onMode(mode: SquadronMode): void;
   onFly(base: string): void;
+  onCancelStrike(): void;
   onSelectProvince(id: string): void;
   onClose(): void;
   ref?: Ref<HTMLElement>;
@@ -40,9 +46,10 @@ export function SquadronPanel({
   game,
   now,
   error,
-  choosing,
-  onChoose,
+  mode,
+  onMode,
   onFly,
+  onCancelStrike,
   onSelectProvince,
   onClose,
   ref,
@@ -73,6 +80,9 @@ export function SquadronPanel({
         .sort((a, b) => a.km - b.km)
     : [];
   const refueling = !sq.flight && sq.readyAt > now;
+  const mission = sq.mission;
+  const target = mission ? game.armies[mission.target] : undefined;
+  const targetProvince = target ? provinceIdAt(map.nav, armyPosition(target, now)) : null;
 
   return (
     <aside className="panel army-panel" aria-label="Dettagli squadriglia" ref={ref}>
@@ -93,7 +103,9 @@ export function SquadronPanel({
       <div className="panel-body">
         <div className="army-status">
           <p>
-            {sq.flight ? (
+            {sq.flight?.base === null ? (
+              <>In volo verso il bersaglio · arriva tra {countdown(sq.flight.arriveAt)}</>
+            ) : sq.flight ? (
               <>
                 In volo verso {link(sq.flight.base)} · atterra tra {countdown(sq.flight.arriveAt)}
               </>
@@ -113,20 +125,69 @@ export function SquadronPanel({
           </p>
         </div>
 
-        {mine && !sq.flight && (
-          <section className="army-actions" aria-label="Trasferimento">
-            <h3>Trasferisci</h3>
-            <div className="map-actions" role="group" aria-label="Azione sulla mappa">
+        {mine && (
+          <div className="map-actions" role="group" aria-label="Azione sulla mappa">
+            {!sq.flight && (
               <button
-                className={choosing ? "action active" : "action"}
-                aria-pressed={choosing}
+                className={mode === "fly" ? "action active" : "action"}
+                aria-pressed={mode === "fly"}
                 disabled={refueling}
-                onClick={() => onChoose(!choosing)}
+                onClick={() => onMode(mode === "fly" ? null : "fly")}
               >
                 Vola
               </button>
-            </div>
-            {choosing && <p className="targeting">Tocca sulla mappa una delle basi evidenziate, entro il cerchio della portata.</p>}
+            )}
+            <button
+              className={mode === "strike" ? "action attack active" : "action attack"}
+              aria-pressed={mode === "strike"}
+              onClick={() => onMode(mode === "strike" ? null : "strike")}
+            >
+              Attacca
+            </button>
+          </div>
+        )}
+        {mine && mode === "fly" && <p className="targeting">Tocca sulla mappa una delle basi evidenziate, entro il cerchio della portata.</p>}
+        {mine && mode === "strike" && (
+          <p className="targeting">
+            Tocca sulla mappa un'armata nemica entro il raggio d'azione ({formatAmount(range / 2)} km). Se è più lontana, la squadriglia farà scalo in
+            una base più vicina.
+          </p>
+        )}
+
+        {mission && (
+          <div className="mission">
+            <h3>Attacco in corso</h3>
+            <p className="small">
+              Bersaglio: {target ? `armata di ${map.nations.get(target.owner)?.name ?? target.owner} (${target.units.length} unità)` : "—"}
+              {targetProvince && <> presso {link(targetProvince)}</>}
+            </p>
+            {mission.via.length > 0 && (
+              <p className="muted small">
+                Scalo a{" "}
+                {mission.via.map((id, i) => (
+                  <span key={id}>
+                    {i > 0 && ", poi "}
+                    {link(id)}
+                  </span>
+                ))}
+                , rifornimento e poi decollo per l'attacco.
+              </p>
+            )}
+            {!sq.flight && mission.via.length === 0 && refueling && <p className="muted small">Decolla per l'attacco tra {countdown(sq.readyAt)}.</p>}
+            <p className="muted small">
+              La squadriglia insegue il bersaglio solo finché resta nel raggio d'azione; dopo l'attacco rientra alla base più vicina.
+            </p>
+            {mine && (
+              <button className="button small" onClick={onCancelStrike}>
+                Annulla l'attacco
+              </button>
+            )}
+          </div>
+        )}
+
+        {mine && !sq.flight && (
+          <section className="army-actions" aria-label="Trasferimento">
+            <h3>Basi entro la portata</h3>
             {refueling && <p className="muted small">Potrà decollare a rifornimento finito.</p>}
             {bases.length === 0 ? (
               <p className="muted small">Nessuna altra base entro la portata. Il genio può costruire un aeroporto in qualsiasi tua provincia.</p>

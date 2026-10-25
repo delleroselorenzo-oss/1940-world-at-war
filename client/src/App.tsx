@@ -23,7 +23,7 @@ import { useLocalGame } from "./game/useLocalGame.js";
 import { loadMap, type LoadedMap } from "./map/loadMap.js";
 import { MapView, type MapViewHandle } from "./map/MapView.js";
 import { ProvincePanel } from "./ProvincePanel.js";
-import { SquadronPanel } from "./SquadronPanel.js";
+import { SquadronPanel, type SquadronMode } from "./SquadronPanel.js";
 import { TradePanel } from "./TradePanel.js";
 import { EventFeed } from "./ui/EventFeed.js";
 import { formatCountdown } from "./ui/format.js";
@@ -94,8 +94,8 @@ function Game({ map }: { map: LoadedMap }) {
   const [delayMinutes, setDelayMinutes] = useState(0);
   // Scelta del treno: resta impostata finché il giocatore non la cambia.
   const [useRail, setUseRail] = useState(false);
-  // Pannello della squadriglia: il prossimo tocco sulla mappa sceglie la base d'arrivo.
-  const [choosingBase, setChoosingBase] = useState(false);
+  // Pannello della squadriglia: il prossimo tocco sulla mappa sceglie la base d'arrivo ("Vola") o il bersaglio ("Attacca").
+  const [squadronMode, setSquadronMode] = useState<SquadronMode>(null);
   // Province evidenziate dai pannelli Edifici e Produzione.
   const [highlighted, setHighlighted] = useState<ReadonlySet<string>>(NO_HIGHLIGHT);
   const mapRef = useRef<MapViewHandle>(null);
@@ -106,7 +106,7 @@ function Game({ map }: { map: LoadedMap }) {
     setOrderError(null);
     setArmyMode(null);
     setDelayMinutes(0);
-    setChoosingBase(false);
+    setSquadronMode(null);
   }, []);
 
   // Centra la vista su una provincia tenendo conto del pannello, che copre una parte della mappa
@@ -131,12 +131,12 @@ function Game({ map }: { map: LoadedMap }) {
       if (e.key !== "Escape") return;
       // Prima si annulla l'azione scelta, poi si chiude il pannello.
       if (armyMode) setArmyMode(null);
-      else if (choosingBase) setChoosingBase(false);
+      else if (squadronMode) setSquadronMode(null);
       else select(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [select, armyMode, choosingBase]);
+  }, [select, armyMode, squadronMode]);
 
   const selectedArmy = selection?.kind === "army" ? state?.armies[selection.id] : undefined;
   const selectedProvince = selection?.kind === "province" ? map.provinces.get(selection.id) : undefined;
@@ -148,6 +148,10 @@ function Game({ map }: { map: LoadedMap }) {
     if (selection?.kind === "army" && state && !state.armies[selection.id]) setSelection(null);
     if (selection?.kind === "squadron" && state && !state.squadrons[selection.id]) setSelection(null);
   }, [selection, state]);
+
+  const mySquadronSelected = !!selectedSquadron && selectedSquadron.owner === state?.playerNation;
+  const choosingBase = mySquadronSelected && squadronMode === "fly";
+  const choosingTarget = mySquadronSelected && squadronMode === "strike";
 
   // Basi dove la squadriglia selezionata può volare adesso: evidenziate sulla mappa mentre si sceglie.
   const reachableBases = useMemo(() => {
@@ -166,7 +170,17 @@ function Game({ map }: { map: LoadedMap }) {
       if (!selectedSquadron) return;
       const error = game.order({ type: "fly", squadron: selectedSquadron.id, base });
       setOrderError(error);
-      if (!error) setChoosingBase(false);
+      if (!error) setSquadronMode(null);
+    },
+    [selectedSquadron, game],
+  );
+
+  const strike = useCallback(
+    (target: string) => {
+      if (!selectedSquadron) return;
+      const error = game.order({ type: "airStrike", squadron: selectedSquadron.id, target });
+      setOrderError(error);
+      if (!error) setSquadronMode(null);
     },
     [selectedSquadron, game],
   );
@@ -201,9 +215,10 @@ function Game({ map }: { map: LoadedMap }) {
         else setOrderError("Tocca una delle basi evidenziate.");
         return;
       }
+      if (choosingTarget) return setOrderError("Tocca un'armata nemica.");
       select(id ? { kind: "province", id } : null);
     },
-    [targeting, armyMode, marchTo, choosingBase, reachableBases, flyTo, select],
+    [targeting, armyMode, marchTo, choosingBase, choosingTarget, reachableBases, flyTo, select],
   );
 
   // Tocco su un'armata: con un'azione scelta diventa il bersaglio (o la meta, se è tua: le armate si uniscono).
@@ -211,9 +226,10 @@ function Game({ map }: { map: LoadedMap }) {
     (id: string) => {
       const other = state?.armies[id];
       if (targeting && other && id !== selectedArmy?.id) return marchTo(armyPosition(other, game.nowExact()), armyMode === "attack");
+      if (choosingTarget) return strike(id);
       select({ kind: "army", id });
     },
-    [state, targeting, armyMode, selectedArmy, marchTo, game, select],
+    [state, targeting, armyMode, selectedArmy, marchTo, choosingTarget, strike, game, select],
   );
 
   // Tocco su una squadriglia: mentre si sceglie la base, conta come tocco sulla sua base.
@@ -340,7 +356,7 @@ function Game({ map }: { map: LoadedMap }) {
         engaged={engagedSet}
         playerNation={state?.playerNation ?? null}
         works={state}
-        targeting={targeting || choosingBase}
+        targeting={targeting || choosingBase || choosingTarget}
         selectedId={selectedProvince?.id ?? null}
         selectedArmyId={selectedArmy?.id ?? null}
         selectedSquadronId={selectedSquadron?.id ?? null}
@@ -477,12 +493,13 @@ function Game({ map }: { map: LoadedMap }) {
           game={state}
           now={game.now}
           error={orderError}
-          choosing={choosingBase}
-          onChoose={(on) => {
-            setChoosingBase(on);
+          mode={squadronMode}
+          onMode={(m) => {
+            setSquadronMode(m);
             setOrderError(null);
           }}
           onFly={flyTo}
+          onCancelStrike={() => setOrderError(game.order({ type: "cancelStrike", squadron: selectedSquadron.id }))}
           onSelectProvince={selectProvinceAndFocus}
           onClose={() => select(null)}
         />

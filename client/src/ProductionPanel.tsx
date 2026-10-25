@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AIRCRAFT_TYPE_IDS,
   AIRCRAFT_TYPES,
-  ARMOR_CLASS_NAMES,
   isAircraftType,
   BUILDING_TYPES,
   canAfford,
@@ -11,26 +10,31 @@ import {
   recruitMinutes,
   recruitMissing,
   UNIT_TYPE_IDS,
-  UNIT_TYPES,
   type BuildingId,
   type GameState,
   type Order,
   type ProducibleId,
 } from "@waw/shared";
 import type { LoadedMap } from "./map/loadMap.js";
+import { CategoryIcon, type CategoryIconId } from "./ui/CategoryIcon.js";
 import { CostList } from "./ui/CostList.js";
-import { formatAmount, formatCountdown, formatDelay } from "./ui/format.js";
+import { formatCountdown, formatDelay } from "./ui/format.js";
+import { UnitSheet } from "./UnitSheet.js";
 
-// Produzione: si sceglie il tipo di unità (o di aereo), poi la città dove arruolarla (evidenziate sulla mappa quelle che possono).
+// Produzione: una striscia con le categorie, poi una riga per unità (immagine, costi, tempo, Arruola).
+// Toccando la riga si apre la scheda con tutte le caratteristiche; Arruola elenca le città dove si può
+// (evidenziate anche sulla mappa).
 
 /** Categorie di unità: una per edificio che le produce. */
-const CATEGORIES: { building: BuildingId; name: string }[] = [
-  { building: "barracks", name: "Fanteria e supporto" },
-  { building: "tankFactory", name: "Mezzi corazzati" },
-  { building: "artilleryFactory", name: "Artiglieria" },
-  { building: "aircraftFactory", name: "Aeronautica" },
-  { building: "shipyard", name: "Marina" },
+const CATEGORIES: { building: BuildingId; name: string; icon: CategoryIconId }[] = [
+  { building: "barracks", name: "Fanteria", icon: "infantry" },
+  { building: "tankFactory", name: "Corazzati", icon: "armor" },
+  { building: "artilleryFactory", name: "Artiglieria", icon: "artillery" },
+  { building: "aircraftFactory", name: "Aeronautica", icon: "air" },
+  { building: "shipyard", name: "Marina", icon: "navy" },
 ];
+
+const PRODUCIBLE: ProducibleId[] = [...UNIT_TYPE_IDS, ...AIRCRAFT_TYPE_IDS];
 
 interface ProductionPanelProps {
   map: LoadedMap;
@@ -51,6 +55,7 @@ export function ProductionPanel({ map, game, now, only, order, onFocusProvince, 
   const me = game.playerNation;
   const [category, setCategory] = useState<BuildingId>("barracks");
   const [unit, setUnit] = useState<ProducibleId | null>(null);
+  const [info, setInfo] = useState<ProducibleId | null>(null);
   const [error, setError] = useState<string | null>(null);
   const cities = useMemo(
     () => map.data.provinces.filter((p) => p.type === "urban" && game.provinces[p.id]?.owner === me && (!only || p.id === only)),
@@ -71,7 +76,7 @@ export function ProductionPanel({ map, game, now, only, order, onFocusProvince, 
   const onlyName = only ? map.provinces.get(only)?.name : null;
   const type = unit ? productionType(unit) : null;
   const aircraft = unit && isAircraftType(unit) ? AIRCRAFT_TYPES[unit] : null;
-  const ground = unit && !isAircraftType(unit) ? UNIT_TYPES[unit] : null;
+  const producible = PRODUCIBLE.filter((t) => productionType(t).building === category);
 
   return (
     <aside className="panel" aria-label="Produzione">
@@ -121,91 +126,66 @@ export function ProductionPanel({ map, game, now, only, order, onFocusProvince, 
                 </ul>
               </>
             )}
-            <div className="chips" role="tablist" aria-label="Categoria">
+            <div className="category-strip" role="tablist" aria-label="Categoria">
               {CATEGORIES.map((c) => (
                 <button
                   key={c.building}
                   role="tab"
                   aria-selected={c.building === category}
-                  className={c.building === category ? "chip active" : "chip"}
+                  className={c.building === category ? "category-tile active" : "category-tile"}
                   onClick={() => setCategory(c.building)}
                 >
-                  {c.name}
+                  <CategoryIcon icon={c.icon} />
+                  <span>{c.name}</span>
                 </button>
               ))}
             </div>
-            <ul className="choice-list">
-              {UNIT_TYPE_IDS.filter((t) => UNIT_TYPES[t].building === category).map((t) => {
-                const u = UNIT_TYPES[t];
-                const count = cities.filter((c) => recruitMissing(game, c.id, t) === null).length;
+            <ul className="unit-rows">
+              {producible.map((t) => {
+                const u = productionType(t);
                 return (
-                  <li key={t}>
-                    <button onClick={() => setUnit(t)}>
-                      <strong>{u.name}</strong>
-                      <span className="muted small">
-                        classe {ARMOR_CLASS_NAMES[u.armor].toLowerCase()} · {u.speedKmh} km/h · {u.hp} punti vita
+                  <li key={t} className="unit-row">
+                    <button className="unit-row-info" onClick={() => setInfo(t)} aria-label={`Caratteristiche: ${u.name}`}>
+                      <span className="unit-thumb" aria-hidden />
+                      <span className="unit-row-text">
+                        <strong>{u.name}</strong>
+                        <CostList cost={u.cost} stock={stock} />
+                        <span className="muted small time">
+                          <ClockIcon /> {formatDelay(u.productionHours * 60)}
+                        </span>
                       </span>
-                      <span className="muted small">
-                        {count === 0 ? `Serve: ${BUILDING_TYPES[u.building].name.toLowerCase()}` : `Si arruola in ${count} città`}
-                      </span>
-                      <CostList cost={u.cost} stock={stock} />
                     </button>
-                  </li>
-                );
-              })}
-              {AIRCRAFT_TYPE_IDS.filter((t) => AIRCRAFT_TYPES[t].building === category).map((t) => {
-                const a = AIRCRAFT_TYPES[t];
-                const count = cities.filter((c) => recruitMissing(game, c.id, t) === null).length;
-                return (
-                  <li key={t}>
-                    <button onClick={() => setUnit(t)}>
-                      <strong>{a.name}</strong>
-                      <span className="muted small">{a.description}</span>
-                      <span className="muted small">
-                        portata {formatAmount(a.rangeKm)} km (raggio d'azione {formatAmount(a.rangeKm / 2)} km) · {a.speedKmh} km/h · {a.hp} punti vita
-                      </span>
-                      <span className="muted small">
-                        {count === 0 ? `Serve: ${BUILDING_TYPES[a.building].name.toLowerCase()}` : `Si costruisce in ${count} città`}
-                      </span>
-                      <CostList cost={a.cost} stock={stock} />
+                    <button className="button small" onClick={() => setUnit(t)}>
+                      {isAircraftType(t) ? "Costruisci" : "Arruola"}
                     </button>
                   </li>
                 );
               })}
               {PLANNED_UNITS.filter((u) => u.building === category).map((u) => (
-                <li key={u.id}>
-                  <button disabled>
-                    <strong>
-                      {u.name} <span className="relation-tag">in arrivo</span>
-                    </strong>
-                    <span className="muted small">{u.description}</span>
-                    <span className="muted small">
-                      La produrrà: {BUILDING_TYPES[u.building].name.toLowerCase()}. Si potrà arruolare quando {u.building === "shipyard" ? "le navi potranno navigare" : "gli aerei potranno volare"}.
+                <li key={u.id} className="unit-row planned" title={u.description}>
+                  <div className="unit-row-info">
+                    <span className="unit-thumb" aria-hidden />
+                    <span className="unit-row-text">
+                      <strong>{u.name}</strong>
+                      <span className="muted small">{u.description}</span>
                     </span>
-                  </button>
+                  </div>
+                  <span className="relation-tag">in arrivo</span>
                 </li>
               ))}
             </ul>
+            {category === "shipyard" && <p className="muted small">Le navi si potranno costruire quando potranno navigare.</p>}
           </>
         ) : (
           <>
-            {ground && (
-              <p className="muted small">
-                classe {ARMOR_CLASS_NAMES[ground.armor].toLowerCase()} · {ground.speedKmh} km/h · mantenimento al giorno: <CostList cost={ground.upkeepPerDay} />
-              </p>
-            )}
-            {aircraft && (
-              <>
-                <p className="muted small">{aircraft.description}</p>
-                <p className="muted small">
-                  portata {formatAmount(aircraft.rangeKm)} km · raggio d'azione {formatAmount(aircraft.rangeKm / 2)} km · {aircraft.speedKmh} km/h · rifornimento{" "}
-                  {formatDelay(aircraft.refuelMinutes)} · mantenimento al giorno: <CostList cost={aircraft.upkeepPerDay} />
-                </p>
-                <p className="muted small">Esce in una squadriglia a terra nella città, che fa da base grazie alla fabbrica aeronautica.</p>
-              </>
-            )}
+            {aircraft && <p className="muted small">Esce in una squadriglia a terra nella città, che fa da base grazie alla fabbrica aeronautica.</p>}
             <p className="small">
               Costo per unità: <CostList cost={type.cost} stock={stock} />
+            </p>
+            <p className="small">
+              <button className="link-button" onClick={() => setInfo(unit)}>
+                Vedi le caratteristiche
+              </button>
             </p>
             {able.length === 0 ? (
               <p className="muted">Nessuna città con {BUILDING_TYPES[type.building].name.toLowerCase()}.</p>
@@ -253,6 +233,26 @@ export function ProductionPanel({ map, game, now, only, order, onFocusProvince, 
           </>
         )}
       </div>
+      {info && (
+        <UnitSheet
+          unit={info}
+          stock={stock}
+          onRecruit={() => {
+            setUnit(info);
+            setInfo(null);
+          }}
+          onClose={() => setInfo(null)}
+        />
+      )}
     </aside>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg className="clock-icon" viewBox="0 0 16 16" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+      <circle cx="8" cy="8" r="6.2" />
+      <path d="M8 4.5V8l2.5 1.5" />
+    </svg>
   );
 }

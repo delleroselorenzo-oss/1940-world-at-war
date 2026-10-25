@@ -1,6 +1,6 @@
 import type { ResourceId } from "../map/types.js";
 import type { BuildingId } from "./buildings.js";
-import { UNIT_TYPES, type ArmorClass, type UnitTypeId } from "./units.js";
+import { UNIT_TYPES, type ArmorClass, type AttackDefense, type UnitTypeId } from "./units.js";
 
 // Aviazione: tipi di aereo e valori di volo (vedi docs/game-design.md, §9 "Aviazione").
 // Le portate partono da quelle storiche degli aerei della RAF, ridotte di circa il 10% per la mappa europea.
@@ -20,8 +20,16 @@ export interface AircraftType {
   /** Minuti a terra per rifornirsi dopo ogni volo (senza costi: è compreso nel mantenimento). */
   refuelMinutes: number;
   hp: number;
-  /** Danno di un attacco contro ciascuna classe di bersaglio a terra (si useranno con gli ordini di attacco). */
+  /** Danno di un attacco contro ciascuna classe di bersaglio a terra (ogni attacco è un solo passaggio sul bersaglio). */
   attack: Record<ArmorClass, number>;
+  /** Contro altri aerei (intercettazione, in arrivo): il caccia attacca, i bombardieri si difendono con i mitraglieri. */
+  vsAir: AttackDefense;
+  /** Contro navi e sottomarini (con la marina) ed edifici (con i bombardamenti). Assente = nessun danno. */
+  vsShip?: number;
+  vsSub?: number;
+  vsBuilding?: number;
+  /** Punti di morale tolti alla provincia del bersaglio a ogni attacco (fino a `COMBAT.moraleFloor`). */
+  moraleDamage?: number;
   cost: Partial<Record<ResourceId, number>>;
   /** Ore di gioco per costruirlo in una città con la fabbrica aeronautica. */
   productionHours: number;
@@ -39,7 +47,11 @@ export const AIRCRAFT_TYPES: Record<AircraftTypeId, AircraftType> = {
     speedKmh: 450,
     refuelMinutes: 30,
     hp: 10,
-    attack: { infantry: 1, armored: 0.5 },
+    attack: { soft: 1.5, light: 0.5, heavy: 0.25 },
+    vsAir: { attack: 3.5, defense: 3 },
+    vsShip: 0.5,
+    vsBuilding: 0.5,
+    moraleDamage: 0.1,
     cost: { goods: 600, metal: 700, oil: 300, money: 1200, manpower: 300 },
     productionHours: 12,
     upkeepPerDay: { metal: 30, oil: 60, money: 80 },
@@ -53,7 +65,12 @@ export const AIRCRAFT_TYPES: Record<AircraftTypeId, AircraftType> = {
     speedKmh: 350,
     refuelMinutes: 30,
     hp: 12,
-    attack: { infantry: 4, armored: 3 },
+    attack: { soft: 6, light: 5, heavy: 3 },
+    vsAir: { attack: 0, defense: 1 },
+    vsShip: 2,
+    vsSub: 0.5,
+    vsBuilding: 3,
+    moraleDamage: 0.3,
     cost: { goods: 700, metal: 900, oil: 400, money: 1500, manpower: 400 },
     productionHours: 16,
     upkeepPerDay: { metal: 40, oil: 80, money: 100 },
@@ -67,7 +84,12 @@ export const AIRCRAFT_TYPES: Record<AircraftTypeId, AircraftType> = {
     speedKmh: 300,
     refuelMinutes: 45,
     hp: 12,
-    attack: { infantry: 2, armored: 1.5 },
+    attack: { soft: 2, light: 1.5, heavy: 1 },
+    vsAir: { attack: 0, defense: 1 },
+    vsShip: 8,
+    vsSub: 2,
+    vsBuilding: 1,
+    moraleDamage: 0.2,
     cost: { goods: 700, metal: 900, oil: 400, money: 1500, manpower: 400 },
     productionHours: 16,
     upkeepPerDay: { metal: 40, oil: 80, money: 100 },
@@ -81,7 +103,11 @@ export const AIRCRAFT_TYPES: Record<AircraftTypeId, AircraftType> = {
     speedKmh: 300,
     refuelMinutes: 45,
     hp: 18,
-    attack: { infantry: 3, armored: 2 },
+    attack: { soft: 4, light: 3, heavy: 2 },
+    vsAir: { attack: 0, defense: 2 },
+    vsShip: 1,
+    vsBuilding: 8,
+    moraleDamage: 1,
     cost: { goods: 900, metal: 1300, oil: 600, money: 2200, manpower: 600 },
     productionHours: 24,
     upkeepPerDay: { metal: 60, oil: 120, money: 150 },
@@ -95,7 +121,11 @@ export const AIRCRAFT_TYPES: Record<AircraftTypeId, AircraftType> = {
     speedKmh: 300,
     refuelMinutes: 45,
     hp: 8,
-    attack: { infantry: 0.5, armored: 0.25 },
+    attack: { soft: 0.5, light: 0.25, heavy: 0 },
+    vsAir: { attack: 0, defense: 0.5 },
+    vsShip: 0.5,
+    vsSub: 1,
+    vsBuilding: 0.25,
     cost: { goods: 500, metal: 500, oil: 300, money: 1000, manpower: 300 },
     productionHours: 10,
     upkeepPerDay: { metal: 20, oil: 50, money: 60 },
@@ -116,6 +146,8 @@ export const AIR = {
   /** Pattugliamento: raggio del cerchio e durata sul posto. */
   patrolRadiusKm: 60,
   patrolMinutes: 25,
+  /** L'attacco avviene quando la squadriglia arriva entro questa distanza dal bersaglio. */
+  strikeKm: 5,
 } as const;
 
 /** Ciò che si può arruolare o costruire in una città: un'unità di terra o un aereo. */

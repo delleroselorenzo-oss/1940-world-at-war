@@ -4,13 +4,29 @@ import { COMBAT } from "../data/combat.js";
 import { ENGINEERING } from "../data/engineering.js";
 import { ECONOMY, RESOURCE_IDS, type EconomyConfig } from "../data/economy.js";
 import { MOVEMENT } from "../data/movement.js";
-import { STARTING_ARMIES, UNIT_TYPES, type UnitTypeId } from "../data/units.js";
+import { ARMOR_CLASSES, STARTING_ARMIES, UNIT_TYPES, type UnitTypeId } from "../data/units.js";
 import type { LngLat, MapData, NationId, Province } from "../map/types.js";
 import { flatKm, provinceIdAt } from "../nav/grid.js";
 import type { NavData } from "../nav/types.js";
-import { evacuateBases, landSquadrons } from "./air.js";
+import { airOps, evacuateBases, nextAirEvent } from "./air.js";
 import { buildingLevel, downgradeBuildings, fortDamageFactor } from "./buildings.js";
-import { applyDamage, contactFraction, damageAgainst, engagements, heal, isAttacking, lerp, segmentDistanceKm } from "./combat.js";
+import {
+  applyDamage,
+  armyHealth,
+  armyRangeKm,
+  canFireAtRange,
+  contactFraction,
+  damageAgainst,
+  efficiency,
+  engagements,
+  heal,
+  isAttacking,
+  lerp,
+  lowerMorale,
+  moraleDamage,
+  rangedPart,
+  segmentDistanceKm,
+} from "./combat.js";
 import { atWar, expireDiplomacy, logEvent, mayEnter, startWar } from "./diplomacy.js";
 import { nationProductionPerDay, netPerDayByNation, refund } from "./economy.js";
 import { applyTradeTick } from "./trade.js";
@@ -130,7 +146,7 @@ export function advance(state: GameState, world: EngineWorld, until: number, eco
       if (a.task && a.task.finishesAt < t) t = a.task.finishesAt;
       if (a.departure && a.departure.at < t) t = a.departure.at;
     }
-    for (const sq of Object.values(s.squadrons)) if (sq.flight && sq.flight.arriveAt < t) t = sq.flight.arriveAt;
+    t = Math.min(t, nextAirEvent(s));
     if (t > until) break;
     s.time = t;
 
@@ -138,7 +154,7 @@ export function advance(state: GameState, world: EngineWorld, until: number, eco
     changed = completeConstruction(s, t) || changed;
     changed = completeWorks(s, world, t) || changed;
     depart(s, world, t);
-    landSquadrons(s, map, t);
+    changed = airOps(s, world, t) || changed;
     if (t === nextSample) {
       changed = expireDiplomacy(s, t) || changed;
       changed = sample(s, world, t) || changed;
@@ -261,6 +277,7 @@ function sample(s: GameState, world: EngineWorld, t: number): boolean {
     a.position = lerp(from.get(id)!, to.get(id)!, f);
     a.halted = remainingRoute(a.move!, t0 + f * COMBAT.sampleMinutes, a.position);
     a.move = null;
+    a.settledAt = t;
     // Con "Attacca" va all'assalto; con "Muovi" si ferma e si difende.
     a.attacking = a.assault;
     to.set(id, a.position);
@@ -292,8 +309,11 @@ function sample(s: GameState, world: EngineWorld, t: number): boolean {
     if (!move || move.times[move.times.length - 1]! > t) continue;
     a.position = move.points[move.points.length - 1]!;
     a.move = null;
+    a.settledAt = t;
     const host = idleArmyNear(s, a.owner, a.position, a.id);
     if (host) {
+      // L'artiglieria appena arrivata deve ancora mettersi in batteria.
+      if (armyRangeKm(a) > 0) host.settledAt = t;
       host.units.push(...a.units);
       host.attacking ||= a.attacking;
       delete s.armies[a.id];
@@ -328,7 +348,9 @@ function defendedNear(s: GameState, nation: NationId, at: LngLat, t: number): bo
 }
 
 /**
- * Tick di combattimento: ogni armata a contatto con nemici colpisce il più vicino.
+ * Tick di combattimento: ogni armata a contatto con nemici colpisce il più vicino. Le armate non a contatto,
+ * ferme e in batteria, con unità a gittata (artiglieria) colpiscono da lontano l'armata nemica più vicina entro la gittata,
+ * senza risposta, e abbassano il morale della provincia dove si trova il bersaglio.
  * I danni si calcolano tutti sullo stato di inizio tick, poi si applicano insieme.
  * Dopo: chi non ha più nemici a portata smette l'assalto e, se era stato fermato durante una marcia,
  * la riprende; chi è fermo nel proprio territorio guarisce.
@@ -336,10 +358,14 @@ function defendedNear(s: GameState, nation: NationId, at: LngLat, t: number): bo
 function fight(s: GameState, world: EngineWorld, t: number): boolean {
   const engaged = engagements(s, t);
   const pos = new Map(Object.values(s.armies).map((a) => [a.id, armyPosition(a, t)]));
-  const hits: { by: Army; target: Army; damage: ReturnType<typeof damageAgainst> }[] = [];
+  const hits: Hit[] = [];
   for (const a of Object.values(s.armies)) {
     const foes = engaged.get(a.id);
-    if (!foes || a.units.length === 0) continue;
+    if (a.units.length === 0) continue;
+    if (!foes) {
+      if (canFireAtRange(a, t)) hits.push(...rangedFire(s, a, pos, t));
+      continue;
+    }
     // Bersaglio: il nemico più vicino (a parità di distanza, il primo per identificativo).
     let target: Army | undefined;
     let best = Infinity;
@@ -348,19 +374,22 @@ function fight(s: GameState, world: EngineWorld, t: number): boolean {
       if (d < best) [target, best] = [s.armies[id], d];
     }
     if (!target) continue;
-    const damage = damageAgainst(a, target);
-    // Chi difende in una propria provincia fortificata subisce meno danni.
-    if (!isAttacking(target) && world.nav) {
-      const factor = fortDamageFactor(s, provinceIdAt(world.nav, pos.get(target.id)!), target.owner);
-      damage.infantry *= factor;
-      damage.armored *= factor;
-    }
-    hits.push({ by: a, target, damage });
+    hits.push({ by: a, target, damage: damageAgainst(a, target), morale: 0 });
   }
+  // Chi difende in una propria provincia fortificata subisce meno danni.
+  if (world.nav)
+    for (const h of hits) {
+      if (isAttacking(h.target)) continue;
+      const factor = fortDamageFactor(s, provinceIdAt(world.nav, pos.get(h.target.id)!), h.target.owner);
+      for (const c of ARMOR_CLASSES) h.damage[c] *= factor;
+    }
 
   let changed = false;
-  for (const { by, target, damage } of hits) {
+  for (const { by, target, damage, morale } of hits) {
     if (!s.armies[target.id]) continue;
+    // Il morale cala nella provincia del bersaglio, se non è di chi spara.
+    const province = world.nav ? provinceIdAt(world.nav, pos.get(target.id)!) : null;
+    if (province && s.provinces[province]?.owner !== by.owner) changed = lowerMorale(s, province, morale) || changed;
     const before = target.units.length;
     target.units = applyDamage(target.units, damage);
     if (target.units.length === before) continue;
@@ -371,6 +400,8 @@ function fight(s: GameState, world: EngineWorld, t: number): boolean {
     delete s.armies[target.id];
   }
 
+  // Chi è sotto il fuoco dell'artiglieria non guarisce.
+  const shelled = new Set(hits.map((h) => h.target.id));
   for (const a of Object.values(s.armies)) {
     const inContact = engaged.get(a.id)?.some((id) => s.armies[id]) ?? false;
     if (inContact) continue;
@@ -380,11 +411,38 @@ function fight(s: GameState, world: EngineWorld, t: number): boolean {
       a.halted = null;
     }
     if (a.move) continue;
-    const rate = healRate(s, world, a);
+    const rate = shelled.has(a.id) ? 0 : healRate(s, world, a);
     if (rate > 0) heal(a.units, rate);
   }
   loseHospitals(s, world, t);
   return changed;
+}
+
+interface Hit {
+  by: Army;
+  target: Army;
+  damage: ReturnType<typeof damageAgainst>;
+  /** Punti di morale tolti alla provincia del bersaglio. */
+  morale: number;
+}
+
+/** Tiro a distanza: le unità con gittata dell'armata colpiscono l'armata nemica più vicina entro la gittata, con i valori d'attacco. */
+function rangedFire(s: GameState, a: Army, pos: Map<ArmyId, LngLat>, t: number): Hit[] {
+  const range = armyRangeKm(a);
+  let target: Army | undefined;
+  let best = Infinity;
+  for (const b of Object.values(s.armies).sort((x, y) => (x.id < y.id ? -1 : 1))) {
+    if (b.units.length === 0 || !atWar(s, a.owner, b.owner)) continue;
+    const d = flatKm(pos.get(a.id)!, pos.get(b.id) ?? armyPosition(b, t));
+    if (d <= range && d < best) [target, best] = [b, d];
+  }
+  if (!target) return [];
+  const guns = rangedPart(a);
+  const morale = moraleDamage(
+    guns.units.map((u) => UNIT_TYPES[u.type].moraleDamage ?? 0),
+    efficiency(armyHealth(guns)),
+  );
+  return [{ by: a, target, damage: damageAgainst(guns, target, true), morale }];
 }
 
 /**
@@ -485,6 +543,7 @@ function reroute(s: GameState, world: EngineWorld, at: LngLat, t: number) {
       const route = planRoute(s, nav, a.owner, pos, rest.points[rest.points.length - 1]!, moverOf(a));
       a.position = pos;
       a.move = route && route.km >= 0.5 ? scheduleRoute(route, moverOf(a), t) : null;
+      if (!a.move) a.settledAt = t;
     } else if (a.halted && near(a.halted.points)) {
       const route = planRoute(s, nav, a.owner, a.halted.points[0]!, a.halted.points[a.halted.points.length - 1]!, moverOf(a));
       a.halted = route ? { points: route.points, onRoad: route.onRoad, rail: route.rail } : null;
@@ -572,7 +631,7 @@ function newUnit(s: GameState, type: UnitTypeId) {
 }
 
 function newSquadron(s: GameState, owner: NationId, base: string): Squadron {
-  const sq: Squadron = { id: `s${s.nextId++}`, owner, aircraft: [], base, flight: null, readyAt: s.time };
+  const sq: Squadron = { id: `s${s.nextId++}`, owner, aircraft: [], base, flight: null, readyAt: s.time, mission: null };
   s.squadrons[sq.id] = sq;
   return sq;
 }

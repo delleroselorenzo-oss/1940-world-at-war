@@ -81,6 +81,8 @@ export interface Army {
   departure: { at: number; target: LngLat } | null;
   /** Lavoro in corso (l'armata è ferma): un nuovo ordine di marcia lo interrompe. */
   task: ArmyTask | null;
+  /** Minuto in cui si è fermata l'ultima volta (assente = ferma da sempre): conta per la messa in batteria dell'artiglieria. */
+  settledAt?: number;
 }
 
 export type SquadronId = string;
@@ -96,8 +98,8 @@ export interface Aircraft {
 export interface Flight {
   from: LngLat;
   to: LngLat;
-  /** Base d'arrivo. */
-  base: ProvinceId;
+  /** Base d'arrivo; null nel tratto verso il bersaglio di un attacco. */
+  base: ProvinceId | null;
   departAt: number;
   arriveAt: number;
   /** Portata che resterà all'arrivo (serve se la base d'arrivo non c'è più e bisogna ripiegare altrove). */
@@ -117,6 +119,19 @@ export interface Squadron {
   flight: Flight | null;
   /** A terra: pronta a decollare da questo minuto (fine del rifornimento). */
   readyAt: number;
+  /** Attacco ordinato e non ancora concluso. */
+  mission: StrikeMission | null;
+}
+
+/** Attacco a un'armata nemica, ordinato dal giocatore. */
+export interface StrikeMission {
+  target: ArmyId;
+  /** Punto da cui si misura il raggio d'azione: la base di decollo per l'attacco (o dove era la squadriglia, se l'ordine è arrivato in volo). */
+  anchor: LngLat;
+  /** Il bersaglio si insegue finché resta entro questa distanza da `anchor`. */
+  radiusKm: number;
+  /** Basi dove fare scalo (con rifornimento) prima di decollare per l'attacco, in ordine. */
+  via: ProvinceId[];
 }
 
 /** Lavori sul campo. */
@@ -265,6 +280,20 @@ export type GameEvent =
   /** Edificio completato (dalla provincia o dal genio). */
   | { time: number; type: "built"; by: NationId; province: ProvinceId; building: BuildingId; level: number }
   | { time: number; type: "armyDestroyed"; owner: NationId; by: NationId; at: LngLat; province: ProvinceId | null }
+  /** Attacco aereo: aerei abbattuti dalla contraerea e unità perse dal bersaglio. */
+  | {
+      time: number;
+      type: "airStrike";
+      by: NationId;
+      against: NationId;
+      at: LngLat;
+      province: ProvinceId | null;
+      aircraftLost: number;
+      unitsLost: number;
+      /** La squadriglia è stata abbattuta tutta / l'armata è stata distrutta. */
+      squadronDestroyed: boolean;
+      armyDestroyed: boolean;
+    }
   /** Squadriglia senza una base raggiungibile dove atterrare. */
   | { time: number; type: "squadronLost"; owner: NationId; at: LngLat; province: ProvinceId | null }
   | {

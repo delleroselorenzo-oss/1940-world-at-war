@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { AIR, AIRCRAFT_TYPES, type AircraftTypeId } from "../data/air.js";
-import type { MapData } from "../map/types.js";
+import { COMBAT } from "../data/combat.js";
+import { UNIT_TYPES, type UnitTypeId } from "../data/units.js";
+import type { LngLat, MapData } from "../map/types.js";
 import { flatKm } from "../nav/grid.js";
 import { isAirBase, refuelMinutes, squadronPosition } from "./air.js";
 import { nationUpkeepPerDay } from "./economy.js";
 import { advance, createGame } from "./engine.js";
 import { mapIndex } from "./mapIndex.js";
 import { applyOrder, type Order, type World } from "./orders.js";
-import type { GameState, Squadron } from "./state.js";
+import type { Army, GameState, Squadron } from "./state.js";
 import { cell, testWorld } from "./testMaps.js";
 
 // Distanze tra i centri delle province di prova: A1–A2 55 km, A1–B1 167 km, A1–A9 222 km.
@@ -38,6 +40,7 @@ function squadron(state: GameState, base: string, types: AircraftTypeId[], owner
     id,
     owner,
     base,
+    mission: null,
     flight: null,
     readyAt: 0,
     aircraft: types.map((t, i) => ({ id: `${id}${i}`, type: t, hp: AIRCRAFT_TYPES[t].hp })),
@@ -141,5 +144,140 @@ describe("aviazione: trasferimento", () => {
     game = { ...game, provinces: { ...game.provinces, A2: { owner: "BBB", morale: 25 } } };
     game = advance(game, world, 5);
     expect(game.squadrons.s!.flight).toMatchObject({ base: "A1", departAt: 5 });
+  });
+});
+
+const WAR = { "AAA|BBB": { war: true, passage: false, sharedVision: false } };
+
+/** Armata ferma nel punto indicato. */
+function place(state: GameState, id: string, owner: string, at: LngLat, units: UnitTypeId[]): GameState {
+  const army: Army = {
+    id,
+    owner,
+    position: at,
+    move: null,
+    attacking: false,
+    halted: null,
+    assault: false,
+    useRail: false,
+    departure: null,
+    task: null,
+    units: units.map((type, i) => ({ id: `${id}u${i}`, type, hp: UNIT_TYPES[type].hp })),
+  };
+  return { ...state, armies: { ...state.armies, [id]: army } };
+}
+
+/** Partita in guerra con BBB e un'armata nemica di due fanterie ferma al centro di B1. */
+function atWarGame(units: UnitTypeId[] = ["infantry", "infantry"]): GameState {
+  return place({ ...newGame(), relations: WAR }, "e", "BBB", center("B1"), units);
+}
+
+describe("aviazione: attacco", () => {
+  it("si attaccano solo le armate delle nazioni in guerra", () => {
+    const game = squadron(place(newGame(), "e", "BBB", center("B1"), ["infantry"]), "A1", ["tacticalBomber"]);
+    expect(error(game, { type: "airStrike", squadron: "s", target: "e" })).toMatch(/in guerra/);
+    expect(error(place(game, "m", "AAA", center("A2"), ["infantry"]), { type: "airStrike", squadron: "s", target: "m" })).toMatch(/tue armate/);
+    expect(error(game, { type: "airStrike", squadron: "s", target: "nessuna" })).toBe("Bersaglio sconosciuto.");
+  });
+
+  it("la contraerea spara per prima, poi gli aerei colpiscono; dopo l'attacco rientrano alla base più vicina", () => {
+    let game = squadron(atWarGame(), "A1", ["tacticalBomber"]);
+    game = order(game, { type: "airStrike", squadron: "s", target: "e" });
+    const arrive = game.squadrons.s!.flight!.arriveAt;
+    expect(game.squadrons.s!.flight).toMatchObject({ base: null, to: center("B1") });
+    game = advance(game, world, arrive);
+
+    // Contraerea: due fanterie (0,5 l'una) a piena salute; poi il bombardiere colpisce con l'efficienza rimasta.
+    const bomberHp = AIRCRAFT_TYPES.tacticalBomber.hp - 2 * UNIT_TYPES.infantry.antiAir;
+    const efficiency = COMBAT.minEfficiency + (1 - COMBAT.minEfficiency) * (bomberHp / AIRCRAFT_TYPES.tacticalBomber.hp);
+    const damage = AIRCRAFT_TYPES.tacticalBomber.attack.soft * efficiency;
+    expect(game.squadrons.s!.aircraft[0]!.hp).toBeCloseTo(bomberHp);
+    const left = game.armies.e!.units.reduce((n, u) => n + u.hp, 0);
+    expect(left).toBeCloseTo(2 * UNIT_TYPES.infantry.hp - damage);
+    // Il bombardamento abbassa il morale della provincia colpita.
+    expect(game.provinces.B1!.morale).toBeCloseTo(100 - AIRCRAFT_TYPES.tacticalBomber.moraleDamage! * efficiency);
+    expect(game.events.at(-1)).toMatchObject({ type: "airStrike", by: "AAA", against: "BBB", aircraftLost: 0, unitsLost: 0 });
+    // Rientro: A2 è la base più vicina a B1.
+    expect(game.squadrons.s).toMatchObject({ mission: null, flight: { base: "A2", from: center("B1") } });
+    game = advance(game, world, game.squadrons.s!.flight!.arriveAt);
+    expect(game.squadrons.s).toMatchObject({ base: "A2", flight: null });
+  });
+
+  it("la contraerea può abbattere tutta la squadriglia prima che colpisca", () => {
+    let game = squadron(atWarGame(["antiAircraft", "antiAircraft", "antiAircraft"]), "A1", ["fighter"]);
+    game = order(game, { type: "airStrike", squadron: "s", target: "e" });
+    game = advance(game, world, game.squadrons.s!.flight!.arriveAt);
+    expect(game.squadrons.s).toBeUndefined();
+    expect(game.armies.e!.units.every((u) => u.hp === UNIT_TYPES.antiAircraft.hp)).toBe(true);
+    expect(game.events.at(-1)).toMatchObject({ type: "airStrike", aircraftLost: 1, squadronDestroyed: true, armyDestroyed: false });
+  });
+
+  it("l'armata distrutta dall'attacco sparisce", () => {
+    let game = squadron(atWarGame(["medic"]), "A1", ["tacticalBomber", "tacticalBomber"]);
+    game = order(game, { type: "airStrike", squadron: "s", target: "e" });
+    game = advance(game, world, game.squadrons.s!.flight!.arriveAt);
+    expect(game.armies.e).toBeUndefined();
+    expect(game.events.map((e) => e.type).slice(-2)).toEqual(["airStrike", "armyDestroyed"]);
+  });
+
+  it("in rifornimento accetta l'ordine e decolla appena è pronta", () => {
+    let game = squadron(atWarGame(), "A1", ["fighter"]);
+    game = { ...game, squadrons: { s: { ...game.squadrons.s!, readyAt: 20 } } };
+    game = order(game, { type: "airStrike", squadron: "s", target: "e" });
+    expect(game.squadrons.s!.flight).toBeNull();
+    game = advance(game, world, 20);
+    expect(game.squadrons.s!.flight).toMatchObject({ base: null, departAt: 20 });
+  });
+
+  it("in volo cambia subito rotta verso il bersaglio", () => {
+    let game = squadron(atWarGame(), "A1", ["fighter"]);
+    game = order(game, { type: "fly", squadron: "s", base: "A2" });
+    game = advance(game, world, 3);
+    game = order(game, { type: "airStrike", squadron: "s", target: "e" });
+    expect(game.squadrons.s!.flight).toMatchObject({ base: null, departAt: 3, to: center("B1") });
+  });
+
+  it("se il bersaglio esce dal raggio d'azione l'attacco decade e la squadriglia rientra", () => {
+    let game = squadron(atWarGame(), "A1", ["fighter"]);
+    game = order(game, { type: "airStrike", squadron: "s", target: "e" });
+    const arrive = game.squadrons.s!.flight!.arriveAt;
+    // L'armata nemica si ritrova a 700 km, fuori dal raggio d'azione del caccia (315 km).
+    game = advance(game, world, arrive - 1);
+    game = { ...game, armies: { e: { ...game.armies.e!, position: [6.5, center("B1")[1]] } } };
+    game = advance(game, world, arrive);
+    expect(game.squadrons.s).toMatchObject({ mission: null, flight: { base: "A2" } });
+    expect(game.events.some((e) => e.type === "airStrike")).toBe(false);
+  });
+
+  it("annullare l'attacco in volo fa rientrare la squadriglia", () => {
+    let game = squadron(atWarGame(), "A1", ["fighter"]);
+    game = order(game, { type: "airStrike", squadron: "s", target: "e" });
+    game = advance(game, world, 5);
+    game = order(game, { type: "cancelStrike", squadron: "s" });
+    expect(game.squadrons.s).toMatchObject({ mission: null, flight: { base: "A2" } });
+    expect(error(game, { type: "cancelStrike", squadron: "s" })).toBe("Nessun attacco da annullare.");
+  });
+
+  it("bersaglio lontano: scalo in una base più vicina, rifornimento, poi l'attacco", () => {
+    // L'isola A9 spostata a ~580 km da A1; il bersaglio a ~280 km da A9 e ~860 km da A1.
+    const far = testWorld();
+    const y = cell(0, 2)[1];
+    const map: MapData = { ...far.map, provinces: far.map.provinces.map((p) => (p.id === "A9" ? { ...p, center: [5.5, y] as LngLat } : p)) };
+    const w = { map, nav: far.nav };
+    let game: GameState = { ...newGame(), relations: WAR, buildings: { ...newGame().buildings, A9: { airfield: 1 } } };
+    game = squadron(place(game, "e", "BBB", [8, y], ["infantry"]), "A1", ["fighter"]);
+    expect(error(place(game, "e", "BBB", [12, y], ["infantry"]), { type: "airStrike", squadron: "s", target: "e" }, "AAA", w)).toMatch(
+      /fuori portata/,
+    );
+
+    game = order(game, { type: "airStrike", squadron: "s", target: "e" }, "AAA", w);
+    expect(game.squadrons.s!.mission!.via).toEqual(["A9"]);
+    expect(game.squadrons.s!.flight!.base).toBe("A9");
+    game = advance(game, w, game.squadrons.s!.flight!.arriveAt);
+    expect(game.squadrons.s).toMatchObject({ base: "A9", flight: null, mission: { via: [] } });
+    game = advance(game, w, game.squadrons.s!.readyAt);
+    expect(game.squadrons.s!.flight).toMatchObject({ base: null, from: center("A9", w) });
+    game = advance(game, w, game.squadrons.s!.flight!.arriveAt);
+    expect(game.events.some((e) => e.type === "airStrike")).toBe(true);
   });
 });
