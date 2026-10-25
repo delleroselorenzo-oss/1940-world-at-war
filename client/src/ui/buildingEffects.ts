@@ -1,12 +1,13 @@
 import {
   AIR,
+  AIRCRAFT_TYPE_IDS,
   BUILDINGS,
+  productionType,
   provinceProductionPerDay,
   RESOURCE_IDS,
   RESOURCE_NAMES,
   TRADE,
   UNIT_TYPE_IDS,
-  UNIT_TYPES,
   type BuildingId,
   type Province,
   type ProvinceBuildings,
@@ -14,15 +15,16 @@ import {
 } from "@waw/shared";
 import { formatAmount } from "./format.js";
 
-// Effetto di un edificio a parole, per il pannello Edifici: in generale (per livello)
-// e nella provincia scelta, passando dal livello attuale al successivo.
+// Effetto di un edificio a parole, per il pannello Edifici e la scheda dell'edificio: in generale (per livello),
+// a un certo livello e nella provincia scelta, passando dal livello attuale al successivo.
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 
-/** Unità che l'edificio permette di arruolare. */
+/** Unità (o aerei) che l'edificio permette di arruolare. */
 function unlocks(building: BuildingId): string {
-  return UNIT_TYPE_IDS.filter((t) => UNIT_TYPES[t].building === building)
-    .map((t) => UNIT_TYPES[t].name.toLowerCase())
+  return [...UNIT_TYPE_IDS, ...AIRCRAFT_TYPE_IDS]
+    .filter((t) => productionType(t).building === building)
+    .map((t) => productionType(t).name.toLowerCase())
     .join(", ");
 }
 
@@ -30,7 +32,7 @@ function unlocks(building: BuildingId): string {
 export function buildingEffect(building: BuildingId): string {
   switch (building) {
     case "industry":
-      return `+${pct(BUILDINGS.industryBonusPerLevel)} della risorsa principale e +${pct(BUILDINGS.industryMoneyPerLevel)} di denaro per livello (solo denaro, se la provincia non ha una risorsa principale; nei giacimenti di petrolio +${pct(BUILDINGS.industryOilMoneyPerLevel)} di denaro).`;
+      return `+${pct(BUILDINGS.industryBonusPerLevel)} per livello di tutto ciò che la provincia produce: risorsa principale (petrolio compreso) e denaro. La manodopera cresce solo con l'ufficio di reclutamento.`;
     case "recruitmentOffice":
       return `+${pct(BUILDINGS.recruitmentBonusPerLevel)} di manodopera per livello.`;
     case "syntheticFuel":
@@ -42,11 +44,33 @@ export function buildingEffect(building: BuildingId): string {
     case "airfield":
       return `Base per gli aerei, tuoi e degli alleati. Ogni livello oltre il primo: −${pct(AIR.airfieldTimeCutPerLevel)} sui tempi a terra (rifornimento, riparazioni).`;
     case "aircraftFactory":
-      return "Costruirà gli aerei (con l'aeronautica).";
+      return `Livello 1: costruisce ${unlocks(building)} e fa da base agli aerei. Ogni livello in più: −${pct(BUILDINGS.productionTimeCutPerLevel)} sui tempi di costruzione.`;
     case "shipyard":
       return "Costruirà le navi (con la marina).";
     default:
       return `Livello 1: arruola ${unlocks(building)}. Ogni livello in più: −${pct(BUILDINGS.productionTimeCutPerLevel)} sui tempi di arruolamento.`;
+  }
+}
+
+/** Effetto in tutto a un certo livello, in breve (per la tabella dei livelli della scheda). */
+export function buildingLevelEffect(building: BuildingId, level: number): string {
+  switch (building) {
+    case "industry":
+      return `+${pct(level * BUILDINGS.industryBonusPerLevel)} produzione e denaro`;
+    case "recruitmentOffice":
+      return `+${pct(level * BUILDINGS.recruitmentBonusPerLevel)} manodopera`;
+    case "syntheticFuel":
+      return `−${formatAmount(level * BUILDINGS.syntheticMetalPerLevel)} metallo, +${formatAmount(level * BUILDINGS.syntheticOilPerLevel)} petrolio al giorno`;
+    case "fortifications":
+      return `−${pct(level * BUILDINGS.fortDefensePerLevel)} danni in difesa`;
+    case "port":
+      return `+${formatAmount(level * TRADE.portPerLevel)} importazioni al giorno`;
+    case "airfield":
+      return level === 1 ? "Base per gli aerei" : `−${pct((level - 1) * AIR.airfieldTimeCutPerLevel)} tempi a terra`;
+    case "shipyard":
+      return "Con la marina";
+    default:
+      return level === 1 ? "Si arruola" : `−${pct((level - 1) * BUILDINGS.productionTimeCutPerLevel)} tempi di arruolamento`;
   }
 }
 
@@ -77,6 +101,7 @@ export function buildingEffectHere(building: BuildingId, province: Province, ps:
     case "barracks":
     case "tankFactory":
     case "artilleryFactory":
+    case "aircraftFactory":
       return level === 0
         ? `Potrai arruolare: ${unlocks(building)}.`
         : `Tempi di arruolamento: −${pct((level - 1) * BUILDINGS.productionTimeCutPerLevel)} → −${pct(level * BUILDINGS.productionTimeCutPerLevel)}.`;

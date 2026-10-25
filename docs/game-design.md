@@ -119,7 +119,7 @@ Valori in `shared/src/data/diplomacy.ts` (`MARKET`), regole in `shared/src/game/
   - **Fabbrica aeronautica** e **cantiere navale** (solo città costiere): si costruiscono già, produrranno con aviazione e marina.
   - Senza l'edificio giusto non si arruola. Ogni livello oltre il primo riduce del **15%** i tempi di arruolamento nella provincia.
 - **Ovunque**:
-  - **Industria**: +25% per livello della risorsa principale e +25% di denaro; nelle province senza risorsa principale +25% di denaro (non si somma due volte); nei giacimenti di petrolio il petrolio non cresce, il denaro +10% per livello.
+  - **Industria**: +25% per livello di tutto ciò che la provincia produce: risorsa principale (anche il petrolio dei giacimenti) e denaro; la manodopera cresce solo con l'ufficio di reclutamento. Prima (fino al 25/10/2026) i giacimenti non crescevano e davano solo +10% di denaro: alcune economie faticavano troppo.
   - **Ufficio di reclutamento**: +25% di manodopera per livello.
 - **Città, economia**: **impianto di carburante sintetico** (1–3): ogni livello trasforma 500 di metallo in 250 di petrolio al giorno (vedi §3).
 - **Genio** (lavoro di un'armata con il genio, ferma in una propria provincia; si paga all'inizio, si recupera interrompendo):
@@ -131,7 +131,7 @@ Valori in `shared/src/data/diplomacy.ts` (`MARKET`), regole in `shared/src/game/
 
 ### Interfaccia degli edifici (deciso il 25/10/2026)
 
-- Nel pannello "Edifici" ogni edificio mostra il suo **effetto per livello** (industria +25% della risorsa principale e del denaro, ufficio di reclutamento +25% di manodopera, fortificazioni −15% di danni in difesa, caserme e fabbriche −15% sui tempi di arruolamento, porto +1.500 di capacità di importazione…) e, provincia per provincia, **cosa cambierebbe** con il livello successivo (per esempio "Metallo: +639 al giorno, da 2.559 a 3.199").
+- Nel pannello "Edifici" ogni edificio mostra il suo **effetto per livello** (industria +25% di tutto ciò che la provincia produce tranne la manodopera, ufficio di reclutamento +25% di manodopera, fortificazioni −15% di danni in difesa, caserme e fabbriche −15% sui tempi di arruolamento, porto +1.500 di capacità di importazione…) e, provincia per provincia, **cosa cambierebbe** con il livello successivo (per esempio "Metallo: +639 al giorno, da 2.559 a 3.199").
 
 ## 6. Ricerca
 

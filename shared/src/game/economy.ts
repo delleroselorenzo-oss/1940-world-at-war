@@ -30,15 +30,10 @@ export function provinceProductionPerDay(
   else if (province.resource === "food") out.food = Math.max(rates.mainMinimum, people * Math.sqrt(development) * rates.foodPerThousand);
   else if (province.resource) out[province.resource] = Math.max(rates.mainMinimum, people * development * rates.industryPerThousand);
 
-  // Industria: più risorsa principale e più denaro (solo denaro se la provincia non ha una risorsa principale;
-  // i pozzi di petrolio non rendono di più, ma il denaro sì); ufficio di reclutamento: più manodopera.
-  const industry = buildings.industry ?? 0;
-  if (!province.resource) out.money *= 1 + BUILDINGS.industryBonusPerLevel * industry;
-  else if (province.resource === "oil") out.money *= 1 + BUILDINGS.industryOilMoneyPerLevel * industry;
-  else {
-    out[province.resource] *= 1 + BUILDINGS.industryBonusPerLevel * industry;
-    out.money *= 1 + BUILDINGS.industryMoneyPerLevel * industry;
-  }
+  // Industria: più di tutto quello che la provincia produce (risorsa principale, petrolio compreso, e denaro);
+  // la manodopera cresce solo con l'ufficio di reclutamento.
+  const industry = 1 + BUILDINGS.industryBonusPerLevel * (buildings.industry ?? 0);
+  for (const r of RESOURCE_IDS) if (r !== "manpower") out[r] *= industry;
   out.manpower *= 1 + BUILDINGS.recruitmentBonusPerLevel * (buildings.recruitmentOffice ?? 0);
 
   const factor = productionFactor(province, state, economy);

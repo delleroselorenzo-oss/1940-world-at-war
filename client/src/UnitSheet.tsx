@@ -48,9 +48,14 @@ const percent = (factor: number) => {
 
 export function UnitSheet({ unit, stock, onRecruit, onClose }: UnitSheetProps) {
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // In cattura e senza propagare: Esc chiude solo la scheda, non il pannello sotto.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      onClose();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [onClose]);
 
   const air = isAircraftType(unit) ? AIRCRAFT_TYPES[unit] : null;

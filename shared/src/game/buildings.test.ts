@@ -168,11 +168,13 @@ describe("edifici", () => {
     const base = provinceProductionPerDay(province("A1"), ps);
     const built = provinceProductionPerDay(province("A1"), ps, { industry: 2, recruitmentOffice: 1 });
     expect(built.goods).toBeCloseTo(base.goods * (1 + 2 * BUILDINGS.industryBonusPerLevel));
-    expect(built.money).toBeCloseTo(base.money * (1 + 2 * BUILDINGS.industryMoneyPerLevel));
+    expect(built.money).toBeCloseTo(base.money * (1 + 2 * BUILDINGS.industryBonusPerLevel));
     expect(built.manpower).toBeCloseTo(base.manpower * (1 + BUILDINGS.recruitmentBonusPerLevel));
-    // Senza risorsa principale l'industria dà denaro.
+    // Senza risorsa principale l'industria dà più denaro; la manodopera non cambia.
     const rural = provinceProductionPerDay(province("A2"), ps, { industry: 1 });
-    expect(rural.money).toBeCloseTo(provinceProductionPerDay(province("A2"), ps).money * (1 + BUILDINGS.industryBonusPerLevel));
+    const plain = provinceProductionPerDay(province("A2"), ps);
+    expect(rural.money).toBeCloseTo(plain.money * (1 + BUILDINGS.industryBonusPerLevel));
+    expect(rural.manpower).toBeCloseTo(plain.manpower);
   });
 });
 

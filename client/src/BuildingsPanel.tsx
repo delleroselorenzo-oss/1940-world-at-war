@@ -5,6 +5,7 @@ import {
   BUILDING_TYPES,
   buildingCost,
   buildingLevel,
+  buildingMinutes,
   buildOptions,
   countRole,
   provinceIdAt,
@@ -15,18 +16,23 @@ import {
   type Province,
   type WorkType,
 } from "@waw/shared";
+import { BuildingSheet } from "./BuildingSheet.js";
 import type { LoadedMap } from "./map/loadMap.js";
-import { buildingEffect, buildingEffectHere } from "./ui/buildingEffects.js";
+import { buildingEffectHere } from "./ui/buildingEffects.js";
+import { CategoryIcon, type CategoryIconId } from "./ui/CategoryIcon.js";
+import { ClockIcon } from "./ui/ClockIcon.js";
 import { CostList } from "./ui/CostList.js";
 import { formatCountdown, formatDelay } from "./ui/format.js";
 
-// Edifici: si sceglie la categoria e l'edificio, poi le province dove si può costruire (evidenziate sulla mappa).
-// Fortificazioni, aeroporto e porto li costruisce il genio: si avviano da un'armata con il genio ferma nella provincia.
+// Edifici: come Produzione, una striscia con le categorie e una riga per edificio (costo e tempo del livello 1,
+// Costruisci). Toccando la riga si apre la scheda con effetto e livelli; Costruisci elenca le province dove si può
+// (evidenziate anche sulla mappa). Fortificazioni, aeroporto e porto li costruisce il genio: si avviano da
+// un'armata con il genio ferma nella provincia.
 
-export const BUILDING_CATEGORIES: { id: string; name: string; buildings: BuildingId[] }[] = [
-  { id: "military", name: "Militari", buildings: ["barracks", "tankFactory", "artilleryFactory", "aircraftFactory", "shipyard"] },
-  { id: "economy", name: "Economia", buildings: ["industry", "recruitmentOffice", "syntheticFuel"] },
-  { id: "engineers", name: "Del genio", buildings: ["fortifications", "airfield", "port"] },
+export const BUILDING_CATEGORIES: { id: string; name: string; icon: CategoryIconId; buildings: BuildingId[] }[] = [
+  { id: "military", name: "Militari", icon: "barracks", buildings: ["barracks", "tankFactory", "artilleryFactory", "aircraftFactory", "shipyard"] },
+  { id: "economy", name: "Economia", icon: "factory", buildings: ["industry", "recruitmentOffice", "syntheticFuel"] },
+  { id: "engineers", name: "Del genio", icon: "engineer", buildings: ["fortifications", "airfield", "port"] },
 ];
 
 const WORK_OF: Partial<Record<BuildingId, WorkType>> = Object.fromEntries(Object.entries(WORK_BUILDINGS).map(([w, b]) => [b, w]));
@@ -63,6 +69,7 @@ export function BuildingsPanel({
   const [category, setCategory] = useState(
     BUILDING_CATEGORIES.find((c) => initialBuilding && c.buildings.includes(initialBuilding))?.id ?? "military",
   );
+  const [info, setInfo] = useState<BuildingId | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     setBuilding(initialBuilding ?? null);
@@ -133,36 +140,40 @@ export function BuildingsPanel({
                 </ul>
               </>
             )}
-            <div className="chips" role="tablist" aria-label="Categoria">
+            <div className="category-strip three" role="tablist" aria-label="Categoria">
               {BUILDING_CATEGORIES.map((c) => (
                 <button
                   key={c.id}
                   role="tab"
                   aria-selected={c.id === category}
-                  className={c.id === category ? "chip active" : "chip"}
+                  className={c.id === category ? "category-tile active" : "category-tile"}
                   onClick={() => setCategory(c.id)}
                 >
-                  {c.name}
+                  <CategoryIcon icon={c.icon} />
+                  <span>{c.name}</span>
                 </button>
               ))}
             </div>
-            <ul className="choice-list">
+            <ul className="unit-rows">
               {BUILDING_CATEGORIES.find((c) => c.id === category)!.buildings.map((b) => {
                 const type = BUILDING_TYPES[b];
-                const count = mine.filter((p) => allowedIn(b, p)).length;
                 const built = mine.filter((p) => buildingLevel(game, p.id, b) > 0).length;
                 return (
-                  <li key={b}>
-                    <button onClick={() => setBuilding(b)}>
-                      <strong>{type.name}</strong>
-                      <span className="muted small">{type.description}</span>
-                      <span className="effect small">{buildingEffect(b)}</span>
-                      <span className="muted small">
-                        {count === 0 ? "Nessuna provincia adatta" : `Si può costruire in ${count} ${count === 1 ? "provincia" : "province"}`}
-                        {built > 0 && ` · già in ${built}`}
-                        {type.byEngineers && " · lo costruisce il genio"}
+                  <li key={b} className="unit-row">
+                    <button className="unit-row-info" onClick={() => setInfo(b)} aria-label={`Caratteristiche: ${type.name}`}>
+                      <span className="unit-thumb" aria-hidden />
+                      <span className="unit-row-text">
+                        <strong>{type.name}</strong>
+                        <CostList cost={buildingCost(b, 1)} stock={stock} />
+                        <span className="muted small time">
+                          <ClockIcon /> {formatDelay(buildingMinutes(b, 1))}
+                          {built > 0 && ` · già in ${built}`}
+                          {type.byEngineers && " · genio"}
+                        </span>
                       </span>
-                      <CostList cost={buildingCost(b, 1)} stock={stock} />
+                    </button>
+                    <button className="button small" onClick={() => setBuilding(b)}>
+                      Costruisci
                     </button>
                   </li>
                 );
@@ -171,12 +182,11 @@ export function BuildingsPanel({
           </>
         ) : (
           <>
-            <p className="muted small">
-              {BUILDING_TYPES[building].description} {BUILDING_TYPES[building].where === "urban" ? "Solo nelle città" : "In qualsiasi provincia"}
-              {BUILDING_TYPES[building].coastal && " sul mare"}; fino al livello {BUILDING_TYPES[building].maxLevel}. Le province adatte sono
-              evidenziate sulla mappa.
+            <p className="small">
+              <button className="link-button" onClick={() => setInfo(building)}>
+                Vedi le caratteristiche
+              </button>
             </p>
-            <p className="effect small">{buildingEffect(building)}</p>
             {places.length === 0 ? (
               <p className="muted">Nessuna delle tue province è adatta.</p>
             ) : BUILDING_TYPES[building].byEngineers ? (
@@ -228,6 +238,19 @@ export function BuildingsPanel({
           </>
         )}
       </div>
+      {info && (
+        <BuildingSheet
+          building={info}
+          stock={stock}
+          places={mine.filter((p) => allowedIn(info, p)).length}
+          built={mine.filter((p) => buildingLevel(game, p.id, info) > 0).length}
+          onBuild={() => {
+            setBuilding(info);
+            setInfo(null);
+          }}
+          onClose={() => setInfo(null)}
+        />
+      )}
     </aside>
   );
 }

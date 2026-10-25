@@ -1820,6 +1820,10 @@ p.effect {
   margin: 4px 0 12px;
 }
 
+.category-strip.three {
+  grid-template-columns: repeat(3, 1fr);
+}
+
 .category-tile {
   display: grid;
   justify-items: center;
@@ -2010,6 +2014,11 @@ p.effect {
   color: var(--muted);
   font-size: 12px;
   font-weight: 600;
+}
+
+.stats.levels th:nth-child(2),
+.stats.levels td:nth-child(2) {
+  text-align: left;
 }
 
 .sheet-facts {

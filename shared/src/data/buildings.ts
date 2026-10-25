@@ -46,7 +46,7 @@ export const BUILDING_TYPES: Record<BuildingId, BuildingType> = {
   tankFactory: {
     id: "tankFactory",
     name: "Fabbrica di mezzi corazzati",
-    description: "Costruisce carri, autoblindo e fanteria motorizzata, già con l'equipaggio.",
+    description: "Costruisce carri e autoblindo, già con l'equipaggio.",
     where: "urban",
     maxLevel: 3,
     cost: { goods: 1500, metal: 1500, money: 2500 },
@@ -64,7 +64,7 @@ export const BUILDING_TYPES: Record<BuildingId, BuildingType> = {
   aircraftFactory: {
     id: "aircraftFactory",
     name: "Fabbrica aeronautica",
-    description: "Costruirà gli aerei (in arrivo con l'aviazione).",
+    description: "Costruisce gli aerei e fa da base per le squadriglie.",
     where: "urban",
     maxLevel: 3,
     cost: { goods: 2000, metal: 1500, oil: 500, money: 3000 },
@@ -92,7 +92,7 @@ export const BUILDING_TYPES: Record<BuildingId, BuildingType> = {
   industry: {
     id: "industry",
     name: "Industria",
-    description: "Più produzione della risorsa principale e più denaro.",
+    description: "Più produzione di tutto ciò che la provincia produce: risorsa principale (anche il petrolio) e denaro.",
     where: "any",
     maxLevel: 3,
     cost: { goods: 1500, metal: 800, money: 2000 },
@@ -145,11 +145,8 @@ export const BUILDING_IDS = Object.keys(BUILDING_TYPES) as BuildingId[];
 export const BUILDINGS = {
   /** Ogni livello oltre il primo riduce di questa frazione i tempi di arruolamento nella provincia. */
   productionTimeCutPerLevel: 0.15,
-  /** Industria: + produzione della risorsa principale (o del denaro, se la provincia non ne ha) per livello. */
+  /** Industria: + produzione di tutto ciò che la provincia produce (risorsa principale e denaro; la manodopera no) per livello. */
   industryBonusPerLevel: 0.25,
-  /** Industria nelle province con una risorsa principale: + denaro per livello (nei giacimenti di petrolio solo questo). */
-  industryMoneyPerLevel: 0.25,
-  industryOilMoneyPerLevel: 0.1,
   /** Ufficio di reclutamento: + manodopera per livello. */
   recruitmentBonusPerLevel: 0.25,
   /** Carburante sintetico: metallo consumato e petrolio prodotto al giorno, per livello. */

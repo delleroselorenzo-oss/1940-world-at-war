@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 
-// Icone stilizzate delle categorie di Produzione (fante, carro, cannone, aereo, nave), nel colore del testo.
+// Icone stilizzate delle categorie di Produzione (fante, carro, cannone, aereo, nave) ed Edifici
+// (caserma, fabbrica, pala del genio), nel colore del testo.
 
-export type CategoryIconId = "infantry" | "armor" | "artillery" | "air" | "navy";
+export type CategoryIconId = "infantry" | "armor" | "artillery" | "air" | "navy" | "barracks" | "factory" | "engineer";
 
 export function CategoryIcon({ icon }: { icon: CategoryIconId }) {
   return (
@@ -66,6 +67,37 @@ const PATHS: Record<CategoryIconId, ReactNode> = {
       <path d="M14 14v-4h3v4" />
       <path d="M21 19v-3h4" />
       <path d="M3 29c2.5-1.5 4-1.5 6.5 0s4 1.5 6.5 0 4-1.5 6.5 0 4 1.5 6.5 0" />
+    </>
+  ),
+  // Caserma: edificio con il tetto a capanna, porta e bandiera.
+  barracks: (
+    <>
+      <path d="M4 28h24" />
+      <path d="M6 28V16l10-6 10 6v12" />
+      <path d="M13.5 28v-6h5v6" />
+      <path d="M10 18h2M20 18h2" />
+      <path d="M16 10V3" />
+      <path d="M16 3.5h6l-1.5 2 1.5 2h-6" fill="currentColor" strokeWidth="1" />
+    </>
+  ),
+  // Fabbrica: tetto a shed con la ciminiera fumante.
+  factory: (
+    <>
+      <path d="M3 28h26" />
+      <path d="M4 28V17l7 4v-4l7 4v-4l7 4v7" />
+      <path d="M22 28V8h4v20" />
+      <path d="M23 5c1-1.5 3-1.5 4-3" />
+      <path d="M8 24h2M14 24h2" />
+    </>
+  ),
+  // Pala e piccone incrociati.
+  engineer: (
+    <>
+      <path d="M8 26L22 8" />
+      <path d="M19.5 5.5l5 5c-1.5 1.5-3.5 2-5 1.5" fill="currentColor" strokeWidth="1" />
+      <path d="M24 26L10 10" />
+      <path d="M6 7c3-1 6 0 7.5 2.5" />
+      <path d="M5.5 23.5l5 5" />
     </>
   ),
 };
