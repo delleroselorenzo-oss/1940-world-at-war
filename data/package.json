@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsx scripts/build-europe-1933.ts && tsx scripts/build-nav.ts",
+    "build": "tsx scripts/build-europe-1933.ts && tsx scripts/build-terrain.ts && tsx scripts/build-nav.ts",
     "build:nav": "tsx scripts/build-nav.ts"
   },
   "dependencies": {

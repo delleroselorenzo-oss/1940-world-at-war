@@ -8,6 +8,7 @@ File generati da `npm run map:build`: **non modificarli a mano**, cambia `config
 | `map.json` | Dati di gioco (`MapData` di `@waw/shared`): nazioni, province, confinanti con distanze in km |
 | `provinces.geojson` | Forme delle province (semplificate ~2 km) per il rendering nel client |
 | `preview.html` | Anteprima per controllare la bozza a occhio (apribile con doppio clic) |
+| `terrain.config.json` | Parametri del terreno delle province (soglie e correzioni a mano con il motivo) |
 | `nav.config.json` | Parametri della rete di movimento: quali fiumi fanno da ostacolo, quali strade e ferrovie |
 | `nav.json` | Rete di movimento: griglia della terraferma, fiumi, strade, ferrovie, ponti (`NavData` di `@waw/shared`) |
 
@@ -23,6 +24,16 @@ Lo script è [`data/scripts/build-europe-1933.ts`](../../scripts/build-europe-19
 6. **Risorse principali**: prima i riferimenti storici e i giacimenti di petrolio (`economy.oilFields`), poi le città di ogni nazione prendono risorse diverse tra loro, e circa un terzo delle province rurali riceve una risorsa (mai il petrolio).
 7. **Popolazione e sviluppo** (`economy` in `config.json`): popolazione del 1933, quota urbana e PIL pro capite per nazione; la popolazione si divide tra le province secondo le città (parte urbana) e la superficie (parte rurale, meno a nord e a est), con alcune correzioni a mano; lo sviluppo è quello nazionale con correzioni regionali.
 
+## Terreno
+
+Script: [`data/scripts/build-terrain.ts`](../../scripts/build-terrain.ts), eseguito dopo quello delle province e prima della rete di movimento. Scrive il campo `terrain` di ogni provincia in `map.json`.
+
+1. **Rilievo**: tessere di altitudine "terrarium" (Mapzen, su AWS: <https://registry.opendata.aws/terrain-tiles/>), zoom 7 (~1 km). In ogni cella di 0,1° il dislivello tra il 98° e il 2° percentile delle altitudini.
+2. **Foreste**: copertura del suolo MODIS (IGBP, 2020) da NASA GIBS, a 0,01°. Quota di bosco per cella (foreste piene, savane alberate a metà).
+3. **Terreno della provincia** dalle quote di celle montuose, collinari e boscose (soglie in `terrain.config.json`), con le correzioni a mano. Il dettaglio per provincia finisce in `data/raw/terrain-report.tsv`.
+
+La prima volta scarica circa 700 tessere di altitudine e 84 immagini di copertura in `data/raw/elevation/` e `data/raw/landcover/`.
+
 ## Rete di movimento
 
 Script: [`data/scripts/build-nav.ts`](../../scripts/build-nav.ts), eseguito dopo quello delle province.
@@ -31,6 +42,7 @@ Script: [`data/scripts/build-nav.ts`](../../scripts/build-nav.ts), eseguito dopo
 2. **Grandi fiumi** (Natural Earth `rivers_lake_centerlines`, scalerank ≤ 6 più quelli in `include`): bloccano il passaggio fuori strada tra celle.
 3. **Strade e ferrovie** principali (Natural Earth `roads` e `railroads`, scalerank ≤ 6), semplificate a un punto ogni ~5 km mantenendo gli incroci.
 4. **Ponti**: ogni tratto di strada o ferrovia che attraversa un grande fiume (~580).
+5. **Terreno** di ogni cella: quello della sua provincia; "Città" entro 10 km dal centro delle province urbane.
 
 File grezzi necessari in `data/raw/` (da <https://github.com/nvkelso/natural-earth-vector/tree/master/geojson>): `ne_10m_rivers_lake_centerlines.geojson`, `ne_10m_roads.geojson`, `ne_10m_railroads.geojson`.
 
@@ -38,7 +50,7 @@ Le strade sono **moderne** (Natural Earth): i grandi tracciati sono simili a que
 
 ## Limiti noti della bozza (da sistemare)
 
-- Il **terreno** non è ancora assegnato (`null`). Le **risorse principali** sì: vedi `resources` in `config.json` (riferimenti storici in `overrides`, il resto in modo deterministico).
+- Il **terreno** usa la copertura forestale di oggi (con qualche correzione a mano). Le **risorse principali**: vedi `resources` in `config.json` (riferimenti storici in `overrides`, il resto in modo deterministico).
 - Le **suddivisioni sono moderne**: alcune province hanno confini o nomi non del 1933. I nomi storici più importanti sono in `renames` dentro `config.json`.
 - Le province della **Russia settentrionale** tagliate a metà hanno confini dritti e nomi come "Arcangelo (sud-ovest)".
 - Alcune province accorpate sono **allungate** (es. Krasnodar, Stoccolma), quindi la distanza tra centri non rappresenta bene il percorso.
@@ -49,6 +61,8 @@ Le strade sono **moderne** (Natural Earth): i grandi tracciati sono simili a que
 
 - **CShapes 2.0** — Schvitz, Girardin, Rüegger, Weidmann, Cederman, Gleditsch, *Mapping the International System, 1886–2019: The CShapes 2.0 Dataset*, Journal of Conflict Resolution, 2022. ETH Zurigo, <https://icr.ethz.ch/data/cshapes/>. Licenza **CC BY-NC-SA 4.0**: uso non commerciale con attribuzione. I dati derivati (questa mappa) vanno condivisi con la stessa licenza.
 - **Natural Earth** — suddivisioni amministrative e città, <https://www.naturalearthdata.com/>. **Pubblico dominio**.
+- **Terrain tiles** (Mapzen/AWS) — altitudine da SRTM, ETOPO1 e altre fonti pubbliche: <https://github.com/tilezen/joerd/blob/master/docs/attribution.md>.
+- **MODIS Land Cover** (MCD12Q1) — NASA, tramite GIBS: dati pubblici della NASA.
 - **Dati economici** (`economy` in `config.json`): popolazioni nazionali dei censimenti degli anni '30 e PIL pro capite del Maddison Project (<https://www.rug.nl/ggdc/historicaldevelopment/maddison/>), arrotondati; produzione di petrolio del 1938 da statistiche storiche. Sono stime approssimate per il gioco.
 
 I file grezzi vengono scaricati in `data/raw/`, che è escluso dal versionamento.

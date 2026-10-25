@@ -5,6 +5,7 @@ import type { NavData } from "../nav/types.js";
 import { MOVEMENT } from "../data/movement.js";
 import { hasAgreement, mayEnter } from "./diplomacy.js";
 import type { Mover } from "./movement.js";
+import { cellTerrain, terrainSpeeds } from "./terrain.js";
 import type { GameState } from "./state.js";
 
 // Percorsi delle armate nello stato attuale della partita: chi possiede cosa,
@@ -58,7 +59,7 @@ export function railSpeeds(state: GameState, nav: NavData, nation: NationId): (c
 }
 
 /** Fanteria a piedi: serve quando non si sa chi marcia. */
-const DEFAULT_MOVER: Mover = { speedKmh: 20, boardMinutes: MOVEMENT.railBoardMinMinutes, useRail: false };
+const DEFAULT_MOVER: Mover = { speedKmh: 20, boardMinutes: MOVEMENT.railBoardMinMinutes, useRail: false, terrain: terrainSpeeds(["infantry"]) };
 
 /** Percorso più rapido per un'armata di `nation` da `from` a `target`, o null se non c'è. */
 export function planRoute(
@@ -76,6 +77,7 @@ export function planRoute(
     canEnter: passableTerritory(state, nav, nation, owner),
     ...crossings(state, nav),
     speedKmh: mover.speedKmh,
+    terrainFactor: (cell) => mover.terrain[cellTerrain(nav, cell) ?? "plains"],
     // Senza il treno la ferrovia si percorre a piedi come una strada.
     rail: mover.useRail
       ? { boardMinutes: mover.boardMinutes, speedAt: railSpeeds(state, nav, nation), maxSpeedKmh: MOVEMENT.railHomeSpeedKmh }

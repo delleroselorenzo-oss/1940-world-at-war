@@ -2,9 +2,10 @@
 //  1. griglia della terraferma con la provincia di ogni cella;
 //  2. grandi fiumi (Natural Earth) che bloccano il passaggio tra celle;
 //  3. strade e ferrovie principali (Natural Earth) come rete di nodi e tratti;
-//  4. ponti: i tratti di strada o ferrovia che attraversano un grande fiume.
+//  4. ponti: i tratti di strada o ferrovia che attraversano un grande fiume;
+//  5. terreno di ogni cella: quello della sua provincia, "Città" vicino al centro delle province urbane.
 //
-// Va eseguito dopo build-europe-1933.ts (usa map.json e provinces.geojson).
+// Va eseguito dopo build-europe-1933.ts e build-terrain.ts (usa map.json e provinces.geojson).
 // Uso: npm run map:build   (dalla radice del progetto)
 
 import { readFileSync, writeFileSync } from "node:fs";
@@ -17,6 +18,9 @@ import {
   BLOCK_SOUTH_EAST,
   BLOCK_SOUTH_WEST,
   encodeNav,
+  flatKm,
+  TERRAIN_RULES,
+  TERRAINS,
   type Bridge,
   type LngLat,
   type MapData,
@@ -205,10 +209,20 @@ function main() {
     else nodeCell[n] = ok;
   }
 
+  // 5. Terreno.
+  console.log("· Terreno");
+  const terrain = new Uint8Array(width * height);
+  for (let cell = 0; cell < terrain.length; cell++) {
+    const p = province[cell]! > 0 ? map.provinces[province[cell]! - 1]! : null;
+    if (!p) continue;
+    const near = p.type === "urban" && flatKm(centerOf(cell), p.center) <= TERRAIN_RULES.cityRadiusKm;
+    terrain[cell] = TERRAINS.indexOf(near ? "urban" : (p.terrain ?? "plains"));
+  }
+
   const nav: NavData = {
     mapId: map.id,
     provinceIds,
-    grid: { bbox, step, width, height, province, blocked },
+    grid: { bbox, step, width, height, province, blocked, terrain },
     roads: {
       nodes: Float64Array.from(nodes),
       nodeCell,

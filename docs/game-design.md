@@ -21,7 +21,7 @@ Escluso per scelta: negozio, valuta premium (Gold), acceleratori a pagamento, al
   - **Urbana (città)**: produce la maggior parte delle risorse principali (~75% del totale), dà **punti vittoria** (es. 10), è l'unico posto dove si costruiscono **edifici di produzione militare**. Ogni nazione ha poche città (es. 5), ciascuna con una risorsa principale diversa.
   - **Rurale**: produce soprattutto **manodopera e denaro**, a volte una risorsa principale in piccola quantità.
 - **Core / non-core**: le province iniziali di una nazione sono *core*. Quelle conquistate sono *non-core* e producono molto meno (es. **-75%**, cioè 1/4).
-- **Terreni**: pianura, collina, montagna, foresta, urbano, costa/mare. Il terreno dà **solo bonus** alle unità che lo preferiscono (es. carri in pianura, fanteria in città/colline, truppe da montagna in montagna), non penalità.
+- **Terreni**: città, pianura, collina, foresta, montagna (la costa e il mare arriveranno con la marina). Un solo terreno per provincia, più la zona di città nelle province urbane; bonus e penalità per tipo di unità: vedi §9, "Terreno".
 
 ## 3. Risorse
 
@@ -151,7 +151,7 @@ Ogni unità avrà:
 - **Attacco e difesa** contro: non corazzati, armatura leggera, armatura pesante, aerei, navi, sottomarini, edifici.
 - **Danno al morale della provincia** contesa: bombardamenti aerei e artiglieria lo abbassano molto. Una provincia molto bombardata cade più facilmente e si ribella più facilmente.
 - **Costo** di produzione, **tempo** e **mantenimento** al giorno.
-- **Terreno**: per ogni tipo, un effetto sulla velocità e uno sulla forza (es. fanteria in montagna più lenta ma +30% di forza; nel bosco solo più forza). Il terreno è **semplificato e per provincia** (pianeggiante, collinare, montuosa…), assegnato con realismo: niente rilievi copiati cella per cella.
+- **Terreno**: per ogni tipo, un effetto sulla velocità e uno sulla forza (es. fanteria in montagna più lenta ma +30% di forza). Il terreno è **semplificato e per provincia**, assegnato con realismo: vedi §9, "Terreno".
 - Classi: **non corazzati** (fanteria, motorizzata, genio, sanità, artiglieria, antiaerea), **armatura leggera** (autoblindo, carro leggero), **armatura pesante** (carri medi e pesanti, in arrivo con l'elenco completo).
 - Più avanti: **morale dell'armata**, legato anche ai generali (alcuni tengono alto il morale meglio di altri). I **livelli** delle unità arriveranno con la ricerca.
 
@@ -161,11 +161,11 @@ Ogni unità avrà:
 - **Punti salute**
 - **Danno offensivo** e **danno difensivo** *contro ciascuna classe di armatura*
 - **Classe di armatura** propria
-- **Velocità** (km/h), con bonus sul terreno preferito
+- **Velocità** (km/h), che cambia con il terreno
 - **Raggio visivo** e, per le unità a distanza, **gittata**
 - **Costo** (risorse + manodopera + denaro), **tempo di produzione**, **mantenimento giornaliero**
 - Flag: *ricognizione* (rivela unità stealth), *stealth*, *ignora bonus difensivi*, *antiaereo*
-- **Terreni preferiti**
+- **Effetti del terreno** su velocità e forza
 
 ### Elenco di partenza (tipi storici generici, statistiche nostre)
 - **Fanteria**: milizia, fanteria, fanteria motorizzata, fanteria meccanizzata, truppe da montagna/assalto, paracadutisti
@@ -189,7 +189,7 @@ Le unità nel **ruolo preferito** sono circa 2–3x più efficaci; le "tuttofare
 - **Grandi fiumi** (Danubio, Reno, Volga, Dnepr, Vistola, Elba, Oder, Loira, Po, Don, Dnestr… circa 60): si attraversano **solo sui ponti**, cioè dove una strada o una ferrovia passa il fiume.
 - **Ponti distruggibili** (e riparabili) e **ponti di barche** costruiti dal genio: vedi "Lavori sul campo" qui sotto.
 - **Territorio straniero**: si può marciare ovunque, ma il percorso automatico passa solo per il proprio territorio, per quello di chi è già in guerra o ha un accordo con noi, e per quello della nazione verso cui si marcia (mai per un paese terzo, per non scatenare guerre per sbaglio).
-- Bonus di velocità da infrastrutture e terreno preferito. Le unità sotto il 50% di salute vanno più lente.
+- Il terreno rallenta la marcia (§9, "Terreno"). Le unità sotto il 50% di salute vanno più lente.
 - **Mare**: le unità terrestri diventano **trasporti** (imbarco/sbarco 3–4 ore, ridotto dalla base navale).
 - **Aerei**: hanno una portata; oltre quella atterrano e proseguono via terra come convoglio (vedi "Aviazione" in §9).
 
@@ -224,7 +224,7 @@ Le unità nel **ruolo preferito** sono circa 2–3x più efficaci; le "tuttofare
 - **Niente fattore casuale**: a parità di condizioni il risultato è sempre lo stesso. L'unica variabilità prevista è quella data dal **generale** al comando dell'armata (vedi sotto, da definire).
 - **Distribuzione**: il danno contro una classe si divide tra le unità nemiche di quella classe, in proporzione alla loro presenza nell'esercito.
 - **Perdite**: dentro ogni classe il danno colpisce prima l'unità più malconcia, che viene distrutta quando arriva a zero; così le perdite arrivano una alla volta (al posto della regola "distrutte solo sotto il 50%", che serviva con i danni casuali).
-- **Bonus**: terreno preferito, fortificazioni/bunker (es. -38% di danno subito al livello 1), livello dell'unità.
+- **Bonus**: terreno (§9, "Terreno"), fortificazioni/bunker (es. -38% di danno subito al livello 1), livello dell'unità.
 - **Unità a distanza** (artiglieria, navi): attaccano entro la gittata ogni 30 minuti; il bersaglio risponde solo se ha gittata sufficiente; sotto i 5 km diventa combattimento ravvicinato.
 - **Aerei**: vedi "Aviazione" qui sotto. Le unità di terra/mare rispondono con i valori antiaerei difensivi; gli aerei subiscono prima la difesa, poi infliggono danno.
 - **Danni agli edifici**: attaccare un'unità al centro di una provincia danneggia anche gli edifici (fortificazioni bersaglio più probabile).
@@ -279,7 +279,8 @@ Al massimo 5 tipi. I valori staranno in un file di bilanciamento (`shared/src/da
 - **Tiro a distanza** (artiglieria, gittata 12 km): un'armata ferma da almeno 30 minuti (messa in batteria) e non a contatto colpisce a ogni tick l'armata nemica più vicina entro la gittata, con i valori d'attacco delle sole unità a gittata, senza risposta. Le fortificazioni del bersaglio contano. Chi è sotto il fuoco non guarisce. A contatto l'artiglieria combatte normalmente, con i valori di difesa se è ferma.
 - **Morale della provincia**: il tiro dell'artiglieria e gli attacchi aerei tolgono punti di morale alla provincia dove si trova il bersaglio (se non è di chi spara), con il limite di gruppo e l'efficienza per salute; da soli non lo portano sotto il **20%** (la storia insegna che i bombardamenti non spezzano il morale: il resto lo fanno conquista e accerchiamento). Gli effetti del morale basso nelle province di casa arriveranno con generali, capi di stato ed eventi storici.
 - **Guarigione**: vedi §8, "Lavori sul campo".
-- Non ancora: bonus di terreno, generali, morale dell'armata.
+- **Terreno**: ogni armata combatte con l'effetto del terreno dove si trova (vedi "Terreno" qui sotto).
+- Non ancora: generali, morale dell'armata.
 
 Valori decisi il 25/10/2026: attacco / difesa ogni 30 minuti di combattimento, contro non corazzati, armatura leggera e armatura pesante.
 
@@ -308,6 +309,35 @@ Aerei (danni per attacco; contro gli aerei attacco / difesa):
 Navi, sottomarini, edifici e combattimento tra aerei sono già nei dati ma conteranno con la marina, i bombardamenti degli edifici (20 punti di integrità per livello: a zero l'edificio perde un livello, il genio lo ripara pagando) e l'intercettazione.
 
 Esempio: l'armata di una capitale (3 fanterie + 1 artiglieria) che assalta un'armata uguale in difesa perde, dopo alcune ore di combattimento: chi difende è avvantaggiato.
+
+### Terreno (deciso e fatto il 25/10/2026)
+
+**Un solo terreno per provincia**, più la **zona di città**: nelle province urbane, entro 10 km dal centro, il terreno è "Città"; il resto della provincia ha il suo terreno naturale (Torino è città intorno al capoluogo, montagna fuori). Non si spezzano le province: dove sono miste vale il terreno dove si combatterebbe davvero.
+
+**Come è assegnato** (`data/scripts/build-terrain.ts`, parametri e correzioni in `data/maps/europe-1933/terrain.config.json`):
+- **Rilievo** da dati di altitudine reali (~1 km): in ogni cella di 0,1° (~10 km) il dislivello; sotto 120 m è piana, da 450 m montuosa, in mezzo collinare.
+- **Foreste** dalla copertura del suolo MODIS (NASA), quella di oggi: va bene per le grandi foreste (Finlandia, Baltico, Russia del nord, Ardenne), con correzioni a mano dove il bosco è recente.
+- Provincia **montuosa** se almeno il 45% delle celle lo è; altrimenti **foresta** se il bosco copre almeno il 45%; altrimenti **collinare** se almeno metà delle celle è collinare o montuosa; altrimenti **pianura**.
+- Correzioni a mano, con il motivo: Milano pianura (la provincia arriva alle Alpi ma si combatte in pianura padana), Catania collina, Galizia collina (gli eucalipti sono del dopoguerra), Landes foresta, Ardenne foresta, Malmö pianura (la Scania), Brest foresta (le paludi della Polesia).
+- Risultato: 72 province di montagna, 103 di collina, 119 di pianura, 67 di foresta, più le zone di città.
+
+**Effetti** (`shared/src/data/terrain.ts`): velocità come percentuale di quella normale · forza (attacco e difesa insieme).
+
+| Unità | Città | Pianura | Collina | Foresta | Montagna |
+|---|---|---|---|---|---|
+| Fanteria, genio, sanità | 100% · +25% | 100% · — | 85% · +15% | 80% · +20% | 65% · +30% |
+| Fanteria motorizzata | 100% · +10% | 100% · — | 80% · +10% | 70% · +10% | 55% · +15% |
+| Autoblindo | 90% · −25% | 100% · +10% | 75% · −10% | 55% · −25% | 45% · −35% |
+| Carro leggero | 85% · −20% | 100% · +15% | 80% · — | 60% · −20% | 50% · −30% |
+| Artiglieria | 100% · −15% | 100% · +10% | 80% · +10% | 70% · −15% | 55% · — |
+| Anticarro | 100% · +15% | 100% · — | 80% · +10% | 70% · +15% | 55% · +10% |
+| Antiaerea | 100% · — | 100% · — | 80% · — | 70% · −10% | 55% · −10% |
+
+- **Velocità**: il calo vale per intero fuori strada e a metà su strada; il treno non cambia. Un'armata va, su ogni terreno, alla velocità dell'unità più lenta lì. Il percorso automatico ne tiene conto (evita le montagne se c'è una strada migliore).
+- **Forza**: ogni armata combatte (anche a distanza) con l'effetto del terreno del punto dove si trova.
+- **Aerei**: non risentono del terreno, ma contro un'armata in foresta fanno il 25% di danno in meno.
+- Cambia la regola di prima ("solo bonus, mai penalità"): i mezzi corazzati sono penalizzati in città, foresta e montagna.
+- Più avanti: valichi come passaggi obbligati, truppe da montagna, generali con bonus su un terreno.
 
 ### Interfaccia dell'armata
 - Toccando un'armata si apre il suo pannello. Dall'alto: **comandante** (con accanto i pulsanti delle azioni), **stato attuale** (cosa fa e quando finisce, salute complessiva), **azioni**, **composizione** per tipo di unità (quantità, salute, velocità, attacco/difesa; evidenziata l'unità più lenta), riepilogo di forza e mantenimento.
@@ -451,4 +481,4 @@ Regola generale, non legata a una data: una nazione che perde la capitale ma ha 
 - Mercato tra giocatori nella prima versione?
 - Soglia di punti vittoria di default.
 - Valori numerici di ogni unità (prossimo passo: `/shared/data/units.ts`).
-- **Ostacoli naturali** (idea del 25/10/2026, da riprendere dopo il combattimento): oggi la marcia conosce strade, ferrovie e grandi fiumi, ma non i rilievi. Milano–Rimini è pianura, Milano–Berna attraversa le Alpi: deciso (25/10/2026) un terreno **semplificato per provincia** (pianeggiante, collinare, montuosa…), con effetti su velocità e forza di ogni unità (vedi §7, "Scheda dell'unità"); restano da decidere i valichi come passaggi obbligati.
+- **Ostacoli naturali** (idea del 25/10/2026, da riprendere dopo il combattimento): oggi la marcia conosce strade, ferrovie e grandi fiumi, ma non i rilievi. Milano–Rimini è pianura, Milano–Berna attraversa le Alpi: fatto (25/10/2026) il terreno per provincia con effetti su velocità e forza (vedi §9, "Terreno"); restano da decidere i valichi come passaggi obbligati.

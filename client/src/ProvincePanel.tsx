@@ -12,6 +12,8 @@ import {
   syntheticPerDay,
   RESOURCE_IDS,
   RESOURCE_NAMES,
+  TERRAIN_NAMES,
+  TERRAIN_RULES,
   UNIT_TYPES,
   type GameState,
   type Province,
@@ -110,6 +112,15 @@ export function ProvincePanel({
             <dt>Tipo</dt>
             <dd>{kind}</dd>
           </div>
+          {province.terrain && (
+            <div>
+              <dt>Terreno</dt>
+              <dd>
+                {TERRAIN_NAMES[province.terrain]}
+                {province.type === "urban" && <span className="muted"> · Città entro {TERRAIN_RULES.cityRadiusKm} km dal centro</span>}
+              </dd>
+            </div>
+          )}
           <div>
             <dt>Risorsa principale</dt>
             <dd>{province.resource ? RESOURCE_NAMES[province.resource] : <span className="muted">nessuna</span>}</dd>

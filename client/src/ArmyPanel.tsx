@@ -8,6 +8,7 @@ import {
   armyPosition,
   armyRangeKm,
   armySpeedKmh,
+  armyTerrainSpeeds,
   canFireAtRange,
   COMBAT,
   arrivalTime,
@@ -19,6 +20,8 @@ import {
   provinceIdAt,
   RESOURCE_IDS,
   RESOURCE_NAMES,
+  TERRAIN_NAMES,
+  terrainAt,
   UNIT_TYPES,
   WORK_NAMES,
   type Army,
@@ -70,6 +73,9 @@ export function ArmyPanel(props: ArmyPanelProps) {
   const range = armyRangeKm(army);
   const fighting = foes.length > 0;
   const speed = armySpeedKmh(army);
+  // Terreno dove si trova adesso: cambia la velocità fuori strada e la forza.
+  const terrain = terrainAt(map.nav, armyPosition(army, now));
+  const terrainSpeed = terrain ? Math.round(speed * armyTerrainSpeeds(army)[terrain] * 10) / 10 : speed;
   // Tempo reale che manca a un minuto di gioco.
   const countdown = (t: number) => formatCountdown(((t - now) * 60) / game.clock.speed);
 
@@ -153,7 +159,8 @@ export function ArmyPanel(props: ArmyPanelProps) {
             <span style={{ width: `${health * 100}%` }} />
           </span>
           <p className="muted">
-            Salute {Math.round(health * 100)}% · {speed} km/h · {isAttacking(army) ? "assalto" : "difesa"}
+            Salute {Math.round(health * 100)}% · {terrain ? `${TERRAIN_NAMES[terrain]}, ` : ""}
+            {terrainSpeed.toLocaleString("it-IT")} km/h · {isAttacking(army) ? "assalto" : "difesa"}
           </p>
           {range > 0 && (
             <p className="muted small">
@@ -303,13 +310,13 @@ export function ArmyPanel(props: ArmyPanelProps) {
         )}
 
         {/* 5. Riepilogo */}
-        <h3>Riepilogo</h3>
+        <h3>Riepilogo{terrain && <span className="muted"> · terreno: {TERRAIN_NAMES[terrain].toLowerCase()}</span>}</h3>
         <dl className="facts">
           {ARMOR_CLASSES.map((c) => (
             <div key={c}>
               <dt>Contro {ARMOR_CLASS_NAMES[c].toLowerCase()}</dt>
               <dd>
-                att. {round1(armyDamage(army, c, true))} · dif. {round1(armyDamage(army, c, false))}
+                att. {round1(armyDamage(army, c, true, terrain))} · dif. {round1(armyDamage(army, c, false, terrain))}
               </dd>
             </div>
           ))}

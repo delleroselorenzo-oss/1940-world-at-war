@@ -1,0 +1,23 @@
+{
+  "_note": "Parametri del terreno delle province (npm run map:build, script build-terrain.ts). Dislivello misurato in celle di 0,1° (~10 km). Overrides: id della provincia → terreno, per i casi in cui i dati non bastano (motivi in _why).",
+  "reliefM": { "hillsM": 120, "mountainsM": 450 },
+  "shares": { "mountains": 0.45, "forest": 0.45, "hills": 0.5 },
+  "overrides": {
+    "ITA_milano": "plains",
+    "ITA_catania": "hills",
+    "ESP_galicia": "hills",
+    "FRA_landes": "forest",
+    "BEL_lussemburgo": "forest",
+    "SWE_malmo": "plains",
+    "POL_brest": "forest"
+  },
+  "_why": {
+    "ITA_milano": "La provincia arriva alle Alpi, ma la città e i combattimenti sono nella pianura padana.",
+    "ITA_catania": "Etna a parte, la Sicilia orientale è collinare.",
+    "ESP_galicia": "Il bosco di oggi è in gran parte di eucalipti piantati dopo la guerra: nel 1940 era collina coltivata.",
+    "FRA_landes": "La foresta delle Landes (pini piantati nell'Ottocento) esisteva già.",
+    "BEL_lussemburgo": "Le Ardenne, la foresta per eccellenza della guerra in occidente.",
+    "SWE_malmo": "La Scania è pianura coltivata; il bosco è nella parte dello Småland.",
+    "POL_brest": "La Polesia: paludi e boschi, un ostacolo per tutti gli eserciti."
+  }
+}

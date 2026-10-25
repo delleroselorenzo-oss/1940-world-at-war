@@ -36,6 +36,8 @@ export interface NavData {
     province: Uint16Array;
     /** Per cella, bit dei passaggi bloccati dai fiumi (vedi BLOCK_*). */
     blocked: Uint8Array;
+    /** Per cella, indice del terreno in `TERRAINS` (assente = tutto pianura). */
+    terrain?: Uint8Array;
   };
   roads: {
     /** Coordinate dei nodi: [lng0, lat0, lng1, lat1, …]. */
@@ -68,7 +70,7 @@ export const BLOCK_SOUTH_WEST = 8; // (c-1, r+1)
 export interface NavFile {
   mapId: string;
   provinceIds: ProvinceId[];
-  grid: { bbox: [number, number, number, number]; step: number; width: number; height: number; province: string; blocked: string };
+  grid: { bbox: [number, number, number, number]; step: number; width: number; height: number; province: string; blocked: string; terrain?: string };
   roads: { nodes: number[]; nodeCell: string; edgeA: string; edgeB: string; edgeKind: string; edgeBridge: string };
   bridges: Bridge[];
   rivers: River[];

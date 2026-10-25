@@ -1,5 +1,6 @@
 import { AIR, AIRCRAFT_TYPES } from "../data/air.js";
 import { COMBAT } from "../data/combat.js";
+import { TERRAIN_RULES } from "../data/terrain.js";
 import { ARMOR_CLASSES, UNIT_TYPES } from "../data/units.js";
 import type { LngLat, MapData, NationId, Province, ProvinceId } from "../map/types.js";
 import { flatKm, provinceIdAt } from "../nav/grid.js";
@@ -9,6 +10,7 @@ import { applyDamage, armyAntiAir, efficiency, groupWeight, isAttacking, lerp, l
 import { atWar, hasAgreement, logEvent } from "./diplomacy.js";
 import { mapIndex } from "./mapIndex.js";
 import { armyPosition } from "./movement.js";
+import { terrainAt } from "./terrain.js";
 import type { Aircraft, Army, ArmyId, GameState, Squadron, StrikeMission } from "./state.js";
 
 // Aviazione: basi, portata, voli e attacchi delle squadriglie (vedi docs/game-design.md, §9 "Aviazione").
@@ -273,6 +275,8 @@ function strike(s: GameState, world: { map: MapData; nav?: NavData }, sq: Squadr
   const eff = efficiency(squadronHealth(sq));
   const province = world.nav ? provinceIdAt(world.nav, at) : null;
   const fort = !isAttacking(target) ? fortDamageFactor(s, province, target.owner) : 1;
+  // Nel bosco gli aerei vedono poco.
+  const cover = terrainAt(world.nav, at) === "forest" ? TERRAIN_RULES.airVsForest : 1;
   const damage = noDamage();
   for (const c of ARMOR_CLASSES) {
     const count = target.units.filter((u) => UNIT_TYPES[u.type].armor === c).length;
@@ -280,7 +284,7 @@ function strike(s: GameState, world: { map: MapData; nav?: NavData }, sq: Squadr
     const values = sq.aircraft.map((a) => AIRCRAFT_TYPES[a.type].attack[c]).sort((x, y) => y - x);
     let total = 0;
     values.forEach((v, i) => (total += v * groupWeight(i)));
-    damage[c] = total * eff * fort * (count / target.units.length);
+    damage[c] = total * eff * fort * cover * (count / target.units.length);
   }
   target.units = applyDamage(target.units, damage);
   // Il bombardamento abbassa il morale della provincia colpita (non sotto la soglia), se non è di chi attacca.

@@ -23,7 +23,12 @@ export function encodeNav(nav: NavData): NavFile {
   return {
     mapId: nav.mapId,
     provinceIds: nav.provinceIds,
-    grid: { ...nav.grid, province: toBase64(bytes(nav.grid.province)), blocked: toBase64(nav.grid.blocked) },
+    grid: {
+      ...nav.grid,
+      province: toBase64(bytes(nav.grid.province)),
+      blocked: toBase64(nav.grid.blocked),
+      terrain: nav.grid.terrain && toBase64(nav.grid.terrain),
+    },
     roads: {
       nodes: Array.from(nav.roads.nodes, (v) => Math.round(v * 1e4) / 1e4),
       nodeCell: toBase64(bytes(nav.roads.nodeCell)),
@@ -45,6 +50,7 @@ export function decodeNav(file: NavFile): NavData {
       ...file.grid,
       province: new Uint16Array(copy(fromBase64(file.grid.province))),
       blocked: fromBase64(file.grid.blocked),
+      terrain: file.grid.terrain ? fromBase64(file.grid.terrain) : undefined,
     },
     roads: {
       nodes: Float64Array.from(file.roads.nodes),

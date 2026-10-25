@@ -44,6 +44,8 @@ export interface ArmyMove {
    * Salita e discesa sono soste in treno (tratti di lunghezza zero).
    */
   rail: number[];
+  /** Per ogni tratto: moltiplicatore della velocità dovuto al terreno (assente nei salvataggi vecchi = 1). */
+  terrain?: number[];
 }
 
 /** Percorso senza orari (una marcia sospesa o da ricalcolare). */
@@ -51,6 +53,8 @@ export interface RouteLeg {
   points: LngLat[];
   onRoad: boolean[];
   rail: number[];
+  /** Per ogni tratto: moltiplicatore della velocità dovuto al terreno (assente nei salvataggi vecchi = 1). */
+  terrain?: number[];
 }
 
 export interface Army {

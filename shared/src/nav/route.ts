@@ -1,4 +1,5 @@
 import { MOVEMENT } from "../data/movement.js";
+import { roadSpeedFactor } from "../data/terrain.js";
 import type { LngLat } from "../map/types.js";
 import { cellAt, cellCenter, flatKm, isBlocked, segmentClear } from "./grid.js";
 import type { NavData } from "./types.js";
@@ -13,6 +14,8 @@ import type { NavData } from "./types.js";
 // Con l'opzione `rail` la ferrovia diventa un treno: velocità propria e una sosta per salire
 // e una per scendere. Per tenerne conto ogni nodo stradale compare due volte, "a terra" e
 // "in treno"; passare dall'uno all'altro costa il tempo di salita (o discesa).
+//
+// Il terreno (`terrainFactor`) rallenta fuori strada per intero e su strada a metà; il treno no.
 
 export interface Route {
   /** Punti da percorrere, dal punto di partenza a quello d'arrivo. */
@@ -21,6 +24,8 @@ export interface Route {
   onRoad: boolean[];
   /** Per ogni tratto: velocità del treno in km/h, 0 se non è in treno. */
   rail: number[];
+  /** Per ogni tratto: moltiplicatore medio della velocità dovuto al terreno (1 in treno). */
+  terrain: number[];
   /** Lunghezza totale in km. */
   km: number;
 }
@@ -33,6 +38,8 @@ export interface RouteOptions {
   /** Passaggi tra celle riaperti dai ponti di barche (chiavi di `passageKey`). */
   openPassages?: ReadonlySet<number>;
   offRoadFactor?: number;
+  /** Moltiplicatore della velocità fuori strada dovuto al terreno della cella (predefinito: 1). */
+  terrainFactor?(cell: number): number;
   /** Velocità dell'unità in km/h (serve solo a confrontarla con il treno). Predefinita: 20. */
   speedKmh?: number;
   /** Trasporto in treno. Senza questa opzione la ferrovia vale come una strada. */
@@ -108,6 +115,9 @@ export function findRoute(nav: NavData, from: LngLat, to: LngLat, options: Route
   const offRoad = options.offRoadFactor ?? MOVEMENT.offRoadFactor;
   const speed = options.speedKmh ?? 20;
   const { canEnter, rail } = options;
+  const terrain = options.terrainFactor ?? (() => 1);
+  const offRoadKmh = (cell: number) => speed * offRoad * terrain(cell);
+  const roadKmh = (cell: number) => speed * MOVEMENT.roadFactor * roadSpeedFactor(terrain(cell));
   const land = (cell: number) => cell >= 0 && nav.grid.province[cell]! > 0 && canEnter(cell);
   const nodeCount = nav.roads.nodes.length / 2;
   /** Primo id dei nodi "in treno". */
@@ -117,7 +127,7 @@ export function findRoute(nav: NavData, from: LngLat, to: LngLat, options: Route
   const startCell = cellAt(nav, from);
   const goalCell = cellAt(nav, to);
   if (!land(startCell) || !land(goalCell)) return null;
-  if (startCell === goalCell) return { points: [from, to], onRoad: [false], rail: [0], km: flatKm(from, to) };
+  if (startCell === goalCell) return { points: [from, to], onRoad: [false], rail: [0], terrain: [terrain(startCell)], km: flatKm(from, to) };
 
   const roadNode = (id: number) => (id >= railBase ? id - railBase : id - g.cellCount);
   const nodePos = (id: number): LngLat => {
@@ -173,12 +183,12 @@ export function findRoute(nav: NavData, from: LngLat, to: LngLat, options: Route
           if (nc < 0 || nr < 0 || nc >= width || nr >= nav.grid.height) continue;
           const next = nr * width + nc;
           if (closed.has(next) || !land(next) || isBlocked(nav, current, next, options.openPassages)) continue;
-          relax(current, next, minutes(flatKm(here, cellCenter(nav, next)), speed * offRoad), false);
+          relax(current, next, minutes(flatKm(here, cellCenter(nav, next)), offRoadKmh(next)), false);
         }
       // Salita sulla strada nei nodi collegati alla cella.
       for (let i = g.cellRoadStart[current]!; i < g.cellRoadStart[current + 1]!; i++) {
         const node = g.cellCount + g.cellRoadNode[i]!;
-        if (!closed.has(node)) relax(current, node, minutes(flatKm(here, nodePos(node)), speed * offRoad), false);
+        if (!closed.has(node)) relax(current, node, minutes(flatKm(here, nodePos(node)), offRoadKmh(current)), false);
       }
     } else {
       const n = roadNode(current);
@@ -200,7 +210,7 @@ export function findRoute(nav: NavData, from: LngLat, to: LngLat, options: Route
         // In treno il tratto va alla velocità più bassa tra i suoi due estremi.
         const train = onTrain ? Math.min(rail!.speedAt(hereCell), rail!.speedAt(cell)) : 0;
         if (onTrain && train <= 0) continue;
-        relax(current, node, minutes(flatKm(here, pos), train || speed * MOVEMENT.roadFactor), true, train);
+        relax(current, node, minutes(flatKm(here, pos), train || roadKmh(cell)), true, train);
       }
       // Salita sul treno o discesa, restando nello stesso punto.
       if (rail && rail.speedAt(hereCell) > 0) {
@@ -210,7 +220,7 @@ export function findRoute(nav: NavData, from: LngLat, to: LngLat, options: Route
       // Discesa dalla strada nella cella collegata.
       const cell = nav.roads.nodeCell[n]!;
       if (!onTrain && cell >= 0 && !closed.has(cell) && land(cell))
-        relax(current, cell, minutes(flatKm(here, cellCenter(nav, cell)), speed * offRoad), false);
+        relax(current, cell, minutes(flatKm(here, cellCenter(nav, cell)), offRoadKmh(cell)), false);
     }
   }
   if (!found) return null;
@@ -223,7 +233,25 @@ export function findRoute(nav: NavData, from: LngLat, to: LngLat, options: Route
   const train: number[] = ids.slice(1).map((id) => viaRail.get(id) ?? 0);
   points[0] = from;
   points[points.length - 1] = to;
-  return smooth(nav, { points, onRoad, rail: train, km: 0 }, land, options.openPassages);
+  const route = smooth(nav, { points, onRoad, rail: train, terrain: [], km: 0 }, land, options.openPassages);
+  route.terrain = route.onRoad.map((road, i) => (route.rail[i] ? 1 : legTerrain(nav, route.points[i]!, route.points[i + 1]!, road, terrain)));
+  return route;
+}
+
+/**
+ * Moltiplicatore medio della velocità su un tratto rettilineo che attraversa terreni diversi:
+ * si campiona ogni ~2 km e si mediano i tempi (non le velocità).
+ */
+function legTerrain(nav: NavData, a: LngLat, b: LngLat, road: boolean, terrain: (cell: number) => number): number {
+  const km = flatKm(a, b);
+  const n = Math.max(1, Math.ceil(km / 2));
+  let time = 0;
+  for (let k = 0; k < n; k++) {
+    const t = (k + 0.5) / n;
+    const f = terrain(cellAt(nav, [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]));
+    time += 1 / (road ? roadSpeedFactor(f) : f);
+  }
+  return n / time;
 }
 
 /**
@@ -261,7 +289,7 @@ function smooth(nav: NavData, route: Route, land: (cell: number) => boolean, ope
   }
   let km = 0;
   for (let k = 1; k < outPoints.length; k++) km += flatKm(outPoints[k - 1]!, outPoints[k]!);
-  return { points: outPoints, onRoad: outRoad, rail: outRail, km };
+  return { points: outPoints, onRoad: outRoad, rail: outRail, terrain: [], km };
 }
 
 /** Coda con priorità minima (heap binario). */

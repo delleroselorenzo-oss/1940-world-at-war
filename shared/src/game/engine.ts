@@ -32,6 +32,7 @@ import { nationProductionPerDay, netPerDayByNation, refund } from "./economy.js"
 import { applyTradeTick } from "./trade.js";
 import { mapIndex } from "./mapIndex.js";
 import { armyPosition, moverOf, remainingRoute, scheduleRoute } from "./movement.js";
+import { terrainAt } from "./terrain.js";
 import { planRoute } from "./routing.js";
 import type { Army, ArmyId, GameState, ResourceAmounts, Squadron } from "./state.js";
 import { countRole, targetStillValid, WORK_BUILDINGS } from "./works.js";
@@ -363,7 +364,7 @@ function fight(s: GameState, world: EngineWorld, t: number): boolean {
     const foes = engaged.get(a.id);
     if (a.units.length === 0) continue;
     if (!foes) {
-      if (canFireAtRange(a, t)) hits.push(...rangedFire(s, a, pos, t));
+      if (canFireAtRange(a, t)) hits.push(...rangedFire(s, world, a, pos, t));
       continue;
     }
     // Bersaglio: il nemico più vicino (a parità di distanza, il primo per identificativo).
@@ -374,7 +375,7 @@ function fight(s: GameState, world: EngineWorld, t: number): boolean {
       if (d < best) [target, best] = [s.armies[id], d];
     }
     if (!target) continue;
-    hits.push({ by: a, target, damage: damageAgainst(a, target), morale: 0 });
+    hits.push({ by: a, target, damage: damageAgainst(a, target, isAttacking(a), terrainAt(world.nav, pos.get(a.id)!)), morale: 0 });
   }
   // Chi difende in una propria provincia fortificata subisce meno danni.
   if (world.nav)
@@ -427,7 +428,7 @@ interface Hit {
 }
 
 /** Tiro a distanza: le unità con gittata dell'armata colpiscono l'armata nemica più vicina entro la gittata, con i valori d'attacco. */
-function rangedFire(s: GameState, a: Army, pos: Map<ArmyId, LngLat>, t: number): Hit[] {
+function rangedFire(s: GameState, world: EngineWorld, a: Army, pos: Map<ArmyId, LngLat>, t: number): Hit[] {
   const range = armyRangeKm(a);
   let target: Army | undefined;
   let best = Infinity;
@@ -442,7 +443,7 @@ function rangedFire(s: GameState, a: Army, pos: Map<ArmyId, LngLat>, t: number):
     guns.units.map((u) => UNIT_TYPES[u.type].moraleDamage ?? 0),
     efficiency(armyHealth(guns)),
   );
-  return [{ by: a, target, damage: damageAgainst(guns, target, true), morale }];
+  return [{ by: a, target, damage: damageAgainst(guns, target, true, terrainAt(world.nav, pos.get(a.id)!)), morale }];
 }
 
 /**

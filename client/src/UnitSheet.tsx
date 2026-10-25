@@ -6,7 +6,13 @@ import {
   BUILDING_TYPES,
   COMBAT,
   isAircraftType,
+  TERRAIN_EFFECTS,
+  TERRAIN_NAMES,
+  TERRAIN_RULES,
+  MOVEMENT,
+  roadSpeedFactor,
   UNIT_TYPES,
+  type Terrain,
   type AttackDefense,
   type ProducibleId,
   type ResourceAmounts,
@@ -28,6 +34,17 @@ interface UnitSheetProps {
 type Row = [string, number | null, number | null];
 
 const ARMOR_LABEL = { soft: "Non corazzato", light: "Armatura leggera", heavy: "Armatura pesante" } as const;
+
+/** Terreni nell'ordine della scheda: dal più facile al più difficile. */
+const SHEET_TERRAINS: Terrain[] = ["urban", "plains", "hills", "forest", "mountains"];
+
+const kmh = (n: number) => `${(Math.round(n * 10) / 10).toLocaleString("it-IT")} km/h`;
+
+/** Moltiplicatore → "+25%", "−10%", "—" (nessun effetto). */
+const percent = (factor: number) => {
+  const p = Math.round((factor - 1) * 100);
+  return p === 0 ? "—" : `${p > 0 ? "+" : "−"}${Math.abs(p)}%`;
+};
 
 export function UnitSheet({ unit, stock, onRecruit, onClose }: UnitSheetProps) {
   useEffect(() => {
@@ -132,11 +149,42 @@ export function UnitSheet({ unit, stock, onRecruit, onClose }: UnitSheetProps) {
             )}
           </dl>
 
-          {ground && (
+          <h3>Terreno</h3>
+          {ground ? (
             <>
-              <h3>Terreno</h3>
-              <p className="muted small">In arrivo: effetti di pianura, collina e montagna su velocità e forza.</p>
+              <table className="stats">
+                <thead>
+                  <tr>
+                    <th>Terreno</th>
+                    <th>Su strada</th>
+                    <th>Fuori strada</th>
+                    <th>Forza</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {SHEET_TERRAINS.map((t) => {
+                    const effect = TERRAIN_EFFECTS[ground.id][t];
+                    return (
+                      <tr key={t}>
+                        <td>{TERRAIN_NAMES[t]}</td>
+                        <td>{kmh(ground.speedKmh * MOVEMENT.roadFactor * roadSpeedFactor(effect.speed))}</td>
+                        <td>{kmh(ground.speedKmh * MOVEMENT.offRoadFactor * effect.speed)}</td>
+                        <td>{percent(effect.strength)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <p className="muted small-print">
+                Su strada il terreno rallenta la metà che fuori strada; in treno non conta. La forza cambia attacco e difesa. In un'armata conta
+                l'unità più lenta su quel terreno.
+              </p>
             </>
+          ) : (
+            <p className="muted small">
+              Gli aerei non risentono del terreno, ma contro le armate in foresta fanno il {Math.round((1 - TERRAIN_RULES.airVsForest) * 100)}% di
+              danno in meno.
+            </p>
           )}
 
           <h3>Costi</h3>

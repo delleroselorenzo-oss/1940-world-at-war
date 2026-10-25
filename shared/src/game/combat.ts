@@ -1,10 +1,11 @@
 import { COMBAT } from "../data/combat.js";
 import { ARMOR_CLASSES, UNIT_TYPES, type ArmorClass } from "../data/units.js";
-import type { LngLat } from "../map/types.js";
+import type { LngLat, Terrain } from "../map/types.js";
 import { flatKm } from "../nav/grid.js";
 import { atWar } from "./diplomacy.js";
 import { armyPosition } from "./movement.js";
 import type { Army, ArmyId, GameState, Unit } from "./state.js";
+import { terrainStrength } from "./terrain.js";
 
 // Regole del combattimento (docs/game-design.md, §9). Nessun fattore casuale:
 // a parità di armate e condizioni il risultato è sempre lo stesso.
@@ -28,9 +29,12 @@ export function isAttacking(army: Army): boolean {
 /**
  * Danno per tick che l'armata infligge a unità della classe `vs`: somma dei danni delle unità
  * (le più forti prima) con il limite di gruppo, moltiplicata per l'efficienza dovuta alla salute.
+ * Ogni unità combatte con l'effetto del terreno su cui si trova l'armata.
  */
-export function armyDamage(army: Army, vs: ArmorClass, offensive = isAttacking(army)): number {
-  const values = army.units.map((u) => (offensive ? UNIT_TYPES[u.type].attack : UNIT_TYPES[u.type].defense)[vs]).sort((a, b) => b - a);
+export function armyDamage(army: Army, vs: ArmorClass, offensive = isAttacking(army), terrain: Terrain | null = null): number {
+  const values = army.units
+    .map((u) => (offensive ? UNIT_TYPES[u.type].attack : UNIT_TYPES[u.type].defense)[vs] * terrainStrength(u.type, terrain))
+    .sort((a, b) => b - a);
   let total = 0;
   values.forEach((v, i) => (total += v * groupWeight(i)));
   return total * efficiency(armyHealth(army));
@@ -55,13 +59,18 @@ export function armyAntiAir(army: Army): number {
  * Danno che `attacker` infligge a `target` in un tick, diviso per classe: ogni classe riceve
  * il danno contro di lei in proporzione a quante unità di quella classe ha il bersaglio.
  */
-export function damageAgainst(attacker: Army, target: Army, offensive = isAttacking(attacker)): Record<ArmorClass, number> {
+export function damageAgainst(
+  attacker: Army,
+  target: Army,
+  offensive = isAttacking(attacker),
+  terrain: Terrain | null = null,
+): Record<ArmorClass, number> {
   const out = noDamage();
   const n = target.units.length;
   if (n === 0) return out;
   for (const c of ARMOR_CLASSES) {
     const count = target.units.filter((u) => UNIT_TYPES[u.type].armor === c).length;
-    if (count > 0) out[c] = armyDamage(attacker, c, offensive) * (count / n);
+    if (count > 0) out[c] = armyDamage(attacker, c, offensive, terrain) * (count / n);
   }
   return out;
 }
