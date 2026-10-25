@@ -1,9 +1,12 @@
 import type { Ref } from "react";
 import {
+  AIRCRAFT_TYPE_IDS,
+  AIRCRAFT_TYPES,
   atWar,
   BUILDING_IDS,
   BUILDING_TYPES,
   inTruce,
+  productionType,
   provinceIdAt,
   provinceProductionPerDay,
   syntheticPerDay,
@@ -28,6 +31,7 @@ interface ProvincePanelProps {
   /** Apre la diplomazia con il padrone della provincia. */
   onDiplomacy(nation: string): void;
   onSelectArmy(id: string): void;
+  onSelectSquadron(id: string): void;
   /** Apre gli edifici (o l'arruolamento) limitati a questa provincia. */
   onBuildings(): void;
   onProduction(): void;
@@ -58,6 +62,7 @@ export function ProvincePanel({
   onDeclareWar,
   onDiplomacy,
   onSelectArmy,
+  onSelectSquadron,
   onBuildings,
   onProduction,
   onCancelBuild,
@@ -73,6 +78,7 @@ export function ProvincePanel({
   const synthetic = ps ? syntheticPerDay(province, ps, game?.buildings[province.id]) : null;
   const kind = province.isCapital ? "Capitale" : province.type === "urban" ? "Città" : "Provincia rurale";
   const armies = game ? Object.values(game.armies).filter((a) => !a.move && provinceIdAt(map.nav, a.position) === province.id) : [];
+  const squadrons = game ? Object.values(game.squadrons).filter((s) => !s.flight && s.base === province.id) : [];
   const canRecruit = isMine && province.type === "urban";
   const queue = game?.production[province.id] ?? [];
   const war = game && !isMine ? atWar(game, game.playerNation, ownerId) : false;
@@ -223,6 +229,27 @@ export function ProvincePanel({
           </>
         )}
 
+        {squadrons.length > 0 && (
+          <>
+            <h3>Squadriglie a terra</h3>
+            <ul className="neighbors">
+              {squadrons.map((s) => (
+                <li key={s.id}>
+                  <button onClick={() => onSelectSquadron(s.id)}>
+                    <span className="swatch" style={{ background: map.nations.get(s.owner)?.color }} />
+                    <span className="neighbor-name">
+                      {AIRCRAFT_TYPE_IDS.map((t) => [t, s.aircraft.filter((a) => a.type === t).length] as const)
+                        .filter(([, n]) => n > 0)
+                        .map(([t, n]) => `${n}× ${AIRCRAFT_TYPES[t].name}`)
+                        .join(", ")}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
         {game && (built.length > 0 || construction || isMine) && (
           <>
             <h3>Edifici</h3>
@@ -269,7 +296,7 @@ export function ProvincePanel({
                   const done = item.finishesAt !== null ? 1 - (item.finishesAt - now) / item.durationMinutes : 0;
                   return (
                     <li key={i}>
-                      <span>{UNIT_TYPES[item.unitType].name}</span>
+                      <span>{productionType(item.unitType).name}</span>
                       {item.finishesAt !== null ? (
                         <span className="muted">pronta tra {formatCountdown(((item.finishesAt - now) * 60) / game.clock.speed)}</span>
                       ) : (

@@ -119,7 +119,7 @@ Valori in `shared/src/data/diplomacy.ts` (`MARKET`), regole in `shared/src/game/
   - **Fabbrica aeronautica** e **cantiere navale** (solo città costiere): si costruiscono già, produrranno con aviazione e marina.
   - Senza l'edificio giusto non si arruola. Ogni livello oltre il primo riduce del **15%** i tempi di arruolamento nella provincia.
 - **Ovunque**:
-  - **Industria**: +25% per livello della risorsa principale (denaro nelle province che non ne hanno).
+  - **Industria**: +25% per livello della risorsa principale e +25% di denaro; nelle province senza risorsa principale +25% di denaro (non si somma due volte); nei giacimenti di petrolio il petrolio non cresce, il denaro +10% per livello.
   - **Ufficio di reclutamento**: +25% di manodopera per livello.
 - **Città, economia**: **impianto di carburante sintetico** (1–3): ogni livello trasforma 500 di metallo in 250 di petrolio al giorno (vedi §3).
 - **Genio** (lavoro di un'armata con il genio, ferma in una propria provincia; si paga all'inizio, si recupera interrompendo):
@@ -131,7 +131,7 @@ Valori in `shared/src/data/diplomacy.ts` (`MARKET`), regole in `shared/src/game/
 
 ### Interfaccia degli edifici (deciso il 25/10/2026)
 
-- Nel pannello "Edifici" ogni edificio mostra il suo **effetto per livello** (industria +25% della risorsa principale, ufficio di reclutamento +25% di manodopera, fortificazioni −15% di danni in difesa, caserme e fabbriche −15% sui tempi di arruolamento, porto +1.500 di capacità di importazione…) e, provincia per provincia, **cosa cambierebbe** con il livello successivo (per esempio "Metallo: +639 al giorno, da 2.559 a 3.199").
+- Nel pannello "Edifici" ogni edificio mostra il suo **effetto per livello** (industria +25% della risorsa principale e del denaro, ufficio di reclutamento +25% di manodopera, fortificazioni −15% di danni in difesa, caserme e fabbriche −15% sui tempi di arruolamento, porto +1.500 di capacità di importazione…) e, provincia per provincia, **cosa cambierebbe** con il livello successivo (per esempio "Metallo: +639 al giorno, da 2.559 a 3.199").
 
 ## 6. Ricerca
 
@@ -180,7 +180,7 @@ Le unità nel **ruolo preferito** sono circa 2–3x più efficaci; le "tuttofare
 - **Territorio straniero**: si può marciare ovunque, ma il percorso automatico passa solo per il proprio territorio, per quello di chi è già in guerra o ha un accordo con noi, e per quello della nazione verso cui si marcia (mai per un paese terzo, per non scatenare guerre per sbaglio).
 - Bonus di velocità da infrastrutture e terreno preferito. Le unità sotto il 50% di salute vanno più lente.
 - **Mare**: le unità terrestri diventano **trasporti** (imbarco/sbarco 3–4 ore, ridotto dalla base navale).
-- **Aerei**: hanno un'autonomia; oltre quella si spostano via terra come convoglio.
+- **Aerei**: hanno una portata; oltre quella atterrano e proseguono via terra come convoglio (vedi "Aviazione" in §9).
 
 ### Stato attuale (milestone 3 e 4)
 - Unità disponibili: fanteria, fanteria motorizzata, autoblindo, carro leggero, artiglieria (valori in `shared/src/data/units.ts`).
@@ -215,11 +215,48 @@ Le unità nel **ruolo preferito** sono circa 2–3x più efficaci; le "tuttofare
 - **Perdite**: dentro ogni classe il danno colpisce prima l'unità più malconcia, che viene distrutta quando arriva a zero; così le perdite arrivano una alla volta (al posto della regola "distrutte solo sotto il 50%", che serviva con i danni casuali).
 - **Bonus**: terreno preferito, fortificazioni/bunker (es. -38% di danno subito al livello 1), livello dell'unità.
 - **Unità a distanza** (artiglieria, navi): attaccano entro la gittata ogni 30 minuti; il bersaglio risponde solo se ha gittata sufficiente; sotto i 5 km diventa combattimento ravvicinato.
-- **Aerei**:
-  - *Attacco diretto*: colpiscono dopo il tempo di volo, poi devono rifornirsi (30 min, meno con aeroporti di livello più alto).
-  - *Pattuglia*: ogni 15 minuti metà danno a chi è nel cerchio di pattuglia.
-  - Le unità di terra/mare rispondono con i valori antiaerei difensivi; gli aerei subiscono prima la difesa, poi infliggono danno.
+- **Aerei**: vedi "Aviazione" qui sotto. Le unità di terra/mare rispondono con i valori antiaerei difensivi; gli aerei subiscono prima la difesa, poi infliggono danno.
 - **Danni agli edifici**: attaccare un'unità al centro di una provincia danneggia anche gli edifici (fortificazioni bersaglio più probabile).
+
+### Aviazione (deciso il 25/10/2026, da realizzare)
+
+**Portata.** Ogni tipo di aereo ha una sola **portata P**, uguale per tutte le nazioni: la distanza massima in linea d'aria di un volo di trasferimento. Per attaccare e pattugliare bisogna tornare, quindi il **raggio d'azione è P/2**. In volo fiumi e confini non contano e si sorvola anche il territorio nemico. Le portate partono da quelle storiche degli aerei della RAF, ridotte di circa il 10% per la mappa europea (il realismo resta la priorità).
+
+| Tipo | Riferimento RAF (autonomia storica) | Portata | Raggio d'azione | Velocità | Rifornimento | Compito |
+|---|---|---|---|---|---|---|
+| **Caccia** | Spitfire I, Hurricane I (~700 km) | 630 km | 315 km | 450 km/h | 30 min | intercetta, scorta, pattuglia |
+| **Bombardiere tattico** | Fairey Battle, Blenheim IV (1.600–2.300 km) | 1.450 km | 725 km | 350 km/h | 30 min | colpisce le armate |
+| **Aerosilurante** | Swordfish, Beaufort (850–2.600 km) | 1.600 km | 800 km | 300 km/h | 45 min | navi (con la marina) |
+| **Bombardiere strategico** | Wellington (~2.550 km; Lancaster ~4.000 km, poi con la ricerca) | 2.300 km | 1.150 km | 300 km/h | 45 min | edifici e città |
+| **Ricognitore / pattugliatore marittimo** | Hudson, Sunderland (~3.000 km) | 2.700 km | 1.350 km | 300 km/h | 45 min | vista ampia, attacco debole |
+
+Al massimo 5 tipi. I valori staranno in un file di bilanciamento (`shared/src/data/`).
+
+**Basi.**
+- Gli aerei partono e atterrano negli **aeroporti** propri e degli **alleati** (con l'alleanza si condividono). Anche la città con la **fabbrica aeronautica** vale come aeroporto, così un aereo appena costruito ha già una base.
+- Nessun limite di aerei per aeroporto. I **livelli dell'aeroporto** riducono solo i tempi di tutte le operazioni a terra (rifornimento, riparazione).
+
+**Squadriglie.** Gli aerei formano squadriglie separate dalle armate di terra; si possono mischiare i tipi (bombardieri con la scorta dei caccia). La squadriglia va alla velocità del più lento e ha la portata più corta.
+
+**I tre ordini.**
+1. **Spostamento**: se la destinazione è entro la portata, la squadriglia ci vola. Altrimenti atterra nell'aeroporto **più vicino alla destinazione** tra quelli raggiungibili e prosegue come **convoglio** alla velocità dell'artiglieria (18 km/h), con lo stesso percorso delle truppe di terra (territorio proprio o con diritto di passaggio) e, a scelta del giocatore, anche in **treno**. Quando il convoglio entra in una provincia con un aeroporto da cui la destinazione è più vicina, decolla di nuovo e il processo si ripete. Se non c'è nessun aeroporto raggiungibile l'ordine viene rifiutato con il motivo. Il convoglio è **vulnerabile**: senza difesa, viene distrutto se un'armata nemica lo raggiunge.
+2. **Attacco**: lo decide **sempre il giocatore**, mai in automatico (un'armata forte contro gli aerei può distruggere l'aviazione). Bersaglio: un'armata nemica entro il raggio d'azione. La squadriglia vola sul bersaglio, subisce la contraerea, sgancia una volta (danno senza casualità, come a terra) e torna alla base. Se il bersaglio si sposta lo insegue finché resta entro il raggio, altrimenti rientra.
+   - **Attacco ordinato a una squadriglia in volo** (deciso il 25/10/2026): l'ordine si può dare anche mentre vola (in trasferimento, in pattuglia o di ritorno). Se con la portata rimasta arriva al bersaglio e poi a una base, cambia rotta e attacca subito. Altrimenti la rotta si ricalcola per arrivarci: atterra nella base raggiungibile più vicina al bersaglio, si rifornisce e poi decolla per l'attacco (se serve, prosegue come convoglio fino a una base più vicina, come nello spostamento). L'ordine resta valido finché il bersaglio esiste ed è nemico; altrimenti decade e la squadriglia resta (o rientra) alla base.
+   - **Bersaglio in movimento**: la squadriglia lo insegue solo finché resta nel raggio d'azione; se ne esce, l'attacco decade e la squadriglia rientra alla base (così non finisce lontano dalla zona che il giocatore voleva presidiare). Il ricalcolo della rotta vale solo al momento dell'ordine.
+   - **Niente missioni di sola andata**: dopo l'attacco la squadriglia deve sempre poter raggiungere una base con la portata rimasta (la più vicina al bersaglio, non per forza quella di partenza); un attacco che non lo permette non si può ordinare.
+3. **Pattugliamento**: su un punto entro il raggio d'azione, la squadriglia gira in un **cerchio di 60 km di raggio** (circa una provincia) per **25 minuti**, poi rientra. Attacca da sola solo le armate e gli aerei delle **nazioni in guerra con te**; dopo un attacco torna alla base. È il modo in cui i caccia intercettano i bombardieri nemici.
+
+**A terra: rifornimento e riparazione.**
+- Il **rifornimento** non costa nulla (è compreso nel mantenimento, che per gli aerei include petrolio): 30 minuti, 45 per gli aerei a lunga portata.
+- Un aereo danneggiato si può **riparare** o usare così com'è: decide il giocatore. La riparazione costa beni e manodopera in proporzione al danno e aggiunge tempo (valori da definire).
+
+**Stato attuale (primo passo, 25/10/2026).** Nel motore (`shared/src/game/air.ts`, valori in `shared/src/data/air.ts`):
+- i 5 tipi con portata, velocità, rifornimento, costi, tempi di costruzione e mantenimento (con petrolio);
+- gli aerei si costruiscono nelle città con la fabbrica aeronautica ed escono in una **squadriglia** a terra lì;
+- **trasferimento** da una base all'altra entro la portata (ordine `fly`), in linea retta, poi rifornimento; l'aeroporto arriva al livello 3 e ogni livello oltre il primo toglie il 15% ai tempi a terra;
+- se la base d'arrivo non è più utilizzabile la squadriglia ripiega sulla base più vicina che raggiunge con la portata rimasta; lo stesso per gli aerei a terra in una base conquistata o non più alleata; senza una base raggiungibile la squadriglia va persa.
+- **Interfaccia**: gli aerei si costruiscono dal pannello Produzione (categoria Aeronautica); le squadriglie compaiono sulla mappa accanto alla base (in volo lungo la rotta); il pannello della squadriglia mostra stato, composizione e mantenimento, e con "Vola" si tocca sulla mappa una delle basi evidenziate entro il cerchio della portata (oppure si sceglie dall'elenco).
+- Prossimi passi: spostamento verso un punto qualsiasi con il convoglio, unire e dividere le squadriglie, attacco, pattuglia (con l'intercettazione), contraerea e riparazioni.
 
 ### Stato attuale (milestone 4)
 - **Guerra**: si può dichiarare guerra dal pannello di una provincia straniera, oppure entrare senza accordi nel suo territorio: in quel caso è il padrone di casa a dichiarare guerra. Con un accordo (diritto di passaggio o visione condivisa) non succede nulla. Pace e accordi si potranno negoziare con la diplomazia vera (milestone 6); prima di entrare in un paese neutrale l'interfaccia chiede conferma.

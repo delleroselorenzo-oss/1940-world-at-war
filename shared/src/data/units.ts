@@ -143,8 +143,8 @@ export const STARTING_ARMIES: { capital: Partial<Record<UnitTypeId, number>>; ci
 };
 
 /**
- * Unità di aeronautica e marina in arrivo: si vedono nel pannello Produzione ma non si arruolano ancora,
- * perché mancano il volo e la navigazione. Statistiche e costi si decideranno insieme a quelle meccaniche.
+ * Unità della marina in arrivo: si vedono nel pannello Produzione ma non si arruolano ancora,
+ * perché manca la navigazione. Statistiche e costi si decideranno insieme a quelle meccaniche.
  */
 export interface PlannedUnit {
   id: string;
@@ -155,8 +155,6 @@ export interface PlannedUnit {
 }
 
 export const PLANNED_UNITS: readonly PlannedUnit[] = [
-  { id: "fighter", name: "Caccia", building: "aircraftFactory", description: "Difende il cielo, intercetta gli aerei nemici e scorta i bombardieri." },
-  { id: "bomber", name: "Bombardiere", building: "aircraftFactory", description: "Colpisce armate, edifici e città anche lontano dal fronte." },
   { id: "submarine", name: "Sottomarino", building: "shipyard", description: "Nascosto finché non attacca: affonda i convogli e taglia le importazioni via mare." },
   { id: "destroyer", name: "Cacciatorpediniere", building: "shipyard", description: "Nave veloce di scorta: dà la caccia ai sottomarini e protegge i convogli." },
   { id: "battleship", name: "Nave da battaglia", building: "shipyard", description: "Grandi cannoni contro le navi nemiche e le difese costiere." },

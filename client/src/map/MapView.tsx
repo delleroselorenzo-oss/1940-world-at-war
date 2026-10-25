@@ -1,5 +1,5 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from "react";
-import type { Army, LngLat } from "@waw/shared";
+import type { Army, LngLat, Squadron } from "@waw/shared";
 import type { LoadedMap } from "./loadMap.js";
 import { MapRenderer } from "./MapRenderer.js";
 import type { MapWorks } from "./TerrainLayer.js";
@@ -16,6 +16,7 @@ interface MapViewProps {
   /** Proprietario attuale di ogni provincia (dallo stato di gioco). */
   owners?: Record<string, string>;
   armies: Army[];
+  squadrons: Squadron[];
   /** Armate in combattimento in questo momento. */
   engaged: ReadonlySet<string>;
   playerNation: string | null;
@@ -24,16 +25,36 @@ interface MapViewProps {
   /** Si sta scegliendo un punto per un ordine: cursore a mirino. */
   targeting?: boolean;
   selectedArmyId: string | null;
+  selectedSquadronId: string | null;
   /** Province da evidenziare (per esempio dove si può costruire quello che si è scelto). */
   highlighted?: ReadonlySet<string>;
   /** Minuto di gioco attuale (chiamato a ogni fotogramma). */
   now(): number;
   onSelect(id: string | null, at: LngLat): void;
   onSelectArmy(id: string): void;
+  onSelectSquadron(id: string): void;
   ref?: Ref<MapViewHandle>;
 }
 
-export function MapView({ map, selectedId, owners, armies, engaged, playerNation, works, targeting, selectedArmyId, highlighted, now, onSelect, onSelectArmy, ref }: MapViewProps) {
+export function MapView({
+  map,
+  selectedId,
+  owners,
+  armies,
+  squadrons,
+  engaged,
+  playerNation,
+  works,
+  targeting,
+  selectedArmyId,
+  selectedSquadronId,
+  highlighted,
+  now,
+  onSelect,
+  onSelectArmy,
+  onSelectSquadron,
+  ref,
+}: MapViewProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<MapRenderer | null>(null);
@@ -42,6 +63,10 @@ export function MapView({ map, selectedId, owners, armies, engaged, playerNation
   onSelectRef.current = onSelect;
   const onSelectArmyRef = useRef(onSelectArmy);
   onSelectArmyRef.current = onSelectArmy;
+  const onSelectSquadronRef = useRef(onSelectSquadron);
+  onSelectSquadronRef.current = onSelectSquadron;
+  const squadronsRef = useRef(squadrons);
+  squadronsRef.current = squadrons;
   const nowRef = useRef(now);
   nowRef.current = now;
   const armiesRef = useRef({ armies, playerNation, engaged });
@@ -56,6 +81,7 @@ export function MapView({ map, selectedId, owners, armies, engaged, playerNation
     const renderer = new MapRenderer(map, {
       onSelect: (id, at) => onSelectRef.current(id, at),
       onSelectArmy: (id) => onSelectArmyRef.current(id),
+      onSelectSquadron: (id) => onSelectSquadronRef.current(id),
       now: () => nowRef.current(),
       onHover: (id) => {
         const p = id ? map.provinces.get(id) : undefined;
@@ -75,6 +101,7 @@ export function MapView({ map, selectedId, owners, armies, engaged, playerNation
     if (ownersRef.current) renderer.setOwners(ownersRef.current);
     if (worksRef.current) renderer.setWorks(worksRef.current);
     renderer.setArmies(armiesRef.current.armies, armiesRef.current.playerNation, armiesRef.current.engaged);
+    renderer.setSquadrons(squadronsRef.current, armiesRef.current.playerNation);
     void renderer.mount(hostRef.current!);
     return () => {
       renderer.destroy();
@@ -93,6 +120,14 @@ export function MapView({ map, selectedId, owners, armies, engaged, playerNation
   useEffect(() => {
     rendererRef.current?.setArmies(armies, playerNation, engaged);
   }, [armies, playerNation, engaged]);
+
+  useEffect(() => {
+    rendererRef.current?.setSquadrons(squadrons, playerNation);
+  }, [squadrons, playerNation]);
+
+  useEffect(() => {
+    rendererRef.current?.setSelectedSquadron(selectedSquadronId);
+  }, [selectedSquadronId]);
 
   useEffect(() => {
     if (works) rendererRef.current?.setWorks(works);

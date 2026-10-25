@@ -168,6 +168,7 @@ describe("edifici", () => {
     const base = provinceProductionPerDay(province("A1"), ps);
     const built = provinceProductionPerDay(province("A1"), ps, { industry: 2, recruitmentOffice: 1 });
     expect(built.goods).toBeCloseTo(base.goods * (1 + 2 * BUILDINGS.industryBonusPerLevel));
+    expect(built.money).toBeCloseTo(base.money * (1 + 2 * BUILDINGS.industryMoneyPerLevel));
     expect(built.manpower).toBeCloseTo(base.manpower * (1 + BUILDINGS.recruitmentBonusPerLevel));
     // Senza risorsa principale l'industria dà denaro.
     const rural = provinceProductionPerDay(province("A2"), ps, { industry: 1 });
@@ -196,12 +197,14 @@ describe("lavori del genio sugli edifici", () => {
     expect(game.nations.AAA!.stock).toEqual(stock);
   });
 
-  it("il porto solo sulla costa; niente edifici nelle province altrui; l'aeroporto ha un solo livello", () => {
+  it("il porto solo sulla costa; niente edifici nelle province altrui; l'aeroporto fino al livello 3", () => {
     let game = place(newGame(), "x", "AAA", cell(7, 0), ["engineer"]);
     const works = (g: GameState) => Object.fromEntries(availableWorks(g, world, g.armies.x!, g.time).map((o) => [o.work, o.missing]));
     expect(works(game).port).toBe("Solo nelle province costiere.");
     game = { ...game, buildings: { ...game.buildings, A2: { airfield: 1 } } };
-    expect(works(game).airfield).toBe("C'è già.");
+    expect(works(game).airfield).toBeNull();
+    game = { ...game, buildings: { ...game.buildings, A2: { airfield: 3 } } };
+    expect(works(game).airfield).toBe("Livello massimo.");
     game = place(game, "x", "AAA", cell(17, 0), ["engineer"]);
     expect(works(game).fortify).toBe("Solo nelle tue province.");
     game = place(game, "x", "AAA", cell(1, 0), ["engineer"]);

@@ -75,6 +75,11 @@ export function describeEvent(
       if (e.by === me) return { text: `Armata nemica distrutta${at} (${nation(e.owner)})`, tone: "good", province: e.province };
       return null;
     }
+    case "squadronLost": {
+      if (e.owner !== me) return null;
+      const where = province(e.province);
+      return { text: `Squadriglia persa${where ? ` presso ${where}` : ""}: nessuna base raggiungibile`, tone: "bad", province: e.province };
+    }
     case "works": {
       const where = province(e.province);
       const river = e.river ? ` sul ${e.river}` : "";

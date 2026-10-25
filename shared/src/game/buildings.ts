@@ -1,5 +1,5 @@
 import { BUILDING_IDS, BUILDING_TYPES, BUILDINGS, type BuildingId } from "../data/buildings.js";
-import { UNIT_TYPES, type UnitTypeId } from "../data/units.js";
+import { productionType, type ProducibleId } from "../data/air.js";
 import type { NationId, Province, ProvinceId, ResourceId } from "../map/types.js";
 import { canAfford } from "./economy.js";
 import type { GameState, ProvinceBuildings } from "./state.js";
@@ -56,19 +56,25 @@ export function buildOptions(state: GameState, province: Province, nation: Natio
           : !stock || !canAfford(stock, cost)
             ? "Risorse insufficienti."
             : null;
-    return { building: b, level, cost, minutes: buildingMinutes(b, level), missing };
+    return {
+      building: b,
+      level,
+      cost,
+      minutes: buildingMinutes(b, level),
+      missing,
+    };
   });
 }
 
 /** Perché l'unità non si può arruolare nella provincia (null = si può). */
-export function recruitMissing(state: GameState, provinceId: ProvinceId, unitType: UnitTypeId): string | null {
-  const building = UNIT_TYPES[unitType].building;
+export function recruitMissing(state: GameState, provinceId: ProvinceId, unitType: ProducibleId): string | null {
+  const building = productionType(unitType).building;
   return buildingLevel(state, provinceId, building) > 0 ? null : `Serve: ${BUILDING_TYPES[building].name}.`;
 }
 
 /** Minuti per arruolare l'unità nella provincia: ogni livello dell'edificio oltre il primo accorcia i tempi. */
-export function recruitMinutes(state: GameState, provinceId: ProvinceId, unitType: UnitTypeId): number {
-  const type = UNIT_TYPES[unitType];
+export function recruitMinutes(state: GameState, provinceId: ProvinceId, unitType: ProducibleId): number {
+  const type = productionType(unitType);
   const level = Math.max(1, buildingLevel(state, provinceId, type.building));
   return Math.round(type.productionHours * 60 * (1 - BUILDINGS.productionTimeCutPerLevel * (level - 1)));
 }

@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  AIRCRAFT_TYPE_IDS,
+  AIRCRAFT_TYPES,
   ARMOR_CLASS_NAMES,
+  isAircraftType,
   BUILDING_TYPES,
   canAfford,
   PLANNED_UNITS,
+  productionType,
   recruitMinutes,
   recruitMissing,
   UNIT_TYPE_IDS,
@@ -11,13 +15,13 @@ import {
   type BuildingId,
   type GameState,
   type Order,
-  type UnitTypeId,
+  type ProducibleId,
 } from "@waw/shared";
 import type { LoadedMap } from "./map/loadMap.js";
 import { CostList } from "./ui/CostList.js";
-import { formatCountdown, formatDelay } from "./ui/format.js";
+import { formatAmount, formatCountdown, formatDelay } from "./ui/format.js";
 
-// Produzione: si sceglie il tipo di unità, poi la città dove arruolarla (evidenziate sulla mappa quelle che possono).
+// Produzione: si sceglie il tipo di unità (o di aereo), poi la città dove arruolarla (evidenziate sulla mappa quelle che possono).
 
 /** Categorie di unità: una per edificio che le produce. */
 const CATEGORIES: { building: BuildingId; name: string }[] = [
@@ -46,7 +50,7 @@ interface ProductionPanelProps {
 export function ProductionPanel({ map, game, now, only, order, onFocusProvince, onHighlight, onBuild, onClearOnly, onClose }: ProductionPanelProps) {
   const me = game.playerNation;
   const [category, setCategory] = useState<BuildingId>("barracks");
-  const [unit, setUnit] = useState<UnitTypeId | null>(null);
+  const [unit, setUnit] = useState<ProducibleId | null>(null);
   const [error, setError] = useState<string | null>(null);
   const cities = useMemo(
     () => map.data.provinces.filter((p) => p.type === "urban" && game.provinces[p.id]?.owner === me && (!only || p.id === only)),
@@ -65,7 +69,9 @@ export function ProductionPanel({ map, game, now, only, order, onFocusProvince, 
   const countdown = (t: number) => formatCountdown(((t - now) * 60) / game.clock.speed);
   const queues = Object.entries(game.production).filter(([id, q]) => game.provinces[id]?.owner === me && q.length > 0);
   const onlyName = only ? map.provinces.get(only)?.name : null;
-  const type = unit ? UNIT_TYPES[unit] : null;
+  const type = unit ? productionType(unit) : null;
+  const aircraft = unit && isAircraftType(unit) ? AIRCRAFT_TYPES[unit] : null;
+  const ground = unit && !isAircraftType(unit) ? UNIT_TYPES[unit] : null;
 
   return (
     <aside className="panel" aria-label="Produzione">
@@ -107,7 +113,7 @@ export function ProductionPanel({ map, game, now, only, order, onFocusProvince, 
                       <button className="link-button" onClick={() => onFocusProvince(id)}>
                         {map.provinces.get(id)?.name}
                       </button>
-                      : {UNIT_TYPES[q[0]!.unitType].name}
+                      : {productionType(q[0]!.unitType).name}
                       {q[0]!.finishesAt !== null && <span className="muted small"> · pronta tra {countdown(q[0]!.finishesAt)}</span>}
                       {q.length > 1 && <span className="muted small"> · altre {q.length - 1} in coda</span>}
                     </li>
@@ -147,6 +153,25 @@ export function ProductionPanel({ map, game, now, only, order, onFocusProvince, 
                   </li>
                 );
               })}
+              {AIRCRAFT_TYPE_IDS.filter((t) => AIRCRAFT_TYPES[t].building === category).map((t) => {
+                const a = AIRCRAFT_TYPES[t];
+                const count = cities.filter((c) => recruitMissing(game, c.id, t) === null).length;
+                return (
+                  <li key={t}>
+                    <button onClick={() => setUnit(t)}>
+                      <strong>{a.name}</strong>
+                      <span className="muted small">{a.description}</span>
+                      <span className="muted small">
+                        portata {formatAmount(a.rangeKm)} km (raggio d'azione {formatAmount(a.rangeKm / 2)} km) · {a.speedKmh} km/h · {a.hp} punti vita
+                      </span>
+                      <span className="muted small">
+                        {count === 0 ? `Serve: ${BUILDING_TYPES[a.building].name.toLowerCase()}` : `Si costruisce in ${count} città`}
+                      </span>
+                      <CostList cost={a.cost} stock={stock} />
+                    </button>
+                  </li>
+                );
+              })}
               {PLANNED_UNITS.filter((u) => u.building === category).map((u) => (
                 <li key={u.id}>
                   <button disabled>
@@ -164,9 +189,21 @@ export function ProductionPanel({ map, game, now, only, order, onFocusProvince, 
           </>
         ) : (
           <>
-            <p className="muted small">
-              classe {ARMOR_CLASS_NAMES[type.armor].toLowerCase()} · {type.speedKmh} km/h · mantenimento al giorno: <CostList cost={type.upkeepPerDay} />
-            </p>
+            {ground && (
+              <p className="muted small">
+                classe {ARMOR_CLASS_NAMES[ground.armor].toLowerCase()} · {ground.speedKmh} km/h · mantenimento al giorno: <CostList cost={ground.upkeepPerDay} />
+              </p>
+            )}
+            {aircraft && (
+              <>
+                <p className="muted small">{aircraft.description}</p>
+                <p className="muted small">
+                  portata {formatAmount(aircraft.rangeKm)} km · raggio d'azione {formatAmount(aircraft.rangeKm / 2)} km · {aircraft.speedKmh} km/h · rifornimento{" "}
+                  {formatDelay(aircraft.refuelMinutes)} · mantenimento al giorno: <CostList cost={aircraft.upkeepPerDay} />
+                </p>
+                <p className="muted small">Esce in una squadriglia a terra nella città, che fa da base grazie alla fabbrica aeronautica.</p>
+              </>
+            )}
             <p className="small">
               Costo per unità: <CostList cost={type.cost} stock={stock} />
             </p>
@@ -191,7 +228,7 @@ export function ProductionPanel({ map, game, now, only, order, onFocusProvince, 
                           disabled={!canAfford(stock, type.cost)}
                           onClick={() => send({ type: "recruit", province: c.id, unitType: unit })}
                         >
-                          Arruola
+                          {aircraft ? "Costruisci" : "Arruola"}
                         </button>
                       </div>
                     </li>

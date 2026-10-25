@@ -1,3 +1,4 @@
+import { AIRCRAFT_TYPES } from "../data/air.js";
 import { BUILDINGS } from "../data/buildings.js";
 import { ECONOMY, RESOURCE_IDS, type EconomyConfig } from "../data/economy.js";
 import { UNIT_TYPES } from "../data/units.js";
@@ -29,8 +30,15 @@ export function provinceProductionPerDay(
   else if (province.resource === "food") out.food = Math.max(rates.mainMinimum, people * Math.sqrt(development) * rates.foodPerThousand);
   else if (province.resource) out[province.resource] = Math.max(rates.mainMinimum, people * development * rates.industryPerThousand);
 
-  // Industria: più risorsa principale (o denaro); ufficio di reclutamento: più manodopera.
-  out[province.resource ?? "money"] *= 1 + BUILDINGS.industryBonusPerLevel * (buildings.industry ?? 0);
+  // Industria: più risorsa principale e più denaro (solo denaro se la provincia non ha una risorsa principale;
+  // i pozzi di petrolio non rendono di più, ma il denaro sì); ufficio di reclutamento: più manodopera.
+  const industry = buildings.industry ?? 0;
+  if (!province.resource) out.money *= 1 + BUILDINGS.industryBonusPerLevel * industry;
+  else if (province.resource === "oil") out.money *= 1 + BUILDINGS.industryOilMoneyPerLevel * industry;
+  else {
+    out[province.resource] *= 1 + BUILDINGS.industryBonusPerLevel * industry;
+    out.money *= 1 + BUILDINGS.industryMoneyPerLevel * industry;
+  }
   out.manpower *= 1 + BUILDINGS.recruitmentBonusPerLevel * (buildings.recruitmentOffice ?? 0);
 
   const factor = productionFactor(province, state, economy);
@@ -62,6 +70,10 @@ export function nationUpkeepPerDay(state: GameState, nation: NationId): Resource
     if (army.owner !== nation) continue;
     for (const unit of army.units) addPartial(total, UNIT_TYPES[unit.type].upkeepPerDay);
   }
+  for (const sq of Object.values(state.squadrons)) {
+    if (sq.owner !== nation) continue;
+    for (const a of sq.aircraft) addPartial(total, AIRCRAFT_TYPES[a.type].upkeepPerDay);
+  }
   return total;
 }
 
@@ -77,6 +89,10 @@ export function netPerDayByNation(map: MapData, state: GameState, economy: Econo
   for (const army of Object.values(state.armies)) {
     const total = out.get(army.owner);
     if (total) for (const unit of army.units) addPartial(total, UNIT_TYPES[unit.type].upkeepPerDay, -1);
+  }
+  for (const sq of Object.values(state.squadrons)) {
+    const total = out.get(sq.owner);
+    if (total) for (const a of sq.aircraft) addPartial(total, AIRCRAFT_TYPES[a.type].upkeepPerDay, -1);
   }
   return out;
 }

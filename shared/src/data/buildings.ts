@@ -92,7 +92,7 @@ export const BUILDING_TYPES: Record<BuildingId, BuildingType> = {
   industry: {
     id: "industry",
     name: "Industria",
-    description: "Più produzione della risorsa principale (o di denaro, se la provincia non ne ha).",
+    description: "Più produzione della risorsa principale e più denaro.",
     where: "any",
     maxLevel: 3,
     cost: { goods: 1500, metal: 800, money: 2000 },
@@ -120,10 +120,10 @@ export const BUILDING_TYPES: Record<BuildingId, BuildingType> = {
   airfield: {
     id: "airfield",
     name: "Aeroporto",
-    description: "Base per decollo e atterraggio degli aerei (in arrivo con l'aviazione).",
+    description: "Base per decollo e atterraggio degli aerei: ogni livello accorcia rifornimento e riparazioni.",
     where: "any",
     byEngineers: true,
-    maxLevel: 1,
+    maxLevel: 3,
     cost: { goods: 1000, metal: 500, oil: 300, money: 1200 },
     hours: 12,
   },
@@ -145,8 +145,11 @@ export const BUILDING_IDS = Object.keys(BUILDING_TYPES) as BuildingId[];
 export const BUILDINGS = {
   /** Ogni livello oltre il primo riduce di questa frazione i tempi di arruolamento nella provincia. */
   productionTimeCutPerLevel: 0.15,
-  /** Industria: + produzione della risorsa principale (o del denaro) per livello. */
+  /** Industria: + produzione della risorsa principale (o del denaro, se la provincia non ne ha) per livello. */
   industryBonusPerLevel: 0.25,
+  /** Industria nelle province con una risorsa principale: + denaro per livello (nei giacimenti di petrolio solo questo). */
+  industryMoneyPerLevel: 0.25,
+  industryOilMoneyPerLevel: 0.1,
   /** Ufficio di reclutamento: + manodopera per livello. */
   recruitmentBonusPerLevel: 0.25,
   /** Carburante sintetico: metallo consumato e petrolio prodotto al giorno, per livello. */
@@ -159,7 +162,10 @@ export const BUILDINGS = {
 } as const;
 
 /** Edifici con cui iniziano le città. */
-export const STARTING_BUILDINGS: { capital: Partial<Record<BuildingId, number>>; city: Partial<Record<BuildingId, number>> } = {
+export const STARTING_BUILDINGS: {
+  capital: Partial<Record<BuildingId, number>>;
+  city: Partial<Record<BuildingId, number>>;
+} = {
   capital: { barracks: 2, tankFactory: 1, artilleryFactory: 1 },
   city: { barracks: 1 },
 };

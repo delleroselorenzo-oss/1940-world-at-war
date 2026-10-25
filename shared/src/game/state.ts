@@ -1,3 +1,4 @@
+import type { AircraftTypeId, ProducibleId } from "../data/air.js";
 import type { BuildingId } from "../data/buildings.js";
 import type { UnitTypeId } from "../data/units.js";
 import type { LngLat, MainResourceId, NationId, ProvinceId, ResourceId } from "../map/types.js";
@@ -80,6 +81,42 @@ export interface Army {
   departure: { at: number; target: LngLat } | null;
   /** Lavoro in corso (l'armata è ferma): un nuovo ordine di marcia lo interrompe. */
   task: ArmyTask | null;
+}
+
+export type SquadronId = string;
+
+/** Aereo di una squadriglia. */
+export interface Aircraft {
+  id: string;
+  type: AircraftTypeId;
+  hp: number;
+}
+
+/** Volo in corso: in linea retta da `from` a `to`, a velocità costante. */
+export interface Flight {
+  from: LngLat;
+  to: LngLat;
+  /** Base d'arrivo. */
+  base: ProvinceId;
+  departAt: number;
+  arriveAt: number;
+  /** Portata che resterà all'arrivo (serve se la base d'arrivo non c'è più e bisogna ripiegare altrove). */
+  fuelKm: number;
+}
+
+/**
+ * Squadriglia: aerei che volano insieme (anche di tipi diversi: va alla velocità del più lento e ha la portata più corta).
+ * A terra sta in una base: una provincia con l'aeroporto o una città con la fabbrica aeronautica, propria o di un alleato.
+ */
+export interface Squadron {
+  id: SquadronId;
+  owner: NationId;
+  aircraft: Aircraft[];
+  /** Base dove si trova a terra, o da cui è decollata. */
+  base: ProvinceId;
+  flight: Flight | null;
+  /** A terra: pronta a decollare da questo minuto (fine del rifornimento). */
+  readyAt: number;
 }
 
 /** Lavori sul campo. */
@@ -228,6 +265,8 @@ export type GameEvent =
   /** Edificio completato (dalla provincia o dal genio). */
   | { time: number; type: "built"; by: NationId; province: ProvinceId; building: BuildingId; level: number }
   | { time: number; type: "armyDestroyed"; owner: NationId; by: NationId; at: LngLat; province: ProvinceId | null }
+  /** Squadriglia senza una base raggiungibile dove atterrare. */
+  | { time: number; type: "squadronLost"; owner: NationId; at: LngLat; province: ProvinceId | null }
   | {
       time: number;
       type: "works";
@@ -249,7 +288,8 @@ export type GameEvent =
 
 /** Unità in arruolamento in una città; la prima della coda è quella in lavorazione. */
 export interface ProductionItem {
-  unitType: UnitTypeId;
+  /** Unità di terra o aereo (gli aerei escono in una squadriglia). */
+  unitType: ProducibleId;
   durationMinutes: number;
   /** Solo per la prima della coda: quando sarà pronta. */
   finishesAt: number | null;
@@ -275,6 +315,7 @@ export interface GameState {
   provinces: Record<ProvinceId, ProvinceState>;
   nations: Record<NationId, NationState>;
   armies: Record<ArmyId, Army>;
+  squadrons: Record<SquadronId, Squadron>;
   /** Rapporti tra nazioni, per coppia (chiave di `pairKey`). */
   relations: Record<string, Relation>;
   /** Proposte diplomatiche, dalla più vecchia (quelle chiuse restano come storico). */

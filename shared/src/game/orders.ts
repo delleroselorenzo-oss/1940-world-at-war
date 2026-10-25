@@ -1,7 +1,8 @@
 import { BUILDING_TYPES, type BuildingId } from "../data/buildings.js";
 import { DIPLOMACY } from "../data/diplomacy.js";
 import { TRADE } from "../data/economy.js";
-import { UNIT_TYPES, type UnitTypeId } from "../data/units.js";
+import { isAircraftType, productionType, type ProducibleId } from "../data/air.js";
+import { UNIT_TYPES } from "../data/units.js";
 import type { LngLat, MainResourceId, MapData, NationId, ProvinceId, ResourceId } from "../map/types.js";
 import { provinceIdAt } from "../nav/grid.js";
 import type { NavData } from "../nav/types.js";
@@ -20,13 +21,14 @@ import {
   relationOf,
   startWar,
 } from "./diplomacy.js";
+import { startTransfer, transferMissing } from "./air.js";
 import { buildOptions, recruitMinutes, recruitMissing } from "./buildings.js";
 import { canAfford, pay, refund } from "./economy.js";
 import { mapIndex } from "./mapIndex.js";
 import { cancelMarketOrder, marketOrderMissing, placeMarketOrder, roundPrice } from "./market.js";
 import { armyPosition, moverOf, scheduleRoute } from "./movement.js";
 import { planRoute } from "./routing.js";
-import type { AgreementKind, Army, ArmyId, GameState, ProposalKind, WorkType } from "./state.js";
+import type { AgreementKind, Army, ArmyId, GameState, ProposalKind, SquadronId, WorkType } from "./state.js";
 import { importCapacityPerDay } from "./trade.js";
 import { availableWorks } from "./works.js";
 
@@ -34,7 +36,10 @@ import { availableWorks } from "./works.js";
 // domani il server, che non dovrà mai fidarsi del client.
 
 export type Order =
-  | { type: "recruit"; province: ProvinceId; unitType: UnitTypeId }
+  /** Arruola un'unità o costruisce un aereo in una città (gli aerei escono in una squadriglia alla base della città). */
+  | { type: "recruit"; province: ProvinceId; unitType: ProducibleId }
+  /** Trasferisce una squadriglia a terra in un'altra base entro la portata. */
+  | { type: "fly"; squadron: SquadronId; base: ProvinceId }
   /**
    * Marcia verso un punto. `attack`: al contatto va all'assalto ("Attacca") invece di difendersi ("Muovi").
    * `delayMinutes`: parte dopo questo tempo ("Ritarda"); intanto resta ferma dov'è.
@@ -80,6 +85,8 @@ export function applyOrder(state: GameState, world: World, nation: NationId, ord
       return recruit(state, world.map, nation, order.province, order.unitType);
     case "move":
       return move(state, world.nav, nation, order.army, order.target, order.attack ?? false, order.delayMinutes ?? 0, order.rail ?? false);
+    case "fly":
+      return flyTo(state, world.map, nation, order.squadron, order.base);
     case "stop":
       return stop(state, nation, order.army);
     case "declareWar":
@@ -113,9 +120,9 @@ export function applyOrder(state: GameState, world: World, nation: NationId, ord
   }
 }
 
-function recruit(state: GameState, map: MapData, nation: NationId, provinceId: ProvinceId, unitType: UnitTypeId): OrderResult {
+function recruit(state: GameState, map: MapData, nation: NationId, provinceId: ProvinceId, unitType: ProducibleId): OrderResult {
   const province = mapIndex(map).provinces.get(provinceId);
-  const type = UNIT_TYPES[unitType];
+  const type = isProducible(unitType) ? productionType(unitType) : null;
   if (!province || !type) return fail("Provincia o unità sconosciuta.");
   if (state.provinces[provinceId]?.owner !== nation) return fail("Puoi arruolare solo nelle tue province.");
   if (province.type !== "urban") return fail("Si arruola solo nelle città.");
@@ -134,6 +141,21 @@ function recruit(state: GameState, map: MapData, nation: NationId, provinceId: P
     nations: { ...state.nations, [nation]: { ...state.nations[nation]!, stock: nextStock } },
     production: { ...state.production, [provinceId]: [...queue, item] },
   });
+}
+
+/** Accetta solo identificativi di unità o aerei esistenti (l'ordine può arrivare da un client non affidabile). */
+function isProducible(id: string): id is ProducibleId {
+  return isAircraftType(id) || id in UNIT_TYPES;
+}
+
+function flyTo(state: GameState, map: MapData, nation: NationId, id: SquadronId, base: ProvinceId): OrderResult {
+  const current = state.squadrons[id];
+  if (!current || current.owner !== nation) return fail("Squadriglia sconosciuta.");
+  const missing = transferMissing(state, map, current, base);
+  if (missing) return fail(missing);
+  const sq = { ...current };
+  startTransfer(sq, map, base, state.time);
+  return ok({ ...state, squadrons: { ...state.squadrons, [id]: sq } });
 }
 
 /**

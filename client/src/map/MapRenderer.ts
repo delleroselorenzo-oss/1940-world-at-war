@@ -1,7 +1,8 @@
 import { Application, Container, Graphics, Text, type TextStyleOptions } from "pixi.js";
-import type { Army } from "@waw/shared";
+import type { Army, Squadron } from "@waw/shared";
 import type { LngLat } from "@waw/shared";
 import { ArmyLayer } from "./ArmyLayer.js";
+import { SquadronLayer } from "./SquadronLayer.js";
 import { TerrainLayer, type MapWorks } from "./TerrainLayer.js";
 import { clampToBounds, centerOn, fitBounds, pan, screenToWorld, zoomAt, type Camera, type Viewport } from "./camera.js";
 import { HitIndex, type ProjectedShape } from "./geometry.js";
@@ -17,6 +18,8 @@ export interface MapRendererCallbacks {
   onSelect(id: string | null, at: LngLat): void;
   /** Clic su un'armata. */
   onSelectArmy(id: string): void;
+  /** Clic su una squadriglia. */
+  onSelectSquadron(id: string): void;
   /** Minuto di gioco attuale, letto a ogni fotogramma per far scorrere le armate. */
   now(): number;
   onHover(id: string | null): void;
@@ -68,6 +71,7 @@ export class MapRenderer {
   private readonly cityMarkers: Marker[] = [];
   private readonly hit: HitIndex;
   private readonly armyLayer: ArmyLayer;
+  private readonly squadronLayer: SquadronLayer;
   private readonly terrain: TerrainLayer;
   private view: Viewport = { width: 1, height: 1 };
   private cam: Camera = { x: 0, y: 0, scale: 1 };
@@ -88,6 +92,7 @@ export class MapRenderer {
   ) {
     this.hit = new HitIndex(map.shapes);
     this.armyLayer = new ArmyLayer(map);
+    this.squadronLayer = new SquadronLayer(map);
     this.terrain = new TerrainLayer(map.nav);
   }
 
@@ -109,7 +114,7 @@ export class MapRenderer {
     this.app.canvas.style.display = "block";
 
     this.drawProvinces();
-    this.world.addChild(this.terrain.container, this.overlay, this.markers, this.armyLayer.path, this.armyLayer.container);
+    this.world.addChild(this.terrain.container, this.overlay, this.markers, this.squadronLayer.path, this.armyLayer.path, this.armyLayer.container, this.squadronLayer.container);
     this.drawMarkersAndLabels();
     this.app.stage.addChild(this.world);
 
@@ -132,6 +137,7 @@ export class MapRenderer {
     this.app.ticker.add(() => {
       this.stepAnimation();
       this.armyLayer.update(this.cam, this.callbacks.now());
+      this.squadronLayer.update(this.cam, this.callbacks.now());
     });
   }
 
@@ -162,6 +168,14 @@ export class MapRenderer {
 
   setSelectedArmy(id: string | null): void {
     this.armyLayer.setSelected(id);
+  }
+
+  setSquadrons(squadrons: Squadron[], playerNation: string | null): void {
+    this.squadronLayer.setSquadrons(squadrons, playerNation);
+  }
+
+  setSelectedSquadron(id: string | null): void {
+    this.squadronLayer.setSelected(id);
   }
 
   zoomBy(factor: number): void {
@@ -383,9 +397,11 @@ export class MapRenderer {
       canvas.style.cursor = this.hovered ? "pointer" : "default";
       if (wasClick) {
         const pos = local(e);
-        // Le armate stanno sopra le province: hanno la precedenza.
-        const army = this.armyLayer.armyAt(this.cam, pos.x, pos.y);
-        if (army) this.callbacks.onSelectArmy(army);
+        // Squadriglie e armate stanno sopra le province: hanno la precedenza.
+        const squadron = this.squadronLayer.squadronAt(this.cam, pos.x, pos.y);
+        const army = squadron ? null : this.armyLayer.armyAt(this.cam, pos.x, pos.y);
+        if (squadron) this.callbacks.onSelectSquadron(squadron);
+        else if (army) this.callbacks.onSelectArmy(army);
         else this.callbacks.onSelect(this.provinceAt(pos.x, pos.y), unproject(screenToWorld(this.cam, pos.x, pos.y)));
       }
     };

@@ -1,3 +1,4 @@
+import { AIRCRAFT_TYPES, isAircraftType, type AircraftTypeId } from "../data/air.js";
 import { STARTING_BUILDINGS } from "../data/buildings.js";
 import { COMBAT } from "../data/combat.js";
 import { ENGINEERING } from "../data/engineering.js";
@@ -7,6 +8,7 @@ import { STARTING_ARMIES, UNIT_TYPES, type UnitTypeId } from "../data/units.js";
 import type { LngLat, MapData, NationId, Province } from "../map/types.js";
 import { flatKm, provinceIdAt } from "../nav/grid.js";
 import type { NavData } from "../nav/types.js";
+import { evacuateBases, landSquadrons } from "./air.js";
 import { buildingLevel, downgradeBuildings, fortDamageFactor } from "./buildings.js";
 import { applyDamage, contactFraction, damageAgainst, engagements, heal, isAttacking, lerp, segmentDistanceKm } from "./combat.js";
 import { atWar, expireDiplomacy, logEvent, mayEnter, startWar } from "./diplomacy.js";
@@ -15,7 +17,7 @@ import { applyTradeTick } from "./trade.js";
 import { mapIndex } from "./mapIndex.js";
 import { armyPosition, moverOf, remainingRoute, scheduleRoute } from "./movement.js";
 import { planRoute } from "./routing.js";
-import type { Army, ArmyId, GameState, ResourceAmounts } from "./state.js";
+import type { Army, ArmyId, GameState, ResourceAmounts, Squadron } from "./state.js";
 import { countRole, targetStillValid, WORK_BUILDINGS } from "./works.js";
 
 // Motore della partita: funzioni pure, nessun accesso a orologio di sistema o rete.
@@ -40,6 +42,7 @@ export function createGame(map: MapData, options: NewGameOptions, economy: Econo
     provinces: Object.fromEntries(map.provinces.map((p) => [p.id, { owner: p.nation, morale: 100 }])),
     nations: {},
     armies: {},
+    squadrons: {},
     production: {},
     buildings: {},
     construction: {},
@@ -102,6 +105,7 @@ export function advance(state: GameState, world: EngineWorld, until: number, eco
     armies: Object.fromEntries(
       Object.entries(state.armies).map(([id, a]) => [id, { ...a, units: a.units.map((u) => ({ ...u })) }]),
     ),
+    squadrons: Object.fromEntries(Object.entries(state.squadrons).map(([id, sq]) => [id, { ...sq, aircraft: sq.aircraft.map((a) => ({ ...a })) }])),
     production: Object.fromEntries(Object.entries(state.production).map(([id, q]) => [id, q.map((item) => ({ ...item }))])),
     buildings: { ...state.buildings },
     construction: { ...state.construction },
@@ -126,6 +130,7 @@ export function advance(state: GameState, world: EngineWorld, until: number, eco
       if (a.task && a.task.finishesAt < t) t = a.task.finishesAt;
       if (a.departure && a.departure.at < t) t = a.departure.at;
     }
+    for (const sq of Object.values(s.squadrons)) if (sq.flight && sq.flight.arriveAt < t) t = sq.flight.arriveAt;
     if (t > until) break;
     s.time = t;
 
@@ -133,9 +138,14 @@ export function advance(state: GameState, world: EngineWorld, until: number, eco
     changed = completeConstruction(s, t) || changed;
     changed = completeWorks(s, world, t) || changed;
     depart(s, world, t);
+    landSquadrons(s, map, t);
     if (t === nextSample) {
       changed = expireDiplomacy(s, t) || changed;
       changed = sample(s, world, t) || changed;
+      // Basi perse (conquista, alleanza finita): gli aerei a terra se ne vanno o vanno persi.
+      const before = Object.keys(s.squadrons).length;
+      evacuateBases(s, map, t);
+      changed = Object.keys(s.squadrons).length !== before || changed;
     }
     if (t === nextTick) changed = fight(s, world, t) || changed;
     if (changed) rates = netPerDayByNation(map, s, economy);
@@ -162,8 +172,14 @@ function completeProduction(s: GameState, map: MapData, t: number): boolean {
     for (let finishedAt = queue[0]?.finishesAt; finishedAt != null && finishedAt <= t; finishedAt = queue[0]?.finishesAt) {
       const done = queue.shift()!;
       const owner = s.provinces[provinceId]!.owner;
-      const army = idleArmyNear(s, owner, center) ?? newArmy(s, owner, center);
-      army.units.push(newUnit(s, done.unitType));
+      if (isAircraftType(done.unitType)) {
+        // Gli aerei escono nella squadriglia a terra nella città (la fabbrica aeronautica fa da base).
+        const sq = Object.values(s.squadrons).find((x) => x.owner === owner && x.base === provinceId && !x.flight) ?? newSquadron(s, owner, provinceId);
+        sq.aircraft.push(newAircraft(s, done.unitType));
+      } else {
+        const army = idleArmyNear(s, owner, center) ?? newArmy(s, owner, center);
+        army.units.push(newUnit(s, done.unitType));
+      }
       if (queue[0]) queue[0].finishesAt = finishedAt + queue[0].durationMinutes;
       changed = true;
     }
@@ -553,4 +569,14 @@ function newArmy(s: GameState, owner: NationId, position: LngLat): Army {
 
 function newUnit(s: GameState, type: UnitTypeId) {
   return { id: `u${s.nextId++}`, type, hp: UNIT_TYPES[type].hp };
+}
+
+function newSquadron(s: GameState, owner: NationId, base: string): Squadron {
+  const sq: Squadron = { id: `s${s.nextId++}`, owner, aircraft: [], base, flight: null, readyAt: s.time };
+  s.squadrons[sq.id] = sq;
+  return sq;
+}
+
+function newAircraft(s: GameState, type: AircraftTypeId) {
+  return { id: `u${s.nextId++}`, type, hp: AIRCRAFT_TYPES[type].hp };
 }
