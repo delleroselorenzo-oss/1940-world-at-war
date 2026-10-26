@@ -2,6 +2,7 @@ import { BUILDING_TYPES, type BuildingId } from "../data/buildings.js";
 import { DIPLOMACY } from "../data/diplomacy.js";
 import { TRADE } from "../data/economy.js";
 import { isAircraftType, productionType, type ProducibleId } from "../data/air.js";
+import { isShipType } from "../data/naval.js";
 import { UNIT_TYPES } from "../data/units.js";
 import type { LngLat, MainResourceId, MapData, NationId, ProvinceId, ResourceId } from "../map/types.js";
 import { provinceIdAt } from "../nav/grid.js";
@@ -28,15 +29,16 @@ import { mapIndex } from "./mapIndex.js";
 import { cancelMarketOrder, marketOrderMissing, placeMarketOrder, roundPrice } from "./market.js";
 import { armyPosition, moverOf, scheduleRoute } from "./movement.js";
 import { planRoute } from "./routing.js";
-import type { AgreementKind, Army, ArmyId, GameState, ProposalKind, SquadronId, WorkType } from "./state.js";
+import type { AgreementKind, Army, ArmyId, FleetId, GameState, ProposalKind, SquadronId, WorkType } from "./state.js";
 import { importCapacityPerDay } from "./trade.js";
 import { availableWorks } from "./works.js";
+import { haltFleet, planVoyage, startVoyage } from "./navy.js";
 
 // Ordini dei giocatori. Ogni ordine viene validato qui: oggi lo usa il browser,
 // domani il server, che non dovrà mai fidarsi del client.
 
 export type Order =
-  /** Arruola un'unità o costruisce un aereo in una città (gli aerei escono in una squadriglia alla base della città). */
+  /** Arruola un'unità o costruisce un aereo o una nave in una città (gli aerei escono in una squadriglia alla base della città, le navi in una flotta nel suo porto). */
   | { type: "recruit"; province: ProvinceId; unitType: ProducibleId }
   /** Trasferisce una squadriglia a terra in un'altra base entro la portata. */
   | { type: "fly"; squadron: SquadronId; base: ProvinceId }
@@ -51,6 +53,9 @@ export type Order =
    */
   | { type: "move"; army: ArmyId; target: LngLat; attack?: boolean; delayMinutes?: number; rail?: boolean }
   | { type: "stop"; army: ArmyId }
+  /** Naviga verso un punto di mare (o l'approdo di una provincia: lì la flotta si ormeggia se il porto è amico). */
+  | { type: "sail"; fleet: FleetId; target: LngLat }
+  | { type: "stopFleet"; fleet: FleetId }
   | { type: "declareWar"; against: NationId }
   | { type: "work"; army: ArmyId; work: WorkType }
   | { type: "cancelWork"; army: ArmyId }
@@ -97,6 +102,10 @@ export function applyOrder(state: GameState, world: World, nation: NationId, ord
       return cancelStrike(state, world.map, nation, order.squadron);
     case "stop":
       return stop(state, nation, order.army);
+    case "sail":
+      return sail(state, world.nav, nation, order.fleet, order.target);
+    case "stopFleet":
+      return stopFleet(state, nation, order.fleet);
     case "declareWar":
       return declareWar(state, world.map, nation, order.against);
     case "work":
@@ -153,7 +162,26 @@ function recruit(state: GameState, map: MapData, nation: NationId, provinceId: P
 
 /** Accetta solo identificativi di unità o aerei esistenti (l'ordine può arrivare da un client non affidabile). */
 function isProducible(id: string): id is ProducibleId {
-  return isAircraftType(id) || id in UNIT_TYPES;
+  return isAircraftType(id) || isShipType(id) || id in UNIT_TYPES;
+}
+
+function sail(state: GameState, nav: NavData, nation: NationId, id: FleetId, target: LngLat): OrderResult {
+  const current = state.fleets[id];
+  if (!current || current.owner !== nation) return fail("Flotta sconosciuta.");
+  const voyage = planVoyage(state, nav, current, target, state.time);
+  if (typeof voyage === "string") return fail(voyage);
+  const fleet = { ...current };
+  startVoyage(fleet, voyage);
+  return ok({ ...state, fleets: { ...state.fleets, [id]: fleet } });
+}
+
+function stopFleet(state: GameState, nation: NationId, id: FleetId): OrderResult {
+  const current = state.fleets[id];
+  if (!current || current.owner !== nation) return fail("Flotta sconosciuta.");
+  if (!current.voyage) return fail("La flotta è già ferma.");
+  const fleet = { ...current };
+  haltFleet(fleet, state.time);
+  return ok({ ...state, fleets: { ...state.fleets, [id]: fleet } });
 }
 
 function flyTo(state: GameState, map: MapData, nation: NationId, id: SquadronId, base: ProvinceId): OrderResult {

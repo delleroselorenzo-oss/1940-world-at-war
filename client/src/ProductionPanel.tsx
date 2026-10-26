@@ -4,12 +4,13 @@ import {
   AIRCRAFT_TYPES,
   doctrineOf,
   isAircraftType,
+  isShipType,
   BUILDING_TYPES,
   canAfford,
-  PLANNED_UNITS,
   productionType,
   recruitMinutes,
   recruitMissing,
+  SHIP_TYPE_IDS,
   UNIT_TYPE_IDS,
   type BuildingId,
   type GameState,
@@ -37,7 +38,10 @@ const CATEGORIES: { building: BuildingId; name: string; icon: CategoryIconId }[]
   { building: "shipyard", name: "Marina", icon: "navy" },
 ];
 
-const PRODUCIBLE: ProducibleId[] = [...UNIT_TYPE_IDS, ...AIRCRAFT_TYPE_IDS];
+const PRODUCIBLE: ProducibleId[] = [...UNIT_TYPE_IDS, ...AIRCRAFT_TYPE_IDS, ...SHIP_TYPE_IDS];
+
+/** Aerei e navi si costruiscono, le unità di terra si arruolano. */
+const actionName = (t: ProducibleId) => (isAircraftType(t) || isShipType(t) ? "Costruisci" : "Arruola");
 
 interface ProductionPanelProps {
   map: LoadedMap;
@@ -160,29 +164,17 @@ export function ProductionPanel({ map, game, now, only, order, onFocusProvince, 
                       </span>
                     </button>
                     <button className="button small" onClick={() => setUnit(t)}>
-                      {isAircraftType(t) ? "Costruisci" : "Arruola"}
+                      {actionName(t)}
                     </button>
                   </li>
                 );
               })}
-              {PLANNED_UNITS.filter((u) => u.building === category).map((u) => (
-                <li key={u.id} className="unit-row planned" title={u.description}>
-                  <div className="unit-row-info">
-                    <UnitThumb src={unitImageUrl(doctrine, u.id)} />
-                    <span className="unit-row-text">
-                      <strong>{u.name}</strong>
-                      <span className="muted small">{u.description}</span>
-                    </span>
-                  </div>
-                  <span className="relation-tag">in arrivo</span>
-                </li>
-              ))}
             </ul>
-            {category === "shipyard" && <p className="muted small">Le navi si potranno costruire quando potranno navigare.</p>}
           </>
         ) : (
           <>
             {aircraft && <p className="muted small">Esce in una squadriglia a terra nella città, che fa da base grazie alla fabbrica aeronautica.</p>}
+            {isShipType(unit) && <p className="muted small">Esce in una flotta ormeggiata nel porto della città.</p>}
             <p className="small">
               Costo per unità: <CostList cost={type.cost} stock={stock} />
             </p>
@@ -212,7 +204,7 @@ export function ProductionPanel({ map, game, now, only, order, onFocusProvince, 
                           disabled={!canAfford(stock, type.cost)}
                           onClick={() => send({ type: "recruit", province: c.id, unitType: unit })}
                         >
-                          {aircraft ? "Costruisci" : "Arruola"}
+                          {actionName(unit)}
                         </button>
                       </div>
                     </li>

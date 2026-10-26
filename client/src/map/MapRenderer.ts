@@ -1,7 +1,8 @@
 import { Application, Assets, Container, Graphics, Sprite, Text, type Texture, type TextStyleOptions } from "pixi.js";
-import type { Army, Squadron } from "@waw/shared";
+import type { Army, Fleet, Squadron } from "@waw/shared";
 import type { LngLat } from "@waw/shared";
 import { ArmyLayer } from "./ArmyLayer.js";
+import { FleetLayer } from "./FleetLayer.js";
 import { SeaLayer } from "./SeaLayer.js";
 import { SquadronLayer } from "./SquadronLayer.js";
 import { TerrainLayer, type MapWorks } from "./TerrainLayer.js";
@@ -36,6 +37,7 @@ export interface MapRendererCallbacks {
   onSelectArmy(id: string): void;
   /** Clic su una squadriglia. */
   onSelectSquadron(id: string): void;
+  onSelectFleet(id: string): void;
   /** Minuto di gioco attuale, letto a ogni fotogramma per far scorrere le armate. */
   now(): number;
   onHover(id: string | null): void;
@@ -103,6 +105,7 @@ export class MapRenderer {
   private readonly hit: HitIndex;
   private readonly armyLayer: ArmyLayer;
   private readonly squadronLayer: SquadronLayer;
+  private readonly fleetLayer: FleetLayer;
   private readonly terrain: TerrainLayer;
   private readonly sea: SeaLayer;
   private view: Viewport = { width: 1, height: 1 };
@@ -125,6 +128,7 @@ export class MapRenderer {
     this.hit = new HitIndex(map.shapes);
     this.armyLayer = new ArmyLayer(map);
     this.squadronLayer = new SquadronLayer(map);
+    this.fleetLayer = new FleetLayer(map);
     this.terrain = new TerrainLayer(map.nav);
     this.sea = new SeaLayer(map.nav);
     this.edges = borderEdges(map.shapes, (id) => map.provinces.get(id)?.neighbors.map((n) => n.id) ?? []);
@@ -151,7 +155,7 @@ export class MapRenderer {
     this.world.addChild(this.relief, this.sea.container);
     void this.loadRelief();
     this.drawProvinces();
-    this.world.addChild(this.terrain.container, this.fog, this.nationBorders, this.overlay, this.markers, this.squadronLayer.path, this.armyLayer.path, this.armyLayer.container, this.squadronLayer.container);
+    this.world.addChild(this.terrain.container, this.fog, this.nationBorders, this.overlay, this.markers, this.fleetLayer.path, this.squadronLayer.path, this.armyLayer.path, this.fleetLayer.container, this.armyLayer.container, this.squadronLayer.container);
     this.drawMarkersAndLabels();
     this.app.stage.addChild(this.world);
 
@@ -175,6 +179,7 @@ export class MapRenderer {
       this.stepAnimation();
       this.armyLayer.update(this.cam, this.callbacks.now());
       this.squadronLayer.update(this.cam, this.callbacks.now());
+      this.fleetLayer.update(this.cam, this.callbacks.now());
     });
   }
 
@@ -213,6 +218,14 @@ export class MapRenderer {
 
   setSelectedSquadron(id: string | null): void {
     this.squadronLayer.setSelected(id);
+  }
+
+  setFleets(fleets: Fleet[], playerNation: string | null): void {
+    this.fleetLayer.setFleets(fleets, playerNation);
+  }
+
+  setSelectedFleet(id: string | null): void {
+    this.fleetLayer.setSelected(id);
   }
 
   zoomBy(factor: number): void {
@@ -500,10 +513,12 @@ export class MapRenderer {
       canvas.style.cursor = this.hovered ? "pointer" : "default";
       if (wasClick) {
         const pos = local(e);
-        // Squadriglie e armate stanno sopra le province: hanno la precedenza.
+        // Squadriglie, armate e flotte stanno sopra le province: hanno la precedenza.
         const squadron = this.squadronLayer.squadronAt(this.cam, pos.x, pos.y);
         const army = squadron ? null : this.armyLayer.armyAt(this.cam, pos.x, pos.y);
+        const fleet = squadron || army ? null : this.fleetLayer.fleetAt(this.cam, pos.x, pos.y);
         if (squadron) this.callbacks.onSelectSquadron(squadron);
+        else if (fleet) this.callbacks.onSelectFleet(fleet);
         else if (army) this.callbacks.onSelectArmy(army);
         else this.callbacks.onSelect(this.provinceAt(pos.x, pos.y), unproject(screenToWorld(this.cam, pos.x, pos.y)));
       }

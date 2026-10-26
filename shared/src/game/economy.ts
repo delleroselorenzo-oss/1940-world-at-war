@@ -1,4 +1,5 @@
 import { AIRCRAFT_TYPES } from "../data/air.js";
+import { SHIP_TYPES } from "../data/naval.js";
 import { BUILDINGS } from "../data/buildings.js";
 import { ECONOMY, RESOURCE_IDS, type EconomyConfig } from "../data/economy.js";
 import { UNIT_TYPES } from "../data/units.js";
@@ -69,6 +70,10 @@ export function nationUpkeepPerDay(state: GameState, nation: NationId): Resource
     if (sq.owner !== nation) continue;
     for (const a of sq.aircraft) addPartial(total, AIRCRAFT_TYPES[a.type].upkeepPerDay);
   }
+  for (const fleet of Object.values(state.fleets)) {
+    if (fleet.owner !== nation) continue;
+    for (const ship of fleet.ships) addPartial(total, SHIP_TYPES[ship.type].upkeepPerDay);
+  }
   return total;
 }
 
@@ -88,6 +93,10 @@ export function netPerDayByNation(map: MapData, state: GameState, economy: Econo
   for (const sq of Object.values(state.squadrons)) {
     const total = out.get(sq.owner);
     if (total) for (const a of sq.aircraft) addPartial(total, AIRCRAFT_TYPES[a.type].upkeepPerDay, -1);
+  }
+  for (const fleet of Object.values(state.fleets)) {
+    const total = out.get(fleet.owner);
+    if (total) for (const ship of fleet.ships) addPartial(total, SHIP_TYPES[ship.type].upkeepPerDay, -1);
   }
   return out;
 }

@@ -1,5 +1,6 @@
 import type { ResourceId } from "../map/types.js";
 import type { BuildingId } from "./buildings.js";
+import { isShipType, SHIP_TYPES, type ShipTypeId } from "./naval.js";
 import { UNIT_TYPES, type ArmorClass, type AttackDefense, type UnitTypeId } from "./units.js";
 
 // Aviazione: tipi di aereo e valori di volo (vedi docs/game-design.md, §9 "Aviazione").
@@ -157,15 +158,15 @@ export const AIR = {
   strikeKm: 5,
 } as const;
 
-/** Ciò che si può arruolare o costruire in una città: un'unità di terra o un aereo. */
-export type ProducibleId = UnitTypeId | AircraftTypeId;
+/** Ciò che si può arruolare o costruire in una città: un'unità di terra, un aereo o una nave. */
+export type ProducibleId = UnitTypeId | AircraftTypeId | ShipTypeId;
 
-/** Dati comuni per la produzione di un'unità o di un aereo. */
+/** Dati comuni per la produzione di un'unità, di un aereo o di una nave. */
 export function productionType(id: ProducibleId): {
   name: string;
   building: BuildingId;
   cost: Partial<Record<ResourceId, number>>;
   productionHours: number;
 } {
-  return isAircraftType(id) ? AIRCRAFT_TYPES[id] : UNIT_TYPES[id];
+  return isAircraftType(id) ? AIRCRAFT_TYPES[id] : isShipType(id) ? SHIP_TYPES[id] : UNIT_TYPES[id];
 }

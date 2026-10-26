@@ -6,6 +6,8 @@ import {
   BUILDING_TYPES,
   COMBAT,
   isAircraftType,
+  isShipType,
+  SHIP_TYPES,
   TERRAIN_EFFECTS,
   TERRAIN_NAMES,
   TERRAIN_RULES,
@@ -61,10 +63,18 @@ export function UnitSheet({ unit, image, stock, onRecruit, onClose }: UnitSheetP
   }, [onClose]);
 
   const air = isAircraftType(unit) ? AIRCRAFT_TYPES[unit] : null;
-  const ground = isAircraftType(unit) ? null : UNIT_TYPES[unit];
-  const type = (air ?? ground)!;
+  const ship = isShipType(unit) ? SHIP_TYPES[unit] : null;
+  const ground = air || ship ? null : UNIT_TYPES[unit as keyof typeof UNIT_TYPES];
+  const type = (air ?? ship ?? ground)!;
   const ad = (x?: AttackDefense): [number | null, number | null] => [x?.attack || null, x?.defense || null];
-  const rows: Row[] = ground
+  const rows: Row[] = ship
+    ? [
+        ...ARMOR_CLASSES.map((c): Row => [`${ARMOR_CLASS_NAMES[c]} (costa)`, ship.shore?.[c] ?? null, null]),
+        ["Aerei (contraerea)", null, ship.antiAir || null],
+        ["Navi", ...ad(ship.vsShip)],
+        ["Sottomarini", ...ad(ship.vsSub)],
+      ]
+    : ground
     ? [
         ...ARMOR_CLASSES.map((c): Row => [ARMOR_CLASS_NAMES[c], ground.attack[c], ground.defense[c]]),
         ["Aerei (contraerea)", null, ground.antiAir || null],
@@ -118,18 +128,20 @@ export function UnitSheet({ unit, image, stock, onRecruit, onClose }: UnitSheetP
             </tbody>
           </table>
           <p className="muted small-print">
-            {ground
+            {ship
+              ? "Danni ogni 30 minuti di combattimento; contro la costa sono i colpi alle armate a terra entro la gittata."
+              : ground
               ? "Danni ogni 30 minuti di combattimento: l'attacco vale quando marcia o va all'assalto, la difesa quando resta ferma. Contro gli aerei è la contraerea; il morale è in punti tolti a ogni colpo."
               : "Danni di un attacco (un solo passaggio sul bersaglio); il morale è in punti tolti a ogni attacco."}{" "}
-            Navi, sottomarini ed edifici conteranno con la marina e i bombardamenti. Il trattino vuol dire nessun danno.
+            Navi e sottomarini conteranno con il combattimento navale, gli edifici con i bombardamenti. Il trattino vuol dire nessun danno.
           </p>
 
           <h3>Caratteristiche</h3>
           <dl className="sheet-facts">
-            {ground && (
+            {(ground || ship) && (
               <>
                 <dt>Classe</dt>
-                <dd>{ARMOR_LABEL[ground.armor]}</dd>
+                <dd>{ground ? ARMOR_LABEL[ground.armor] : ship!.id === "submarine" ? "Sottomarino" : "Nave"}</dd>
               </>
             )}
             <dt>Punti vita</dt>
@@ -146,6 +158,12 @@ export function UnitSheet({ unit, image, stock, onRecruit, onClose }: UnitSheetP
                 <dd>
                   {ground.rangeKm} km · spara da ferma, dopo {COMBAT.setupMinutes} minuti di messa in batteria
                 </dd>
+              </>
+            )}
+            {ship && (
+              <>
+                <dt>Gittata</dt>
+                <dd>{ship.rangeKm ? `${ship.rangeKm} km` : "solo da vicino"}</dd>
               </>
             )}
             {air && (
@@ -191,6 +209,8 @@ export function UnitSheet({ unit, image, stock, onRecruit, onClose }: UnitSheetP
                 l'unità più lenta su quel terreno.
               </p>
             </>
+          ) : ship ? (
+            <p className="muted small">Le navi vanno solo per mare, alla velocità della più lenta della flotta; il terreno non conta.</p>
           ) : (
             <p className="muted small">
               Gli aerei non risentono del terreno, ma contro le armate in foresta fanno il {Math.round((1 - TERRAIN_RULES.airVsForest) * 100)}% di
@@ -216,7 +236,7 @@ export function UnitSheet({ unit, image, stock, onRecruit, onClose }: UnitSheetP
         </div>
         <footer className="sheet-footer">
           <button className="button" onClick={onRecruit}>
-            {air ? "Costruisci" : "Arruola"}
+            {air || ship ? "Costruisci" : "Arruola"}
           </button>
         </footer>
       </article>

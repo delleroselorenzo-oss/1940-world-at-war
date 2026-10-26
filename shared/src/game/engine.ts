@@ -9,6 +9,8 @@ import type { LngLat, MapData, NationId, Province } from "../map/types.js";
 import { flatKm, provinceIdAt } from "../nav/grid.js";
 import type { NavData } from "../nav/types.js";
 import { airOps, evacuateBases, nextAirEvent } from "./air.js";
+import { isShipType } from "../data/naval.js";
+import { dockedFleet, harborPoint, navalOps, newFleet, newShip, nextNavalEvent } from "./navy.js";
 import { buildingLevel, downgradeBuildings, fortDamageFactor } from "./buildings.js";
 import {
   applyDamage,
@@ -60,6 +62,7 @@ export function createGame(map: MapData, options: NewGameOptions, economy: Econo
     nations: {},
     armies: {},
     squadrons: {},
+    fleets: {},
     production: {},
     buildings: {},
     construction: {},
@@ -123,6 +126,7 @@ export function advance(state: GameState, world: EngineWorld, until: number, eco
       Object.entries(state.armies).map(([id, a]) => [id, { ...a, units: a.units.map((u) => ({ ...u })) }]),
     ),
     squadrons: Object.fromEntries(Object.entries(state.squadrons).map(([id, sq]) => [id, { ...sq, aircraft: sq.aircraft.map((a) => ({ ...a })) }])),
+    fleets: Object.fromEntries(Object.entries(state.fleets).map(([id, f]) => [id, { ...f, ships: f.ships.map((x) => ({ ...x })) }])),
     production: Object.fromEntries(Object.entries(state.production).map(([id, q]) => [id, q.map((item) => ({ ...item }))])),
     buildings: { ...state.buildings },
     construction: { ...state.construction },
@@ -147,15 +151,16 @@ export function advance(state: GameState, world: EngineWorld, until: number, eco
       if (a.task && a.task.finishesAt < t) t = a.task.finishesAt;
       if (a.departure && a.departure.at < t) t = a.departure.at;
     }
-    t = Math.min(t, nextAirEvent(s));
+    t = Math.min(t, nextAirEvent(s), nextNavalEvent(s));
     if (t > until) break;
     s.time = t;
 
-    let changed = completeProduction(s, map, t);
+    let changed = completeProduction(s, world, t);
     changed = completeConstruction(s, t) || changed;
     changed = completeWorks(s, world, t) || changed;
     depart(s, world, t);
     changed = airOps(s, world, t) || changed;
+    changed = navalOps(s, world, t) || changed;
     if (t === nextSample) {
       changed = expireDiplomacy(s, t) || changed;
       changed = sample(s, world, t) || changed;
@@ -181,8 +186,12 @@ export function advance(state: GameState, world: EngineWorld, until: number, eco
   return s;
 }
 
-/** Unità pronte al minuto `t`: si uniscono all'armata ferma nella città o ne formano una nuova. */
-function completeProduction(s: GameState, map: MapData, t: number): boolean {
+/**
+ * Unità pronte al minuto `t`: si uniscono all'armata ferma nella città o ne formano una nuova
+ * (gli aerei alla squadriglia a terra nella città, le navi alla flotta ormeggiata nel suo porto).
+ */
+function completeProduction(s: GameState, world: EngineWorld, t: number): boolean {
+  const { map } = world;
   let changed = false;
   for (const [provinceId, queue] of Object.entries(s.production)) {
     const center = mapIndex(map).provinces.get(provinceId)!.center;
@@ -193,6 +202,9 @@ function completeProduction(s: GameState, map: MapData, t: number): boolean {
         // Gli aerei escono nella squadriglia a terra nella città (la fabbrica aeronautica fa da base).
         const sq = Object.values(s.squadrons).find((x) => x.owner === owner && x.base === provinceId && !x.flight) ?? newSquadron(s, owner, provinceId);
         sq.aircraft.push(newAircraft(s, done.unitType));
+      } else if (isShipType(done.unitType)) {
+        const fleet = dockedFleet(s, owner, provinceId) ?? newFleet(s, owner, harborPoint(map, world.nav, provinceId), provinceId);
+        fleet.ships.push(newShip(s, done.unitType));
       } else {
         const army = idleArmyNear(s, owner, center) ?? newArmy(s, owner, center);
         army.units.push(newUnit(s, done.unitType));

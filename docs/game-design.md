@@ -196,7 +196,17 @@ Le unità nel **ruolo preferito** sono circa 2–3x più efficaci; le "tuttofare
 ### Marina (iniziata il 26/10/2026)
 Passi, ognuno giocabile da solo:
 1. ✅ **Il mare sulla mappa**: celle navigabili sulla stessa griglia da 0,1° delle armate; **30 zone di mare** con un nome (Atlantico settentrionale, Mare del Nord, Baltico centrale, Tirreno, Egeo, Mar Nero, Caspio…) disegnate con un tratteggio leggero e il nome in corsivo; **stretti e canali** che si potranno chiudere (Gibilterra, Øresund, Grande e Piccolo Belt, canale di Kiel, Bosforo, Dardanelli, Messina, Kerč), controllati da chi tiene le rive; un **approdo** per ogni provincia costiera; rotte navali più brevi che girano intorno alla terra senza tagliare gli istmi (`shared/src/nav/sea.ts`). La terra fuori gioco (Africa, Medio Oriente) si vede in grigio sabbia, così le coste sono chiare.
-2. **Navi e flotte**: cacciatorpediniere, incrociatore, corazzata, sottomarino, portaerei; si costruiscono nel cantiere navale; le flotte hanno gettone e pannello come le armate, velocità della nave più lenta. Categoria Marina della Produzione sbloccata.
+2. ✅ **Navi e flotte**: si costruiscono nel cantiere navale (città costiere) ed escono in una flotta ormeggiata nel porto della città. La flotta naviga alla velocità della nave più lenta per la rotta più breve; gli stretti sono chiusi a chi è in guerra con il padrone di una delle rive. All'approdo di una provincia propria, o di chi concede il passaggio (o alleata), si ormeggia; nello stesso porto le flotte si uniscono. Ordini: **Naviga** (si tocca un punto di mare o una provincia costiera: si va al suo approdo), **Ferma**; nel pannello i porti vicini. Le flotte vedono intorno a sé come le armate e costano il mantenimento. Valori di partenza (velocità di crociera; il combattimento conterà dal passo 3):
+
+   | Nave | km/h | Vista | Punti vita | Gittata | Navi (att./dif.) | Sottomarini | Contraerea | Costa (non corazz./legg./pes.) | Tempo |
+   |---|---|---|---|---|---|---|---|---|---|
+   | Sottomarino | 25 | 15 | 25 | — | 6 / 1 | 1 / 1 | 0,2 | — | 30 h |
+   | Cacciatorpediniere | 40 | 25 | 35 | 12 km | 3 / 3 | 6 / 5 | 2 | 1 / 0,5 / 0,25 | 30 h |
+   | Incrociatore | 35 | 30 | 60 | 20 km | 6 / 6 | 1 / 2 | 3 | 3 / 2 / 1 | 60 h |
+   | Nave da battaglia | 30 | 30 | 120 | 30 km | 12 / 12 | 0 / 1 | 3 | 6 / 4 / 3 | 120 h |
+   | Portaerei | 32 | 40 | 80 | — | 0,5 / 2 | 0 / 1 | 2 | — (i suoi aerei) | 120 h |
+
+   Costi e mantenimento in `shared/src/data/naval.ts`. Le flotte iniziali delle nazioni (la Royal Navy del 1933…) sono da decidere.
 3. **Combattimento navale**: tiro a distanza tra navi, bombardamento della costa, aerei contro navi e contraerea delle navi, portaerei come base mobile delle squadriglie.
 4. **Sottomarini e nebbia sul mare**: le flotte si vedono come le armate; i sottomarini solo dai cacciatorpediniere vicini o quando attaccano.
 5. **Trasporti e sbarchi**: imbarco nei porti o sulla costa, trasporto vulnerabile, sbarco (contro una costa difesa è un attacco con penalità).

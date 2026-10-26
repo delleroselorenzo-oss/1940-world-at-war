@@ -254,22 +254,3 @@ export const STARTING_ARMIES: { capital: Partial<Record<UnitTypeId, number>>; ci
   capital: { infantry: 3, artillery: 1 },
   city: { infantry: 2 },
 };
-
-/**
- * Unità della marina in arrivo: si vedono nel pannello Produzione ma non si arruolano ancora,
- * perché manca la navigazione. Statistiche e costi si decideranno insieme a quelle meccaniche.
- */
-export interface PlannedUnit {
-  id: string;
-  name: string;
-  /** Edificio che la produrrà. */
-  building: "aircraftFactory" | "shipyard";
-  description: string;
-}
-
-export const PLANNED_UNITS: readonly PlannedUnit[] = [
-  { id: "submarine", name: "Sottomarino", building: "shipyard", description: "Nascosto finché non attacca: affonda i convogli e taglia le importazioni via mare." },
-  { id: "destroyer", name: "Cacciatorpediniere", building: "shipyard", description: "Nave veloce di scorta: dà la caccia ai sottomarini e protegge i convogli." },
-  { id: "battleship", name: "Nave da battaglia", building: "shipyard", description: "Grandi cannoni contro le navi nemiche e le difese costiere." },
-  { id: "carrier", name: "Portaerei", building: "shipyard", description: "Porta caccia e bombardieri in mare aperto." },
-];

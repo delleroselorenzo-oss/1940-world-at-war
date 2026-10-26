@@ -10,6 +10,8 @@ import {
   visionOf,
   flatKm,
   squadronPosition,
+  fleetPosition,
+  harborOf,
   squadronRangeKm,
   ECONOMY,
   enemiesOf,
@@ -36,6 +38,7 @@ import type { MapMode, Standing } from "./map/mapModes.js";
 import { MapModeSwitch } from "./ui/MapModeSwitch.js";
 import { ProvincePanel } from "./ProvincePanel.js";
 import { SquadronPanel, type SquadronMode } from "./SquadronPanel.js";
+import { FleetPanel, type FleetMode } from "./FleetPanel.js";
 import { TradePanel } from "./TradePanel.js";
 import { EventFeed } from "./ui/EventFeed.js";
 import { formatCountdown } from "./ui/format.js";
@@ -53,6 +56,7 @@ type Selection =
   | { kind: "province"; id: string }
   | { kind: "army"; id: string }
   | { kind: "squadron"; id: string }
+  | { kind: "fleet"; id: string }
   | { kind: "diplomacy"; nation: string | null }
   | { kind: "trade" }
   /** `only`: limitato a una provincia (aperto dal suo pannello); `building`: edificio già scelto. */
@@ -134,6 +138,8 @@ function Game({ map }: { map: LoadedMap }) {
   const [useRail, setUseRail] = useState(false);
   // Pannello della squadriglia: il prossimo tocco sulla mappa sceglie la base d'arrivo ("Vola") o il bersaglio ("Attacca").
   const [squadronMode, setSquadronMode] = useState<SquadronMode>(null);
+  // Pannello della flotta: il prossimo tocco sulla mappa dà la meta ("Naviga").
+  const [fleetMode, setFleetMode] = useState<FleetMode>(null);
   // Province evidenziate dai pannelli Edifici e Produzione.
   const [highlighted, setHighlighted] = useState<ReadonlySet<string>>(NO_HIGHLIGHT);
   const mapRef = useRef<MapViewHandle>(null);
@@ -145,6 +151,7 @@ function Game({ map }: { map: LoadedMap }) {
     setArmyMode(null);
     setDelayMinutes(0);
     setSquadronMode(null);
+    setFleetMode(null);
   }, []);
 
   // Centra la vista su una provincia tenendo conto del pannello, che copre una parte della mappa
@@ -170,16 +177,18 @@ function Game({ map }: { map: LoadedMap }) {
       // Prima si annulla l'azione scelta, poi si chiude il pannello.
       if (armyMode) setArmyMode(null);
       else if (squadronMode) setSquadronMode(null);
+      else if (fleetMode) setFleetMode(null);
       else select(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [select, armyMode, squadronMode]);
+  }, [select, armyMode, squadronMode, fleetMode]);
 
   const selectedArmy = selection?.kind === "army" ? state?.armies[selection.id] : undefined;
   const selectedProvince = selection?.kind === "province" ? map.provinces.get(selection.id) : undefined;
   const myArmySelected = !!selectedArmy && selectedArmy.owner === state?.playerNation;
   const selectedSquadron = selection?.kind === "squadron" ? state?.squadrons[selection.id] : undefined;
+  const selectedFleet = selection?.kind === "fleet" ? state?.fleets[selection.id] : undefined;
 
   // Nebbia di guerra: cosa vede il giocatore (si aggiorna ogni secondo, col tempo di gioco).
   const vision = useMemo(() => (state ? visionOf(state, { map: map.data, nav: map.nav }, state.playerNation, game.now) : null), [map, state, game.now]);
@@ -196,11 +205,23 @@ function Game({ map }: { map: LoadedMap }) {
   useEffect(() => {
     if (selection?.kind === "army" && state && (!state.armies[selection.id] || (vision && !vision.armies.has(selection.id)))) setSelection(null);
     if (selection?.kind === "squadron" && state && (!state.squadrons[selection.id] || (vision && !vision.squadrons.has(selection.id)))) setSelection(null);
+    if (selection?.kind === "fleet" && state && (!state.fleets[selection.id] || (vision && !vision.fleets.has(selection.id)))) setSelection(null);
   }, [selection, state, vision]);
 
   const mySquadronSelected = !!selectedSquadron && selectedSquadron.owner === state?.playerNation;
   const choosingBase = mySquadronSelected && squadronMode === "fly";
   const choosingTarget = mySquadronSelected && squadronMode === "strike";
+  const choosingSea = !!selectedFleet && selectedFleet.owner === state?.playerNation && fleetMode === "sail";
+
+  const sailTo = useCallback(
+    (at: LngLat) => {
+      if (!selectedFleet) return;
+      const error = game.order({ type: "sail", fleet: selectedFleet.id, target: at });
+      setOrderError(error);
+      if (!error) setFleetMode(null);
+    },
+    [selectedFleet, game],
+  );
 
   // Basi dove la squadriglia selezionata può volare adesso: evidenziate sulla mappa mentre si sceglie.
   const reachableBases = useMemo(() => {
@@ -265,9 +286,11 @@ function Game({ map }: { map: LoadedMap }) {
         return;
       }
       if (choosingTarget) return setOrderError("Tocca un'armata nemica.");
+      // Toccando una provincia costiera la flotta va al suo approdo.
+      if (choosingSea) return sailTo((id ? harborOf(map.nav, id) : null) ?? at);
       select(id ? { kind: "province", id } : null);
     },
-    [targeting, armyMode, marchTo, choosingBase, choosingTarget, reachableBases, flyTo, select],
+    [targeting, armyMode, marchTo, choosingBase, choosingTarget, reachableBases, flyTo, choosingSea, sailTo, map, select],
   );
 
   // Tocco su un'armata: con un'azione scelta diventa il bersaglio (o la meta, se è tua: le armate si uniscono).
@@ -289,6 +312,16 @@ function Game({ map }: { map: LoadedMap }) {
       select({ kind: "squadron", id });
     },
     [state, choosingBase, selectedSquadron, onMapProvince, map, select],
+  );
+
+  // Tocco su una flotta: mentre si sceglie la meta, si va dove si trova.
+  const onMapFleet = useCallback(
+    (id: string) => {
+      const other = state?.fleets[id];
+      if (choosingSea && other && id !== selectedFleet?.id) return sailTo(fleetPosition(other, game.nowExact()));
+      select({ kind: "fleet", id });
+    },
+    [state, choosingSea, selectedFleet, sailTo, game, select],
   );
 
   const work = useCallback(
@@ -333,6 +366,12 @@ function Game({ map }: { map: LoadedMap }) {
   const squadrons = useMemo(
     () => (squadronsRecord ? Object.values(squadronsRecord).filter((sq) => !vision || vision.squadrons.has(sq.id)) : []),
     [squadronsRecord, visibleSquadronKey],
+  );
+  const fleetsRecord = state?.fleets;
+  const visibleFleetKey = vision ? [...vision.fleets].sort().join(",") : "";
+  const fleets = useMemo(
+    () => (fleetsRecord ? Object.values(fleetsRecord).filter((f) => !vision || vision.fleets.has(f.id)) : []),
+    [fleetsRecord, visibleFleetKey],
   );
   const works = useMemo(() => (state && vision ? visibleWorks(state, vision, map) : null), [state?.destroyedBridges, state?.pontoons, state?.hospitals, visibleProvinces]);
 
@@ -437,18 +476,21 @@ function Game({ map }: { map: LoadedMap }) {
         provinceStyle={provinceStyle}
         armies={armies}
         squadrons={squadrons}
+        fleets={fleets}
         engaged={engagedSet}
         playerNation={state?.playerNation ?? null}
         works={works}
-        targeting={targeting || choosingBase || choosingTarget}
+        targeting={targeting || choosingBase || choosingTarget || choosingSea}
         selectedId={selectedProvince?.id ?? null}
         selectedArmyId={selectedArmy?.id ?? null}
         selectedSquadronId={selectedSquadron?.id ?? null}
+        selectedFleetId={selectedFleet?.id ?? null}
         highlighted={choosingBase ? reachableBases : highlighted}
         now={game.nowExact}
         onSelect={onMapProvince}
         onSelectArmy={onMapArmy}
         onSelectSquadron={onMapSquadron}
+        onSelectFleet={onMapFleet}
       />
 
       <div className="zoom-controls" role="group" aria-label="Zoom">
@@ -538,6 +580,7 @@ function Game({ map }: { map: LoadedMap }) {
           onDiplomacy={(nation) => select({ kind: "diplomacy", nation })}
           onSelectArmy={(id) => select({ kind: "army", id })}
           onSelectSquadron={(id) => select({ kind: "squadron", id })}
+          onSelectFleet={(id) => select({ kind: "fleet", id })}
           onBuildings={() => select({ kind: "buildings", only: selectedProvince.id })}
           onProduction={() => select({ kind: "production", only: selectedProvince.id })}
           onCancelBuild={cancelBuild}
@@ -588,6 +631,26 @@ function Game({ map }: { map: LoadedMap }) {
           }}
           onFly={flyTo}
           onCancelStrike={() => setOrderError(game.order({ type: "cancelStrike", squadron: selectedSquadron.id }))}
+          onSelectProvince={selectProvinceAndFocus}
+          onClose={() => select(null)}
+        />
+      )}
+
+      {selectedFleet && state && (
+        <FleetPanel
+          ref={panelRef}
+          map={map}
+          fleet={selectedFleet}
+          game={state}
+          now={game.now}
+          error={orderError}
+          mode={fleetMode}
+          onMode={(m) => {
+            setFleetMode(m);
+            setOrderError(null);
+          }}
+          onSail={sailTo}
+          onStop={() => setOrderError(game.order({ type: "stopFleet", fleet: selectedFleet.id }))}
           onSelectProvince={selectProvinceAndFocus}
           onClose={() => select(null)}
         />

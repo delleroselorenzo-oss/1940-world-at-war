@@ -1,5 +1,6 @@
 import type { AircraftTypeId, ProducibleId } from "../data/air.js";
 import type { BuildingId } from "../data/buildings.js";
+import type { ShipTypeId } from "../data/naval.js";
 import type { UnitTypeId } from "../data/units.js";
 import type { LngLat, MainResourceId, NationId, ProvinceId, ResourceId } from "../map/types.js";
 
@@ -136,6 +137,32 @@ export interface StrikeMission {
   radiusKm: number;
   /** Basi dove fare scalo (con rifornimento) prima di decollare per l'attacco, in ordine. */
   via: ProvinceId[];
+}
+
+export type FleetId = string;
+
+export interface Ship {
+  id: string;
+  type: ShipTypeId;
+  hp: number;
+}
+
+/** Navigazione in corso: la flotta passa per `points[i]` al minuto `times[i]`, in linea retta tra due punti. */
+export interface Voyage {
+  points: LngLat[];
+  times: number[];
+}
+
+/** Flotta: navi che navigano insieme, alla velocità della più lenta. */
+export interface Fleet {
+  id: FleetId;
+  owner: NationId;
+  ships: Ship[];
+  /** Dove si trova ferma, o da dove è partita la navigazione in corso. */
+  position: LngLat;
+  voyage: Voyage | null;
+  /** Provincia del porto dove è ormeggiata (all'approdo di una provincia propria o alleata); null in mare o in viaggio. */
+  port: ProvinceId | null;
 }
 
 /** Lavori sul campo. */
@@ -321,7 +348,7 @@ export type GameEvent =
 
 /** Unità in arruolamento in una città; la prima della coda è quella in lavorazione. */
 export interface ProductionItem {
-  /** Unità di terra o aereo (gli aerei escono in una squadriglia). */
+  /** Unità di terra, aereo (esce in una squadriglia) o nave (esce in una flotta nel porto della città). */
   unitType: ProducibleId;
   durationMinutes: number;
   /** Solo per la prima della coda: quando sarà pronta. */
@@ -349,6 +376,7 @@ export interface GameState {
   nations: Record<NationId, NationState>;
   armies: Record<ArmyId, Army>;
   squadrons: Record<SquadronId, Squadron>;
+  fleets: Record<FleetId, Fleet>;
   /** Rapporti tra nazioni, per coppia (chiave di `pairKey`). */
   relations: Record<string, Relation>;
   /** Proposte diplomatiche, dalla più vecchia (quelle chiuse restano come storico). */

@@ -73,7 +73,7 @@ export const BUILDING_TYPES: Record<BuildingId, BuildingType> = {
   shipyard: {
     id: "shipyard",
     name: "Cantiere navale",
-    description: "Costruirà le navi (in arrivo con la marina).",
+    description: "Costruisce le navi.",
     where: "urban",
     coastal: true,
     maxLevel: 3,

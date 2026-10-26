@@ -11,6 +11,7 @@ import type { World } from "./orders.js";
 //
 // Una strada corre lungo la riga 2 da un capo all'altro e attraversa il fiume su un ponte.
 // L'isola A9 (colonna 22, separata dal mare) appartiene ad AAA.
+// Il mare (colonne 20-21, una sola zona) ha gli approdi di B1 (colonna 20, riga 2) e di A9 (colonna 21, riga 2).
 // Con `neutralBetween` la provincia A3 appartiene invece a una terza nazione, CCC.
 // Con `railway` la strada è invece una ferrovia.
 
@@ -106,6 +107,14 @@ export function testWorld(options: { withBridge?: boolean; neutralBetween?: bool
     },
     bridges: [{ id: "br1", at: [RIVER_COL * STEP, cell(0, ROAD_ROW)[1]], river: "Fiume" }],
     rivers: [{ name: "Fiume", lines: [[[RIVER_COL * STEP, 0], [RIVER_COL * STEP, HEIGHT * STEP]]] }],
+    sea: {
+      zone: Uint8Array.from(province, (p) => (p === 0 ? 1 : 0)),
+      strait: new Uint8Array(WIDTH * HEIGHT),
+      zones: [{ id: "sea", name: "Mare", label: cell(20, 2) }],
+      straits: [],
+      harbor: Int32Array.from(ids, (id) => (id === "B1" ? ROAD_ROW * WIDTH + 20 : id === "A9" ? ROAD_ROW * WIDTH + 21 : -1)),
+      borders: [],
+    },
   };
   return { map, nav };
 }

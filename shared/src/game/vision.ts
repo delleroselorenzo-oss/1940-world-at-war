@@ -6,11 +6,13 @@ import type { NavData } from "../nav/types.js";
 import { squadronPosition } from "./air.js";
 import { hasAgreement } from "./diplomacy.js";
 import { armyPosition } from "./movement.js";
-import type { Army, ArmyId, GameState, Squadron, SquadronId } from "./state.js";
+import { fleetPosition, fleetSightKm } from "./navy.js";
+import type { Army, ArmyId, FleetId, GameState, Squadron, SquadronId } from "./state.js";
 
 // Nebbia di guerra (docs/game-design.md, §9 "Nebbia di guerra"): cosa vede una nazione.
 // Si vede: le proprie province, la provincia dove sta ogni propria armata o squadriglia,
-// e tutto quello che sta entro la vista (`sightKm`) delle proprie armate e degli aerei in volo.
+// e tutto quello che sta entro la vista (`sightKm`) delle proprie armate, flotte e degli aerei in volo
+// (una flotta ormeggiata vede anche la provincia del suo porto).
 // Con la mappa condivisa (o l'alleanza) si vede anche quello che vede l'altra nazione.
 // Proprietari e morale delle province sono sempre noti; nella nebbia restano nascosti armate, squadriglie, edifici e lavori.
 
@@ -25,6 +27,7 @@ export interface Vision {
   provinces: ReadonlySet<ProvinceId>;
   armies: ReadonlySet<ArmyId>;
   squadrons: ReadonlySet<SquadronId>;
+  fleets: ReadonlySet<FleetId>;
 }
 
 interface VisionWorld {
@@ -72,6 +75,11 @@ export function visionOf(state: GameState, world: VisionWorld, nation: NationId,
     if (sq.flight && t < sq.flight.arriveAt) eyes.push({ at: squadronPosition(sq, map, t), km: squadronSightKm(sq) });
     else provinces.add(sq.base);
   }
+  for (const f of Object.values(state.fleets)) {
+    if (!viewers.has(f.owner)) continue;
+    eyes.push({ at: fleetPosition(f, t), km: fleetSightKm(f) });
+    if (f.port) provinces.add(f.port);
+  }
   for (const p of map.provinces) if (!provinces.has(p.id) && eyes.some((e) => flatKm(e.at, p.center) <= e.km)) provinces.add(p.id);
 
   const seen = (at: LngLat) => {
@@ -85,7 +93,11 @@ export function visionOf(state: GameState, world: VisionWorld, nation: NationId,
     const flying = sq.flight !== null && t < sq.flight.arriveAt;
     if (viewers.has(sq.owner) || (flying ? seen(squadronPosition(sq, map, t)) : provinces.has(sq.base))) squadrons.add(sq.id);
   }
-  return { viewers, provinces, armies, squadrons };
+  const fleets = new Set<FleetId>();
+  for (const f of Object.values(state.fleets)) {
+    if (viewers.has(f.owner) || (f.port ? provinces.has(f.port) : false) || seen(fleetPosition(f, t))) fleets.add(f.id);
+  }
+  return { viewers, provinces, armies, squadrons, fleets };
 }
 
 /** Si conosce la composizione di un'armata: è propria (o di chi condivide la mappa), oppure è vicina a una propria armata. */

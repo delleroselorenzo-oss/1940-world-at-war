@@ -1,6 +1,7 @@
 import {
   AIR,
   AIRCRAFT_TYPE_IDS,
+  SHIP_TYPE_IDS,
   BUILDINGS,
   productionType,
   provinceProductionPerDay,
@@ -22,7 +23,7 @@ const pct = (x: number) => `${Math.round(x * 100)}%`;
 
 /** Unità (o aerei) che l'edificio permette di arruolare. */
 function unlocks(building: BuildingId): string {
-  return [...UNIT_TYPE_IDS, ...AIRCRAFT_TYPE_IDS]
+  return [...UNIT_TYPE_IDS, ...AIRCRAFT_TYPE_IDS, ...SHIP_TYPE_IDS]
     .filter((t) => productionType(t).building === building)
     .map((t) => productionType(t).name.toLowerCase())
     .join(", ");
@@ -46,7 +47,7 @@ export function buildingEffect(building: BuildingId): string {
     case "aircraftFactory":
       return `Livello 1: costruisce ${unlocks(building)} e fa da base agli aerei. Ogni livello in più: −${pct(BUILDINGS.productionTimeCutPerLevel)} sui tempi di costruzione.`;
     case "shipyard":
-      return "Costruirà le navi (con la marina).";
+      return `Livello 1: costruisce ${unlocks(building)}; escono nel porto della città. Ogni livello in più: −${pct(BUILDINGS.productionTimeCutPerLevel)} sui tempi di costruzione.`;
     default:
       return `Livello 1: arruola ${unlocks(building)}. Ogni livello in più: −${pct(BUILDINGS.productionTimeCutPerLevel)} sui tempi di arruolamento.`;
   }
@@ -68,7 +69,7 @@ export function buildingLevelEffect(building: BuildingId, level: number): string
     case "airfield":
       return level === 1 ? "Base per gli aerei" : `−${pct((level - 1) * AIR.airfieldTimeCutPerLevel)} tempi a terra`;
     case "shipyard":
-      return "Con la marina";
+      return level === 1 ? "Si costruiscono navi" : `−${pct((level - 1) * BUILDINGS.productionTimeCutPerLevel)} tempi di costruzione`;
     default:
       return level === 1 ? "Si arruola" : `−${pct((level - 1) * BUILDINGS.productionTimeCutPerLevel)} tempi di arruolamento`;
   }

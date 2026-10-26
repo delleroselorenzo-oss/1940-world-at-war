@@ -1,6 +1,8 @@
 import type { Ref } from "react";
 import {
   AIRCRAFT_TYPE_IDS,
+  SHIP_TYPE_IDS,
+  SHIP_TYPES,
   AIRCRAFT_TYPES,
   atWar,
   BUILDING_IDS,
@@ -38,6 +40,7 @@ interface ProvincePanelProps {
   onDiplomacy(nation: string): void;
   onSelectArmy(id: string): void;
   onSelectSquadron(id: string): void;
+  onSelectFleet(id: string): void;
   /** Apre gli edifici (o l'arruolamento) limitati a questa provincia. */
   onBuildings(): void;
   onProduction(): void;
@@ -70,6 +73,7 @@ export function ProvincePanel({
   onDiplomacy,
   onSelectArmy,
   onSelectSquadron,
+  onSelectFleet,
   onBuildings,
   onProduction,
   onCancelBuild,
@@ -91,6 +95,7 @@ export function ProvincePanel({
     ? Object.values(game.armies).filter((a) => !a.move && provinceIdAt(map.nav, a.position) === province.id && (!vision || vision.armies.has(a.id)))
     : [];
   const squadrons = game ? Object.values(game.squadrons).filter((s) => !s.flight && s.base === province.id && (!vision || vision.squadrons.has(s.id))) : [];
+  const fleets = game ? Object.values(game.fleets).filter((f) => !f.voyage && f.port === province.id && (!vision || vision.fleets.has(f.id))) : [];
   const canRecruit = isMine && province.type === "urban";
   const queue = sharesMap ? (game?.production[province.id] ?? []) : [];
   const war = game && !isMine ? atWar(game, game.playerNation, ownerId) : false;
@@ -267,6 +272,27 @@ export function ProvincePanel({
                       {AIRCRAFT_TYPE_IDS.map((t) => [t, s.aircraft.filter((a) => a.type === t).length] as const)
                         .filter(([, n]) => n > 0)
                         .map(([t, n]) => `${n}× ${AIRCRAFT_TYPES[t].name}`)
+                        .join(", ")}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {fleets.length > 0 && (
+          <>
+            <h3>Flotte in porto</h3>
+            <ul className="neighbors">
+              {fleets.map((f) => (
+                <li key={f.id}>
+                  <button onClick={() => onSelectFleet(f.id)}>
+                    <span className="swatch" style={{ background: map.nations.get(f.owner)?.color }} />
+                    <span className="neighbor-name">
+                      {SHIP_TYPE_IDS.map((t) => [t, f.ships.filter((x) => x.type === t).length] as const)
+                        .filter(([, n]) => n > 0)
+                        .map(([t, n]) => `${n}× ${SHIP_TYPES[t].name}`)
                         .join(", ")}
                     </span>
                   </button>
