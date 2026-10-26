@@ -20,6 +20,8 @@ export interface AircraftType {
   speedKmh: number;
   /** Vista in volo: vede le armate e le squadriglie nemiche entro questa distanza. A terra vede la sua base. */
   sightKm: number;
+  /** Può avere come base una portaerei. */
+  carrier?: boolean;
   /** Minuti a terra per rifornirsi dopo ogni volo (senza costi: è compreso nel mantenimento). */
   refuelMinutes: number;
   hp: number;
@@ -43,6 +45,7 @@ export interface AircraftType {
 export const AIRCRAFT_TYPES: Record<AircraftTypeId, AircraftType> = {
   fighter: {
     id: "fighter",
+    carrier: true,
     name: "Caccia",
     building: "aircraftFactory",
     description: "Intercetta gli aerei nemici, scorta i bombardieri e pattuglia il cielo. Come lo Spitfire I e l'Hurricane I (~700 km).",
@@ -62,6 +65,7 @@ export const AIRCRAFT_TYPES: Record<AircraftTypeId, AircraftType> = {
   },
   tacticalBomber: {
     id: "tacticalBomber",
+    carrier: true,
     name: "Bombardiere tattico",
     building: "aircraftFactory",
     description: "Colpisce le armate vicino al fronte. Come il Fairey Battle e il Blenheim IV (1.600–2.300 km).",
@@ -82,6 +86,7 @@ export const AIRCRAFT_TYPES: Record<AircraftTypeId, AircraftType> = {
   },
   torpedoBomber: {
     id: "torpedoBomber",
+    carrier: true,
     name: "Aerosilurante",
     building: "aircraftFactory",
     description: "Attacca le navi (con la marina). Come lo Swordfish e il Beaufort (850–2.600 km).",

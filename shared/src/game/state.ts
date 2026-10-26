@@ -249,6 +249,8 @@ export interface Relation {
   sharedVision: boolean;
   /** Alleanza: passaggio e visione condivisa insieme. */
   alliance?: boolean;
+  /** Ultimo tick con un combattimento navale tra le due nazioni (per dare la notizia solo all'inizio di una battaglia). */
+  navalCombatAt?: number;
 }
 
 /** Proposta diplomatica di `from` a `to`. */
@@ -305,6 +307,9 @@ export type GameEvent =
   | { time: number; type: "truceEnded"; nations: [NationId, NationId] }
   | { time: number; type: "embargo"; by: NationId; against: NationId; on: boolean }
   | { time: number; type: "battle"; at: LngLat; province: ProvinceId | null; nations: [NationId, NationId] }
+  /** Battaglia navale tra flotte (o tra una flotta e le batterie della costa): `zone` è il nome della zona di mare. */
+  | { time: number; type: "navalBattle"; at: LngLat; zone: string | null; nations: [NationId, NationId] }
+  | { time: number; type: "fleetDestroyed"; fleet: FleetId; owner: NationId; by: NationId; at: LngLat; zone: string | null }
   | { time: number; type: "conquest"; province: ProvinceId; from: NationId; to: NationId }
   /** La provincia si è ribellata ed è tornata alla nazione d'origine. */
   | { time: number; type: "revolt"; province: ProvinceId; from: NationId; to: NationId }
@@ -324,6 +329,8 @@ export type GameEvent =
       /** La squadriglia è stata abbattuta tutta / l'armata è stata distrutta. */
       squadronDestroyed: boolean;
       armyDestroyed: boolean;
+      /** Il bersaglio era una flotta: `unitsLost` sono navi affondate, `armyDestroyed` la flotta distrutta. */
+      naval?: boolean;
     }
   /** Squadriglia senza una base raggiungibile dove atterrare. */
   | { time: number; type: "squadronLost"; owner: NationId; at: LngLat; province: ProvinceId | null }

@@ -31,6 +31,8 @@ export interface ShipType {
   /** Ore di gioco per costruirla in una città con il cantiere navale. */
   productionHours: number;
   upkeepPerDay: Partial<Record<ResourceId, number>>;
+  /** Solo portaerei: quanti aerei può ospitare (squadriglie con base sulla nave). */
+  aircraftCapacity?: number;
 }
 
 export const SHIP_TYPES: Record<ShipTypeId, ShipType> = {
@@ -116,6 +118,7 @@ export const SHIP_TYPES: Record<ShipTypeId, ShipType> = {
     cost: { goods: 3000, metal: 7000, oil: 2500, money: 9000, manpower: 2500 },
     productionHours: 120,
     upkeepPerDay: { metal: 200, oil: 400, money: 450 },
+    aircraftCapacity: 8,
   },
 };
 
@@ -124,3 +127,10 @@ export const SHIP_TYPE_IDS = Object.keys(SHIP_TYPES) as ShipTypeId[];
 export function isShipType(id: string): id is ShipTypeId {
   return id in SHIP_TYPES;
 }
+
+export const NAVAL = {
+  /** Riparazione per tick (frazione dei punti vita massimi) di una flotta ormeggiata in un porto proprio e non sotto il fuoco. */
+  repairPerTick: 0.03,
+  /** Una nuova notizia di battaglia navale tra le stesse due nazioni solo se in mare non si combatteva da più di questi minuti. */
+  battleNewsGapMinutes: 120,
+} as const;

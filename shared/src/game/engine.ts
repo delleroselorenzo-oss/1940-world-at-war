@@ -10,6 +10,7 @@ import { flatKm, provinceIdAt } from "../nav/grid.js";
 import type { NavData } from "../nav/types.js";
 import { airOps, evacuateBases, nextAirEvent } from "./air.js";
 import { isShipType } from "../data/naval.js";
+import { navalFight } from "./navalCombat.js";
 import { dockedFleet, harborPoint, navalOps, newFleet, newShip, nextNavalEvent } from "./navy.js";
 import { buildingLevel, downgradeBuildings, fortDamageFactor } from "./buildings.js";
 import {
@@ -169,7 +170,10 @@ export function advance(state: GameState, world: EngineWorld, until: number, eco
       evacuateBases(s, map, t);
       changed = Object.keys(s.squadrons).length !== before || changed;
     }
-    if (t === nextTick) changed = fight(s, world, t) || changed;
+    if (t === nextTick) {
+      changed = fight(s, world, t) || changed;
+      changed = navalFight(s, world, t) || changed;
+    }
     if (changed) rates = netPerDayByNation(map, s, economy);
 
     if (t === nextTick) {

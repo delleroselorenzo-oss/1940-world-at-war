@@ -207,7 +207,13 @@ Passi, ognuno giocabile da solo:
    | Portaerei | 32 | 40 | 80 | — | 0,5 / 2 | 0 / 1 | 2 | — (i suoi aerei) | 120 h |
 
    Costi e mantenimento in `shared/src/data/naval.ts`. Le flotte iniziali delle nazioni (la Royal Navy del 1933…) sono da decidere.
-3. **Combattimento navale**: tiro a distanza tra navi, bombardamento della costa, aerei contro navi e contraerea delle navi, portaerei come base mobile delle squadriglie.
+3. ✅ **Combattimento navale** (a ogni tick di combattimento, 30 minuti, senza casualità: limite di gruppo ed efficienza per salute come a terra):
+   - **Tra flotte**: ogni flotta spara alla flotta nemica più vicina che raggiunge; ogni nave arriva fin dove dice la sua gittata (almeno 5 km, la distanza di contatto: siluri e armi leggere). In navigazione valgono i valori d'attacco, da ferma quelli di difesa; contro i sottomarini i valori "Sottomarini". Le flotte non si fermano da sole al contatto: chi vuole intercettare naviga verso il nemico.
+   - **Contro la costa**: senza flotte nemiche a tiro, le navi con i cannoni colpiscono l'armata nemica più vicina entro la gittata. L'artiglieria a terra, ferma e in batteria e senza armate nemiche a tiro, risponde alle navi di superficie entro la sua gittata (i sottomarini da terra non si colpiscono).
+   - **Aerei contro navi**: l'attacco aereo si può ordinare anche su una flotta; prima spara la contraerea delle navi (della flotta e delle altre flotte vicine della stessa nazione), poi gli aerei colpiscono con i valori "Navi" (o "Sottomarini"). L'aerosilurante è l'arma migliore.
+   - **Portaerei**: base mobile per caccia, bombardieri tattici e aerosiluranti, al massimo **8 aerei** per portaerei. Ci si trasferisce come in un aeroporto (dal pannello della squadriglia o toccando la flotta sulla mappa); gli aerei navigano con lei e, se si è spostata durante il volo, la inseguono finché la portata basta. Se la portaerei affonda, gli aerei a bordo vanno persi.
+   - **Riparazioni**: una flotta ormeggiata in un proprio porto e non colpita recupera il 3% dei punti vita a ogni tick.
+   - Notizie: battaglia navale (solo all'inizio di uno scontro), flotta affondata, attacchi aerei sulle navi.
 4. **Sottomarini e nebbia sul mare**: le flotte si vedono come le armate; i sottomarini solo dai cacciatorpediniere vicini o quando attaccano.
 5. **Trasporti e sbarchi**: imbarco nei porti o sulla costa, trasporto vulnerabile, sbarco (contro una costa difesa è un attacco con penalità).
 6. **Economia del mare**: blocco navale delle importazioni via mare; convogli degli aiuti (Murmansk) e degli sbarchi della partita storica, intercettabili.
@@ -458,6 +464,10 @@ All'inizio, nella **lobby**, chi crea la partita sceglie il tipo e la data di pa
 - **Partita libera**: si sceglie l'anno di partenza e da lì decidono solo i giocatori. Niente eventi, niente forze fuori mappa, niente cambi di dottrina; i capi cambiano solo per data quando il cambio non dipende dalla guerra (elezioni, morti naturali).
 
 In entrambi i tipi la partita può partire da una data diversa dal 1933 (vedi "Partire da una data").
+
+**Forze iniziali** (deciso il 26/10/2026):
+- **storica**: ogni nazione parte con quello che aveva davvero alla data di partenza (esercito, aviazione, flotta: la Royal Navy del 1933 è enorme, la Germania quasi senza navi);
+- **libera**: tutte le nazioni giocate da persone partono con **lo stesso identico esercito** (unità, aerei, navi). Da decidere se metterle anche nelle stesse condizioni economiche.
 
 Ordine di lavoro: la scelta del tipo e della data va prima nella "Nuova partita" della partita locale; la lobby vera, con gli amici che scelgono le nazioni, arriva con il server multigiocatore (milestone 5).
 

@@ -4,6 +4,11 @@ import {
   AIRCRAFT_TYPE_IDS,
   airBases,
   armyPosition,
+  carrierBases,
+  carrierCapacity,
+  carrierLoad,
+  fleetPosition,
+  seaZoneAt,
   flatKm,
   flightMinutes,
   provinceIdAt,
@@ -18,9 +23,9 @@ import type { LoadedMap } from "./map/loadMap.js";
 import { CostList } from "./ui/CostList.js";
 import { formatAmount, formatCountdown, formatDelay } from "./ui/format.js";
 
-// Pannello della squadriglia: stato (a terra, in rifornimento, in volo), trasferimento a un'altra base
-// (dall'elenco o toccando sulla mappa una delle basi evidenziate), attacco a un'armata nemica (toccandola sulla mappa,
-// anche mentre la squadriglia vola), composizione e mantenimento.
+// Pannello della squadriglia: stato (a terra, in rifornimento, in volo), trasferimento a un'altra base, anche una portaerei
+// (dall'elenco o toccando sulla mappa una delle basi evidenziate o la flotta), attacco a un'armata o a una flotta nemica
+// (toccandola sulla mappa, anche mentre la squadriglia vola), composizione e mantenimento.
 
 /** Cosa farà il prossimo tocco sulla mappa: scegliere la base d'arrivo o il bersaglio. */
 export type SquadronMode = "fly" | "strike" | null;
@@ -60,29 +65,48 @@ export function SquadronPanel({
   const speed = squadronSpeedKmh(sq);
   const countdown = (t: number) => formatCountdown(((t - now) * 60) / game.clock.speed);
   const name = (id: string) => map.provinces.get(id)?.name ?? id;
-  const link = (id: string) => (
-    <button className="link" onClick={() => onSelectProvince(id)}>
-      {name(id)}
-    </button>
-  );
+  const onBase = (id: string) => (game.fleets[id] ? "sulla portaerei" : <>a {link(id)}</>);
+  // Una base può essere una provincia o una portaerei (una flotta).
+  const link = (id: string) =>
+    game.fleets[id] ? (
+      <span>la portaerei</span>
+    ) : (
+      <button className="link" onClick={() => onSelectProvince(id)}>
+        {name(id)}
+      </button>
+    );
   const groups = AIRCRAFT_TYPE_IDS.map((t) => ({ type: t, aircraft: sq.aircraft.filter((a) => a.type === t) })).filter((g) => g.aircraft.length > 0);
   const hp = sq.aircraft.reduce((n, a) => n + a.hp, 0) / sq.aircraft.reduce((n, a) => n + AIRCRAFT_TYPES[a.type].hp, 0);
   const upkeep: Record<string, number> = {};
   for (const a of sq.aircraft) for (const [r, n] of Object.entries(AIRCRAFT_TYPES[a.type].upkeepPerDay)) upkeep[r] = (upkeep[r] ?? 0) + n;
 
-  // Basi raggiungibili dalla posizione attuale, dalla più vicina.
-  const here = squadronPosition(sq, map.data, now);
+  // Basi raggiungibili dalla posizione attuale (aeroporti e portaerei), dalla più vicina.
+  const here = squadronPosition(game, sq, map.data, now);
   const bases = mine
-    ? airBases(game, map.data, sq.owner)
-        .filter((p) => p.id !== sq.base)
-        .map((p) => ({ province: p, km: flatKm(here, p.center) }))
+    ? [
+        ...airBases(game, map.data, sq.owner).map((p) => ({ id: p.id, label: link(p.id), at: p.center, ally: game.provinces[p.id]?.owner !== sq.owner })),
+        ...carrierBases(game, sq.owner).map((f) => {
+          const at = fleetPosition(f, now);
+          const zone = seaZoneAt(map.nav, at)?.name;
+          return {
+            id: f.id,
+            label: <span>Portaerei{zone ? ` · ${zone}` : ""} ({carrierLoad(game, f.id)}/{carrierCapacity(f)} aerei)</span>,
+            at,
+            ally: f.owner !== sq.owner,
+          };
+        }),
+      ]
+        .filter((b) => b.id !== sq.base)
+        .map((b) => ({ ...b, km: flatKm(here, b.at) }))
         .filter((b) => b.km <= range)
         .sort((a, b) => a.km - b.km)
     : [];
   const refueling = !sq.flight && sq.readyAt > now;
   const mission = sq.mission;
   const target = mission ? game.armies[mission.target] : undefined;
+  const targetFleet = mission ? game.fleets[mission.target] : undefined;
   const targetProvince = target ? provinceIdAt(map.nav, armyPosition(target, now)) : null;
+  const targetZone = targetFleet ? seaZoneAt(map.nav, fleetPosition(targetFleet, now))?.name : undefined;
 
   return (
     <aside className="panel army-panel" aria-label="Dettagli squadriglia" ref={ref}>
@@ -107,14 +131,14 @@ export function SquadronPanel({
               <>In volo verso il bersaglio · arriva tra {countdown(sq.flight.arriveAt)}</>
             ) : sq.flight ? (
               <>
-                In volo verso {link(sq.flight.base)} · atterra tra {countdown(sq.flight.arriveAt)}
+                In volo verso {game.fleets[sq.flight.base] ? "la portaerei" : link(sq.flight.base)} · atterra tra {countdown(sq.flight.arriveAt)}
               </>
             ) : refueling ? (
               <>
-                A terra a {link(sq.base)} · in rifornimento, pronta tra {countdown(sq.readyAt)}
+                A terra {onBase(sq.base)} · in rifornimento, pronta tra {countdown(sq.readyAt)}
               </>
             ) : (
-              <>A terra a {link(sq.base)} · pronta al decollo</>
+              <>A terra {onBase(sq.base)} · pronta al decollo</>
             )}
           </p>
           <span className="progress health" aria-hidden>
@@ -149,7 +173,7 @@ export function SquadronPanel({
         {mine && mode === "fly" && <p className="targeting">Tocca sulla mappa una delle basi evidenziate, entro il cerchio della portata.</p>}
         {mine && mode === "strike" && (
           <p className="targeting">
-            Tocca sulla mappa un'armata nemica entro il raggio d'azione ({formatAmount(range / 2)} km). Se è più lontana, la squadriglia farà scalo in
+            Tocca sulla mappa un'armata o una flotta nemica entro il raggio d'azione ({formatAmount(range / 2)} km). Se è più lontana, la squadriglia farà scalo in
             una base più vicina.
           </p>
         )}
@@ -158,7 +182,12 @@ export function SquadronPanel({
           <div className="mission">
             <h3>Attacco in corso</h3>
             <p className="small">
-              Bersaglio: {target ? `armata di ${map.nations.get(target.owner)?.name ?? target.owner} (${target.units.length} unità)` : "—"}
+              Bersaglio:{" "}
+              {target
+                ? `armata di ${map.nations.get(target.owner)?.name ?? target.owner} (${target.units.length} unità)`
+                : targetFleet
+                  ? `flotta di ${map.nations.get(targetFleet.owner)?.name ?? targetFleet.owner} (${targetFleet.ships.length} navi)${targetZone ? `, ${targetZone}` : ""}`
+                  : "—"}
               {targetProvince && <> presso {link(targetProvince)}</>}
             </p>
             {mission.via.length > 0 && (
@@ -193,17 +222,17 @@ export function SquadronPanel({
               <p className="muted small">Nessuna altra base entro la portata. Il genio può costruire un aeroporto in qualsiasi tua provincia.</p>
             ) : (
               <ul className="place-list">
-                {bases.map(({ province, km }) => {
-                  const missing = transferMissing({ ...game, time: now }, map.data, sq, province.id);
+                {bases.map(({ id, label, at, ally, km }) => {
+                  const missing = transferMissing({ ...game, time: now }, map.data, sq, id);
                   return (
-                    <li key={province.id}>
+                    <li key={id}>
                       <div className="recruit-head">
-                        {link(province.id)}
+                        {label}
                         <span className="muted small">
-                          {formatAmount(km)} km · {formatDelay(flightMinutes(sq, here, province.center))}
-                          {game.provinces[province.id]?.owner !== sq.owner && " · alleato"}
+                          {formatAmount(km)} km · {formatDelay(flightMinutes(sq, here, at))}
+                          {ally && " · alleato"}
                         </span>
-                        <button className="button small" disabled={missing !== null} title={missing ?? undefined} onClick={() => onFly(province.id)}>
+                        <button className="button small" disabled={missing !== null} title={missing ?? undefined} onClick={() => onFly(id)}>
                           Vola
                         </button>
                       </div>

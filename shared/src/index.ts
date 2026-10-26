@@ -27,6 +27,7 @@ export * from "./game/routing.js";
 export * from "./game/works.js";
 export * from "./game/air.js";
 export * from "./game/navy.js";
+export * from "./game/navalCombat.js";
 export * from "./game/trade.js";
 export * from "./game/terrain.js";
 export * from "./game/vision.js";

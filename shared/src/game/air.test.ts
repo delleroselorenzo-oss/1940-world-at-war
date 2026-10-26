@@ -86,7 +86,7 @@ describe("aviazione: trasferimento", () => {
     expect(game.squadrons.s!.flight).toMatchObject({ base: "A2", departAt: 0, arriveAt: minutes });
     expect(error(game, { type: "fly", squadron: "s", base: "A1" })).toBe("La squadriglia è in volo.");
     // A metà volo è a metà strada.
-    const half = squadronPosition(game.squadrons.s!, world.map, minutes / 2);
+    const half = squadronPosition(game, game.squadrons.s!, world.map, minutes / 2);
     expect(flatKm(half, center("A1"))).toBeCloseTo(flatKm(center("A1"), center("A2")) / 2, 0);
 
     game = advance(game, world, minutes);
@@ -176,7 +176,7 @@ describe("aviazione: attacco", () => {
   it("si attaccano solo le armate delle nazioni in guerra", () => {
     const game = squadron(place(newGame(), "e", "BBB", center("B1"), ["infantry"]), "A1", ["tacticalBomber"]);
     expect(error(game, { type: "airStrike", squadron: "s", target: "e" })).toMatch(/in guerra/);
-    expect(error(place(game, "m", "AAA", center("A2"), ["infantry"]), { type: "airStrike", squadron: "s", target: "m" })).toMatch(/tue armate/);
+    expect(error(place(game, "m", "AAA", center("A2"), ["infantry"]), { type: "airStrike", squadron: "s", target: "m" })).toMatch(/tue forze/);
     expect(error(game, { type: "airStrike", squadron: "s", target: "nessuna" })).toBe("Bersaglio sconosciuto.");
   });
 

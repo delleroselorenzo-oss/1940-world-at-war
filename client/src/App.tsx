@@ -226,7 +226,7 @@ function Game({ map }: { map: LoadedMap }) {
   // Basi dove la squadriglia selezionata può volare adesso: evidenziate sulla mappa mentre si sceglie.
   const reachableBases = useMemo(() => {
     if (!choosingBase || !state || !selectedSquadron || selectedSquadron.flight) return NO_HIGHLIGHT;
-    const here = squadronPosition(selectedSquadron, map.data, state.time);
+    const here = squadronPosition(state, selectedSquadron, map.data, state.time);
     const range = squadronRangeKm(selectedSquadron);
     return new Set(
       airBases(state, map.data, selectedSquadron.owner)
@@ -314,14 +314,16 @@ function Game({ map }: { map: LoadedMap }) {
     [state, choosingBase, selectedSquadron, onMapProvince, map, select],
   );
 
-  // Tocco su una flotta: mentre si sceglie la meta, si va dove si trova.
+  // Tocco su una flotta: mentre si sceglie la meta, si va dove si trova; per una squadriglia è la base (portaerei) o il bersaglio.
   const onMapFleet = useCallback(
     (id: string) => {
       const other = state?.fleets[id];
       if (choosingSea && other && id !== selectedFleet?.id) return sailTo(fleetPosition(other, game.nowExact()));
+      if (choosingBase && other) return flyTo(id);
+      if (choosingTarget) return strike(id);
       select({ kind: "fleet", id });
     },
-    [state, choosingSea, selectedFleet, sailTo, game, select],
+    [state, choosingSea, selectedFleet, sailTo, choosingBase, flyTo, choosingTarget, strike, game, select],
   );
 
   const work = useCallback(
@@ -651,6 +653,7 @@ function Game({ map }: { map: LoadedMap }) {
           }}
           onSail={sailTo}
           onStop={() => setOrderError(game.order({ type: "stopFleet", fleet: selectedFleet.id }))}
+          onSelectSquadron={(id) => select({ kind: "squadron", id })}
           onSelectProvince={selectProvinceAndFocus}
           onClose={() => select(null)}
         />

@@ -147,6 +147,11 @@ export function navalOps(s: GameState, world: { nav?: NavData }, t: number): boo
       const host = fleet.port ? dockedFleet(s, fleet.owner, fleet.port, fleet.id) : undefined;
       if (host) {
         host.ships.push(...fleet.ships);
+        // Gli aerei della portaerei passano alla flotta che la accoglie.
+        for (const sq of Object.values(s.squadrons)) {
+          if (sq.base === id) s.squadrons[sq.id] = { ...sq, base: host.id };
+          if (sq.flight?.base === id) s.squadrons[sq.id] = { ...s.squadrons[sq.id]!, flight: { ...sq.flight, base: host.id } };
+        }
         delete s.fleets[id];
         changed = true;
       }

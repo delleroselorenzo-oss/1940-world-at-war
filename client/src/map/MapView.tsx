@@ -114,7 +114,7 @@ export function MapView({
     if (styleRef.current) renderer.setProvinceStyle(styleRef.current);
     if (worksRef.current) renderer.setWorks(worksRef.current);
     renderer.setArmies(armiesRef.current.armies, armiesRef.current.playerNation, armiesRef.current.engaged);
-    renderer.setSquadrons(squadronsRef.current, armiesRef.current.playerNation);
+    renderer.setSquadrons(squadronsRef.current, armiesRef.current.playerNation, fleetsRef.current);
     renderer.setFleets(fleetsRef.current, armiesRef.current.playerNation);
     void renderer.mount(hostRef.current!);
     return () => {
@@ -136,8 +136,8 @@ export function MapView({
   }, [armies, playerNation, engaged]);
 
   useEffect(() => {
-    rendererRef.current?.setSquadrons(squadrons, playerNation);
-  }, [squadrons, playerNation]);
+    rendererRef.current?.setSquadrons(squadrons, playerNation, fleets);
+  }, [squadrons, playerNation, fleets]);
 
   useEffect(() => {
     rendererRef.current?.setSelectedSquadron(selectedSquadronId);

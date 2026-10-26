@@ -1,9 +1,11 @@
 import { AIR, AIRCRAFT_TYPES } from "../data/air.js";
+import { SHIP_TYPES } from "../data/naval.js";
 import { COMBAT } from "../data/combat.js";
 import { TERRAIN_RULES } from "../data/terrain.js";
 import { ARMOR_CLASSES, UNIT_TYPES } from "../data/units.js";
 import type { LngLat, MapData, NationId, Province, ProvinceId } from "../map/types.js";
 import { flatKm, provinceIdAt } from "../nav/grid.js";
+import { seaZoneAt } from "../nav/sea.js";
 import type { NavData } from "../nav/types.js";
 import { buildingLevel, fortDamageFactor } from "./buildings.js";
 import { applyDamage, armyAntiAir, efficiency, groupWeight, isAttacking, lerp, lowerMorale, moraleDamage, noDamage } from "./combat.js";
@@ -11,10 +13,14 @@ import { atWar, hasAgreement, logEvent } from "./diplomacy.js";
 import { mapIndex } from "./mapIndex.js";
 import { armyPosition } from "./movement.js";
 import { terrainAt } from "./terrain.js";
-import type { Aircraft, Army, ArmyId, GameState, Squadron, StrikeMission } from "./state.js";
+import { applyShipDamage, shipClass } from "./navalCombat.js";
+import { fleetHealth, fleetPosition } from "./navy.js";
+import type { Aircraft, Army, Fleet, GameState, Squadron, StrikeMission } from "./state.js";
 
 // Aviazione: basi, portata, voli e attacchi delle squadriglie (vedi docs/game-design.md, §9 "Aviazione").
-// Ci sono il trasferimento tra basi e l'attacco alle armate nemiche; convoglio e pattuglia arriveranno dopo.
+// Ci sono il trasferimento tra basi e l'attacco alle armate e alle flotte nemiche; convoglio e pattuglia arriveranno dopo.
+// Una base è una provincia (aeroporto o fabbrica aeronautica) oppure una flotta con una portaerei (la base si muove con lei:
+// chi ci vola la insegue, finché la portata basta).
 
 /** Portata della squadriglia: quella dell'aereo che arriva meno lontano. */
 export function squadronRangeKm(sq: Squadron): number {
@@ -37,14 +43,51 @@ export function squadronHealth(sq: Squadron): number {
   return max > 0 ? hp / max : 0;
 }
 
+/** Aerei che una flotta può ospitare: la somma delle sue portaerei (0 se non ne ha). */
+export function carrierCapacity(fleet: Fleet): number {
+  return fleet.ships.reduce((n, s) => n + (SHIP_TYPES[s.type].aircraftCapacity ?? 0), 0);
+}
+
+/** Aerei che hanno la flotta come base (a bordo o in volo verso di lei), tranne la squadriglia `except`. */
+export function carrierLoad(state: GameState, fleetId: string, except?: string): number {
+  let n = 0;
+  for (const sq of Object.values(state.squadrons)) {
+    if (sq.id === except) continue;
+    if ((sq.flight ? sq.flight.base : sq.base) === fleetId) n += sq.aircraft.length;
+  }
+  return n;
+}
+
+/** Perché la squadriglia non può avere come base la portaerei (null = può). */
+export function carrierMissing(state: GameState, fleet: Fleet, sq: Squadron): string | null {
+  if (carrierCapacity(fleet) === 0) return "La flotta non ha portaerei.";
+  if (sq.aircraft.some((a) => !AIRCRAFT_TYPES[a.type].carrier)) return "Sulla portaerei salgono solo caccia, bombardieri tattici e aerosiluranti.";
+  if (carrierLoad(state, fleet.id, sq.id) + sq.aircraft.length > carrierCapacity(fleet)) return `La portaerei è piena (al massimo ${carrierCapacity(fleet)} aerei).`;
+  return null;
+}
+
 /**
- * La provincia è una base per gli aerei di `nation`? Serve un aeroporto o una fabbrica aeronautica,
- * in una provincia propria o di un alleato.
+ * La base (provincia o flotta) è utilizzabile dagli aerei di `nation`? Una provincia serve con un aeroporto o una fabbrica aeronautica,
+ * propria o di un alleato; una flotta se ha una portaerei, è propria o di un alleato e (se si indica la squadriglia) c'è posto per lei.
  */
-export function isAirBase(state: GameState, provinceId: ProvinceId, nation: NationId): boolean {
-  const owner = state.provinces[provinceId]?.owner;
+export function isAirBase(state: GameState, baseId: string, nation: NationId, sq?: Squadron): boolean {
+  const fleet = state.fleets[baseId];
+  const owner = fleet ? fleet.owner : state.provinces[baseId]?.owner;
   if (!owner || (owner !== nation && !hasAgreement(state, owner, nation, "alliance"))) return false;
-  return buildingLevel(state, provinceId, "airfield") > 0 || buildingLevel(state, provinceId, "aircraftFactory") > 0;
+  if (fleet) return sq ? carrierMissing(state, fleet, sq) === null : carrierCapacity(fleet) > 0;
+  return buildingLevel(state, baseId, "airfield") > 0 || buildingLevel(state, baseId, "aircraftFactory") > 0;
+}
+
+/** Dove si trova la base al minuto `t` (una portaerei si muove); null se non esiste più. */
+export function basePosition(state: Pick<GameState, "fleets">, map: MapData, baseId: string, t: number): LngLat | null {
+  const fleet = state.fleets[baseId];
+  if (fleet) return fleetPosition(fleet, t);
+  return mapIndex(map).provinces.get(baseId)?.center ?? null;
+}
+
+/** Portaerei (flotte) dove gli aerei di `nation` possono andare. */
+export function carrierBases(state: GameState, nation: NationId): Fleet[] {
+  return Object.values(state.fleets).filter((f) => carrierCapacity(f) > 0 && isAirBase(state, f.id, nation));
 }
 
 /** Basi disponibili per `nation`. */
@@ -56,6 +99,7 @@ export function airBases(state: GameState, map: MapData, nation: NationId): Prov
 function nearestBaseKm(state: GameState, map: MapData, nation: NationId, at: LngLat): number {
   let best = Infinity;
   for (const p of airBases(state, map, nation)) best = Math.min(best, flatKm(at, p.center));
+  for (const f of carrierBases(state, nation)) best = Math.min(best, flatKm(at, fleetPosition(f, state.time)));
   return best;
 }
 
@@ -66,37 +110,42 @@ export function refuelMinutes(state: GameState, sq: Squadron, base: ProvinceId):
   return Math.round(longest * (1 - AIR.airfieldTimeCutPerLevel * (level - 1)));
 }
 
-/** Dove si trova la squadriglia al minuto `t`: alla base, oppure lungo il volo. */
-export function squadronPosition(sq: Squadron, map: MapData, t: number): LngLat {
+/** Dove si trova la squadriglia al minuto `t`: alla base (anche una portaerei in navigazione), oppure lungo il volo. */
+export function squadronPosition(state: Pick<GameState, "fleets">, sq: Squadron, map: MapData, t: number): LngLat {
   const f = sq.flight;
-  if (!f) return mapIndex(map).provinces.get(sq.base)!.center;
+  if (!f) return basePosition(state, map, sq.base, t) ?? [0, 0];
   if (t >= f.arriveAt) return f.to;
   return lerp(f.from, f.to, Math.max(0, (t - f.departAt) / (f.arriveAt - f.departAt)));
 }
 
 /** Portata che resta alla squadriglia al minuto `t`: tutta a terra; in volo quella che avrà all'arrivo più il tratto ancora da fare. */
-export function squadronFuelKm(sq: Squadron, map: MapData, t: number): number {
+export function squadronFuelKm(state: GameState, sq: Squadron, map: MapData, t: number): number {
   const f = sq.flight;
-  return f ? f.fuelKm + flatKm(squadronPosition(sq, map, t), f.to) : squadronRangeKm(sq);
+  return f ? f.fuelKm + flatKm(squadronPosition(state, sq, map, t), f.to) : squadronRangeKm(sq);
 }
 
 /** Perché la squadriglia non può trasferirsi alla base indicata (null = può). */
-export function transferMissing(state: GameState, map: MapData, sq: Squadron, base: ProvinceId): string | null {
-  const to = mapIndex(map).provinces.get(base);
-  if (!to) return "Provincia sconosciuta.";
+export function transferMissing(state: GameState, map: MapData, sq: Squadron, base: string): string | null {
+  const to = basePosition(state, map, base, state.time);
+  if (!to) return "Base sconosciuta.";
   if (sq.flight) return "La squadriglia è in volo.";
   if (sq.readyAt > state.time) return "La squadriglia si sta rifornendo.";
   if (base === sq.base) return "La squadriglia è già in questa base.";
-  if (!isAirBase(state, base, sq.owner)) return "Non è una tua base aerea (serve un aeroporto o una fabbrica aeronautica, tua o di un alleato).";
-  const km = flatKm(squadronPosition(sq, map, state.time), to.center);
+  const fleet = state.fleets[base];
+  if (fleet) {
+    if (fleet.owner !== sq.owner && !hasAgreement(state, fleet.owner, sq.owner, "alliance")) return "Non è una portaerei tua o di un alleato.";
+    const missing = carrierMissing(state, fleet, sq);
+    if (missing) return missing;
+  } else if (!isAirBase(state, base, sq.owner)) return "Non è una tua base aerea (serve un aeroporto o una fabbrica aeronautica, tua o di un alleato).";
+  const km = flatKm(squadronPosition(state, sq, map, state.time), to);
   if (km > squadronRangeKm(sq)) return `Troppo lontano: ${Math.round(km)} km, la portata è di ${squadronRangeKm(sq)} km.`;
   return null;
 }
 
 /** Fa decollare la squadriglia verso la base (va chiamata dopo `transferMissing`). Annulla un attacco in attesa. Modifica `sq`. */
-export function startTransfer(sq: Squadron, map: MapData, base: ProvinceId, t: number): void {
-  const from = squadronPosition(sq, map, t);
-  const to = mapIndex(map).provinces.get(base)!.center;
+export function startTransfer(state: GameState, sq: Squadron, map: MapData, base: string, t: number): void {
+  const from = squadronPosition(state, sq, map, t);
+  const to = basePosition(state, map, base, t)!;
   sq.mission = null;
   fly(sq, from, to, base, squadronRangeKm(sq), t);
 }
@@ -106,24 +155,39 @@ export function flightMinutes(sq: Squadron, from: LngLat, to: LngLat): number {
   return Math.max(1, Math.round((flatKm(from, to) / squadronSpeedKmh(sq)) * 60));
 }
 
-function fly(sq: Squadron, from: LngLat, to: LngLat, base: ProvinceId | null, fuelKm: number, t: number) {
+function fly(sq: Squadron, from: LngLat, to: LngLat, base: string | null, fuelKm: number, t: number) {
   sq.flight = { from, to, base, departAt: t, arriveAt: t + flightMinutes(sq, from, to), fuelKm: fuelKm - flatKm(from, to) };
 }
 
 // --- Attacco ---
 
-/** Il bersaglio si può ancora attaccare: esiste, ha unità ed è di una nazione in guerra con chi attacca. */
-function validTarget(state: GameState, nation: NationId, target: Army | undefined): target is Army {
-  return !!target && target.units.length > 0 && atWar(state, nation, target.owner);
+/** Bersaglio di un attacco: un'armata o una flotta. */
+type Target = { kind: "army"; army: Army; owner: NationId } | { kind: "fleet"; fleet: Fleet; owner: NationId };
+
+function targetOf(state: GameState, id: string): Target | undefined {
+  const army = state.armies[id];
+  if (army) return army.units.length > 0 ? { kind: "army", army, owner: army.owner } : undefined;
+  const fleet = state.fleets[id];
+  if (fleet) return fleet.ships.length > 0 ? { kind: "fleet", fleet, owner: fleet.owner } : undefined;
+  return undefined;
+}
+
+function targetPosition(target: Target, t: number): LngLat {
+  return target.kind === "army" ? armyPosition(target.army, t) : fleetPosition(target.fleet, t);
+}
+
+/** Il bersaglio si può ancora attaccare: esiste, non è distrutto ed è di una nazione in guerra con chi attacca. */
+function validTarget(state: GameState, nation: NationId, target: Target | undefined): target is Target {
+  return !!target && atWar(state, nation, target.owner);
 }
 
 /**
  * Dove incontrare il bersaglio partendo da `from` al minuto `t`: la sua posizione all'ora d'arrivo,
- * prevista lungo la marcia che sta facendo (qualche passaggio basta: gli aerei sono molto più veloci).
+ * prevista lungo la marcia (o la navigazione) che sta facendo (qualche passaggio basta: gli aerei sono molto più veloci).
  */
-function aimAt(sq: Squadron, from: LngLat, target: Army, t: number): LngLat {
-  let at = armyPosition(target, t);
-  for (let i = 0; i < 4; i++) at = armyPosition(target, t + flightMinutes(sq, from, at));
+function aimAt(sq: Squadron, from: LngLat, target: Target, t: number): LngLat {
+  let at = targetPosition(target, t);
+  for (let i = 0; i < 4; i++) at = targetPosition(target, t + flightMinutes(sq, from, at));
   return at;
 }
 
@@ -139,16 +203,16 @@ export interface StrikePlan {
  * fino a una base abbastanza vicina. Una squadriglia in volo va direttamente sul bersaglio se è entro il raggio d'azione da dove
  * si trova e se dopo l'attacco la portata rimasta basta per arrivare a una base: niente missioni di sola andata.
  */
-export function planStrike(state: GameState, map: MapData, sq: Squadron, targetId: ArmyId, t: number): StrikePlan | string {
-  const target = state.armies[targetId];
-  if (!target || target.units.length === 0) return "Bersaglio sconosciuto.";
-  if (target.owner === sq.owner) return "Non puoi attaccare le tue armate.";
-  if (!atWar(state, sq.owner, target.owner)) return "Puoi attaccare solo le armate delle nazioni con cui sei in guerra.";
+export function planStrike(state: GameState, map: MapData, sq: Squadron, targetId: string, t: number): StrikePlan | string {
+  const target = targetOf(state, targetId);
+  if (!target) return "Bersaglio sconosciuto.";
+  if (target.owner === sq.owner) return "Non puoi attaccare le tue forze.";
+  if (!atWar(state, sq.owner, target.owner)) return "Puoi attaccare solo armate e flotte delle nazioni con cui sei in guerra.";
   const range = squadronRangeKm(sq);
   const radius = range / 2;
-  const here = squadronPosition(sq, map, t);
+  const here = squadronPosition(state, sq, map, t);
   const at = aimAt(sq, here, target, t);
-  const fuel = squadronFuelKm(sq, map, t);
+  const fuel = squadronFuelKm(state, sq, map, t);
 
   const direct = sq.flight
     ? flatKm(here, at) <= radius && flatKm(here, at) + nearestBaseKm(state, map, sq.owner, at) <= fuel
@@ -156,7 +220,7 @@ export function planStrike(state: GameState, map: MapData, sq: Squadron, targetI
   if (direct) return { direct: true, mission: { target: targetId, anchor: here, radiusKm: radius, via: [] } };
 
   // Scali: il percorso più corto tra le basi (ogni tratto entro la portata) fino a una base da cui il bersaglio è nel raggio d'azione.
-  const goal = armyPosition(target, t);
+  const goal = targetPosition(target, t);
   const bases = airBases(state, map, sq.owner).filter((p) => sq.flight || p.id !== sq.base);
   const dist = bases.map((p) => (flatKm(here, p.center) <= fuel ? flatKm(here, p.center) : Infinity));
   const prev = bases.map(() => -1);
@@ -185,11 +249,11 @@ export function planStrike(state: GameState, map: MapData, sq: Squadron, targetI
 export function startStrike(state: GameState, map: MapData, sq: Squadron, plan: StrikePlan, t: number): void {
   sq.mission = plan.mission;
   if (sq.flight) {
-    const here = squadronPosition(sq, map, t);
-    const fuel = squadronFuelKm(sq, map, t);
+    const here = squadronPosition(state, sq, map, t);
+    const fuel = squadronFuelKm(state, sq, map, t);
     const next = plan.mission.via[0];
     if (next) fly(sq, here, mapIndex(map).provinces.get(next)!.center, next, fuel, t);
-    else fly(sq, here, aimAt(sq, here, state.armies[plan.mission.target]!, t), null, fuel, t);
+    else fly(sq, here, aimAt(sq, here, targetOf(state, plan.mission.target)!, t), null, fuel, t);
   } else if (sq.readyAt <= t) launch(state, map, sq, t);
 }
 
@@ -198,19 +262,19 @@ export function startStrike(state: GameState, map: MapData, sq: Squadron, plan: 
  * se sta andando a uno scalo ci atterra e si ferma lì. Modifica `s` e la squadriglia (che dev'essere una copia).
  */
 export function abortStrike(s: GameState, map: MapData, sq: Squadron, t: number): void {
-  if (sq.flight?.base === null) returnToBase(s, map, sq, squadronPosition(sq, map, t), squadronFuelKm(sq, map, t), t);
+  if (sq.flight?.base === null) returnToBase(s, map, sq, squadronPosition(s, sq, map, t), squadronFuelKm(s, sq, map, t), t);
   sq.mission = null;
 }
 
 /** Decollo al minuto `t` di una squadriglia a terra con un attacco in attesa: verso il prossimo scalo o verso il bersaglio. */
 function launch(s: GameState, map: MapData, sq: Squadron, t: number): void {
   const m = sq.mission!;
-  const target = s.armies[m.target];
+  const target = targetOf(s, m.target);
   if (!validTarget(s, sq.owner, target)) {
     sq.mission = null;
     return;
   }
-  const from = mapIndex(map).provinces.get(sq.base)!.center;
+  const from = basePosition(s, map, sq.base, t)!;
   const next = m.via[0];
   if (next) {
     const to = mapIndex(map).provinces.get(next)!.center;
@@ -244,12 +308,12 @@ function strikeArrival(s: GameState, world: { map: MapData; nav?: NavData }, sq:
   const { map } = world;
   const f = sq.flight!;
   const m = sq.mission;
-  const target = m ? s.armies[m.target] : undefined;
+  const target = m ? targetOf(s, m.target) : undefined;
   if (!m || !validTarget(s, sq.owner, target)) {
     returnToBase(s, map, sq, f.to, f.fuelKm, t);
     return false;
   }
-  if (flatKm(f.to, armyPosition(target, t)) <= AIR.strikeKm) {
+  if (flatKm(f.to, targetPosition(target, t)) <= AIR.strikeKm) {
     strike(s, world, sq, target, f.to, t);
     if (s.squadrons[sq.id]) returnToBase(s, map, sq, f.to, f.fuelKm, t);
     return true;
@@ -260,12 +324,72 @@ function strikeArrival(s: GameState, world: { map: MapData; nav?: NavData }, sq:
   return false;
 }
 
+/** Un passaggio sul bersaglio, armata o flotta. Modifica `s`. */
+function strike(s: GameState, world: { map: MapData; nav?: NavData }, sq: Squadron, target: Target, at: LngLat, t: number) {
+  if (target.kind === "army") strikeArmy(s, world, sq, target.army, at, t);
+  else strikeFleet(s, world, sq, target.fleet, at, t);
+}
+
 /**
- * Un passaggio sul bersaglio: prima spara la contraerea (del bersaglio e delle armate della stessa nazione vicine),
+ * Attacco a una flotta: prima spara la contraerea delle navi (della flotta e delle altre flotte della stessa nazione vicine),
+ * poi gli aerei rimasti colpiscono con i valori contro le navi (contro i sottomarini quelli contro i sottomarini).
+ */
+function strikeFleet(s: GameState, world: { map: MapData; nav?: NavData }, sq: Squadron, target: Fleet, at: LngLat, t: number) {
+  const before = { aircraft: sq.aircraft.length, ships: target.ships.length };
+  let antiAir = 0;
+  for (const f of Object.values(s.fleets))
+    if (f.owner === target.owner && flatKm(fleetPosition(f, t), at) <= COMBAT.contactKm) antiAir += fleetAntiAir(f);
+  sq.aircraft = damageAircraft(sq.aircraft, antiAir);
+
+  const eff = efficiency(squadronHealth(sq));
+  const n = target.ships.length;
+  const damage = { surface: 0, sub: 0 };
+  for (const c of ["surface", "sub"] as const) {
+    const count = target.ships.filter((x) => shipClass(x.type) === c).length;
+    if (count === 0) continue;
+    const values = sq.aircraft.map((a) => (c === "sub" ? AIRCRAFT_TYPES[a.type].vsSub : AIRCRAFT_TYPES[a.type].vsShip) ?? 0).sort((x, y) => y - x);
+    let total = 0;
+    values.forEach((v, i) => (total += v * groupWeight(i)));
+    damage[c] = total * eff * (count / n);
+  }
+  target.ships = applyShipDamage(target.ships, damage);
+
+  const fleetDestroyed = target.ships.length === 0;
+  const squadronDestroyed = sq.aircraft.length === 0;
+  logEvent(s, {
+    time: t,
+    type: "airStrike",
+    by: sq.owner,
+    against: target.owner,
+    at,
+    province: null,
+    aircraftLost: before.aircraft - sq.aircraft.length,
+    unitsLost: before.ships - target.ships.length,
+    squadronDestroyed,
+    armyDestroyed: fleetDestroyed,
+    naval: true,
+  });
+  if (fleetDestroyed) {
+    logEvent(s, { time: t, type: "fleetDestroyed", fleet: target.id, owner: target.owner, by: sq.owner, at, zone: world.nav ? (seaZoneAt(world.nav, at)?.name ?? null) : null });
+    delete s.fleets[target.id];
+  }
+  if (squadronDestroyed) delete s.squadrons[sq.id];
+}
+
+/** Contraerea della flotta: come per le armate, con il limite di gruppo e l'efficienza per salute. */
+export function fleetAntiAir(fleet: Fleet): number {
+  const values = fleet.ships.map((x) => SHIP_TYPES[x.type].antiAir).sort((a, b) => b - a);
+  let total = 0;
+  values.forEach((v, i) => (total += v * groupWeight(i)));
+  return total * efficiency(fleetHealth(fleet));
+}
+
+/**
+ * Attacco a un'armata: prima spara la contraerea (del bersaglio e delle armate della stessa nazione vicine),
  * poi gli aerei rimasti colpiscono, con le regole del combattimento a terra (limite di gruppo, efficienza per salute,
  * fortificazioni). Niente casualità. Modifica `s`.
  */
-function strike(s: GameState, world: { map: MapData; nav?: NavData }, sq: Squadron, target: Army, at: LngLat, t: number) {
+function strikeArmy(s: GameState, world: { map: MapData; nav?: NavData }, sq: Squadron, target: Army, at: LngLat, t: number) {
   const before = { aircraft: sq.aircraft.length, units: target.units.length };
   let antiAir = 0;
   for (const a of Object.values(s.armies))
@@ -346,8 +470,17 @@ export function airOps(s: GameState, world: { map: MapData; nav?: NavData }, t: 
     if (!sq) continue;
     const f = sq.flight;
     if (f && f.arriveAt <= t) {
+      const carrier = f.base !== null ? s.fleets[f.base] : undefined;
+      const carrierAt = carrier ? fleetPosition(carrier, t) : null;
       if (f.base === null) changed = strikeArrival(s, world, sq, t) || changed;
-      else if (isAirBase(s, f.base, sq.owner)) {
+      else if (carrierAt && isAirBase(s, f.base, sq.owner, sq) && flatKm(f.to, carrierAt) > AIR.strikeKm) {
+        // La portaerei si è spostata: la si insegue se la portata basta, altrimenti si va alla base più vicina.
+        if (flatKm(f.to, carrierAt) <= f.fuelKm) fly(sq, f.to, carrierAt, f.base, f.fuelKm, t);
+        else {
+          divert(s, map, sq, f.to, f.fuelKm, t);
+          changed ||= !s.squadrons[id];
+        }
+      } else if (isAirBase(s, f.base, sq.owner, carrier ? sq : undefined)) {
         sq.base = f.base;
         sq.flight = null;
         sq.readyAt = t + refuelMinutes(s, sq, f.base);
@@ -378,23 +511,38 @@ export function nextAirEvent(s: GameState): number {
 export function evacuateBases(s: GameState, map: MapData, t: number): void {
   for (const sq of Object.values(s.squadrons)) {
     if (sq.flight || isAirBase(s, sq.base, sq.owner)) continue;
-    divert(s, map, sq, mapIndex(map).provinces.get(sq.base)!.center, squadronRangeKm(sq), t);
+    const at = basePosition(s, map, sq.base, t);
+    if (at) divert(s, map, sq, at, squadronRangeKm(sq), t);
+    else {
+      // La portaerei è affondata con gli aerei a bordo.
+      const sunk = [...s.events].reverse().find((e) => e.type === "fleetDestroyed" && e.fleet === sq.base);
+      lose(s, map, sq, sunk?.type === "fleetDestroyed" ? sunk.at : [0, 0], t);
+    }
   }
+}
+
+/** La squadriglia va persa. */
+function lose(s: GameState, map: MapData, sq: Squadron, at: LngLat, t: number) {
+  const base = sq.flight?.base ?? sq.base;
+  logEvent(s, { time: t, type: "squadronLost", owner: sq.owner, at, province: mapIndex(map).provinces.has(base) ? base : null });
+  delete s.squadrons[sq.id];
 }
 
 /** Manda la squadriglia, da `at`, alla base più vicina entro `fuelKm` (l'attacco in corso decade); se non c'è, va persa. */
 function divert(s: GameState, map: MapData, sq: Squadron, at: LngLat, fuelKm: number, t: number) {
-  let best: Province | null = null;
+  let best: { id: string; at: LngLat } | null = null;
   let bestKm = Infinity;
-  for (const p of airBases(s, map, sq.owner)) {
-    const km = flatKm(at, p.center);
-    if (km <= fuelKm && km < bestKm) [best, bestKm] = [p, km];
+  const candidates = [
+    ...airBases(s, map, sq.owner).map((p) => ({ id: p.id, at: p.center })),
+    ...carrierBases(s, sq.owner)
+      .filter((f) => isAirBase(s, f.id, sq.owner, sq))
+      .map((f) => ({ id: f.id, at: fleetPosition(f, t) })),
+  ];
+  for (const b of candidates) {
+    const km = flatKm(at, b.at);
+    if (km <= fuelKm && km < bestKm) [best, bestKm] = [b, km];
   }
   sq.mission = null;
-  if (!best) {
-    logEvent(s, { time: t, type: "squadronLost", owner: sq.owner, at, province: sq.flight?.base ?? sq.base });
-    delete s.squadrons[sq.id];
-    return;
-  }
-  fly(sq, at, best.center, best.id, fuelKm, t);
+  if (!best) return lose(s, map, sq, at, t);
+  fly(sq, at, best.at, best.id, fuelKm, t);
 }

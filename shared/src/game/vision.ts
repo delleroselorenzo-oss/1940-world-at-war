@@ -72,8 +72,8 @@ export function visionOf(state: GameState, world: VisionWorld, nation: NationId,
   }
   for (const sq of Object.values(state.squadrons)) {
     if (!viewers.has(sq.owner)) continue;
-    if (sq.flight && t < sq.flight.arriveAt) eyes.push({ at: squadronPosition(sq, map, t), km: squadronSightKm(sq) });
-    else provinces.add(sq.base);
+    if (sq.flight && t < sq.flight.arriveAt) eyes.push({ at: squadronPosition(state, sq, map, t), km: squadronSightKm(sq) });
+    else if (!state.fleets[sq.base]) provinces.add(sq.base);
   }
   for (const f of Object.values(state.fleets)) {
     if (!viewers.has(f.owner)) continue;
@@ -88,14 +88,14 @@ export function visionOf(state: GameState, world: VisionWorld, nation: NationId,
   };
   const armies = new Set<ArmyId>();
   for (const a of Object.values(state.armies)) if (viewers.has(a.owner) || seen(armyPosition(a, t))) armies.add(a.id);
-  const squadrons = new Set<SquadronId>();
-  for (const sq of Object.values(state.squadrons)) {
-    const flying = sq.flight !== null && t < sq.flight.arriveAt;
-    if (viewers.has(sq.owner) || (flying ? seen(squadronPosition(sq, map, t)) : provinces.has(sq.base))) squadrons.add(sq.id);
-  }
   const fleets = new Set<FleetId>();
   for (const f of Object.values(state.fleets)) {
     if (viewers.has(f.owner) || (f.port ? provinces.has(f.port) : false) || seen(fleetPosition(f, t))) fleets.add(f.id);
+  }
+  const squadrons = new Set<SquadronId>();
+  for (const sq of Object.values(state.squadrons)) {
+    const flying = sq.flight !== null && t < sq.flight.arriveAt;
+    if (viewers.has(sq.owner) || (flying ? seen(squadronPosition(state, sq, map, t)) : state.fleets[sq.base] ? fleets.has(sq.base) : provinces.has(sq.base))) squadrons.add(sq.id);
   }
   return { viewers, provinces, armies, squadrons, fleets };
 }

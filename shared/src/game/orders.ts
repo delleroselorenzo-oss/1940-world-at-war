@@ -41,9 +41,9 @@ export type Order =
   /** Arruola un'unità o costruisce un aereo o una nave in una città (gli aerei escono in una squadriglia alla base della città, le navi in una flotta nel suo porto). */
   | { type: "recruit"; province: ProvinceId; unitType: ProducibleId }
   /** Trasferisce una squadriglia a terra in un'altra base entro la portata. */
-  | { type: "fly"; squadron: SquadronId; base: ProvinceId }
+  | { type: "fly"; squadron: SquadronId; base: string }
   /** Attacco aereo a un'armata nemica (anche a una squadriglia in volo: cambia rotta). */
-  | { type: "airStrike"; squadron: SquadronId; target: ArmyId }
+  | { type: "airStrike"; squadron: SquadronId; target: string }
   /** Annulla l'attacco: la squadriglia rientra (o atterra allo scalo verso cui volava). */
   | { type: "cancelStrike"; squadron: SquadronId }
   /**
@@ -184,17 +184,17 @@ function stopFleet(state: GameState, nation: NationId, id: FleetId): OrderResult
   return ok({ ...state, fleets: { ...state.fleets, [id]: fleet } });
 }
 
-function flyTo(state: GameState, map: MapData, nation: NationId, id: SquadronId, base: ProvinceId): OrderResult {
+function flyTo(state: GameState, map: MapData, nation: NationId, id: SquadronId, base: string): OrderResult {
   const current = state.squadrons[id];
   if (!current || current.owner !== nation) return fail("Squadriglia sconosciuta.");
   const missing = transferMissing(state, map, current, base);
   if (missing) return fail(missing);
   const sq = { ...current };
-  startTransfer(sq, map, base, state.time);
+  startTransfer(state, sq, map, base, state.time);
   return ok({ ...state, squadrons: { ...state.squadrons, [id]: sq } });
 }
 
-function airStrike(state: GameState, map: MapData, nation: NationId, id: SquadronId, target: ArmyId): OrderResult {
+function airStrike(state: GameState, map: MapData, nation: NationId, id: SquadronId, target: string): OrderResult {
   const current = state.squadrons[id];
   if (!current || current.owner !== nation) return fail("Squadriglia sconosciuta.");
   const plan = planStrike(state, map, current, target, state.time);

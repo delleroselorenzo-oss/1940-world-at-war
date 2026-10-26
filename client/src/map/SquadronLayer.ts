@@ -1,5 +1,5 @@
 import { Container, Graphics, Text } from "pixi.js";
-import { squadronPosition, squadronRangeKm, type Squadron } from "@waw/shared";
+import { squadronPosition, squadronRangeKm, type Fleet, type Squadron } from "@waw/shared";
 import type { Camera } from "./camera.js";
 import type { LoadedMap } from "./loadMap.js";
 import { project } from "./projection.js";
@@ -32,6 +32,8 @@ export class SquadronLayer {
   readonly path = new Graphics();
   private readonly badges = new Map<string, Badge>();
   private squadrons: Squadron[] = [];
+  /** Flotte visibili: le squadriglie a bordo di una portaerei stanno dove sta lei. */
+  private fleets: { fleets: Record<string, Fleet> } = { fleets: {} };
   private playerNation: string | null = null;
   private selected: string | null = null;
 
@@ -39,8 +41,9 @@ export class SquadronLayer {
     this.container.sortableChildren = true;
   }
 
-  setSquadrons(squadrons: Squadron[], playerNation: string | null): void {
+  setSquadrons(squadrons: Squadron[], playerNation: string | null, fleets: Fleet[] = []): void {
     this.squadrons = squadrons;
+    this.fleets = { fleets: Object.fromEntries(fleets.map((f) => [f.id, f])) };
     this.playerNation = playerNation;
     const alive = new Set(squadrons.map((s) => s.id));
     for (const [id, badge] of this.badges) {
@@ -60,7 +63,7 @@ export class SquadronLayer {
     const stacked = new Map<string, number>(); // base -> squadriglie a terra già piazzate lì
     for (const sq of this.squadrons) {
       const badge = this.badgeFor(sq);
-      const [x, y] = project(squadronPosition(sq, this.map.data, now));
+      const [x, y] = project(squadronPosition(this.fleets, sq, this.map.data, now));
       let dx = 0;
       let dy = 0;
       if (!sq.flight) {
@@ -132,7 +135,7 @@ export class SquadronLayer {
     const sq = this.squadrons.find((s) => s.id === this.selected);
     if (!sq) return;
     const px = 1 / cam.scale;
-    const [x, y] = project(squadronPosition(sq, this.map.data, now));
+    const [x, y] = project(squadronPosition(this.fleets, sq, this.map.data, now));
     if (sq.flight) {
       const [ex, ey] = project(sq.flight.to);
       g.moveTo(x, y)

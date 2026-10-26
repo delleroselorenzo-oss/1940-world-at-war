@@ -3,7 +3,7 @@ import { BUILDING_TYPES, formatGameTime, type GameEvent, type GameState, type Pr
 import type { LoadedMap } from "../map/loadMap.js";
 import { PROPOSAL_NAMES } from "./diplomacyText.js";
 
-// Notizie della partita che riguardano il giocatore: guerre, battaglie, conquiste, rivolte, armate distrutte,
+// Notizie della partita che riguardano il giocatore: guerre, battaglie (anche navali), conquiste, rivolte, armate e flotte distrutte,
 // lavori del genio, edifici completati.
 
 const SHOWN = 4;
@@ -54,6 +54,17 @@ export function describeEvent(
       const where = province(e.province);
       return { text: `Battaglia${where ? ` presso ${where}` : ""} contro ${nation(other)}`, tone: "neutral", province: e.province };
     }
+    case "navalBattle": {
+      if (!e.nations.includes(me)) return null;
+      const other = e.nations[0] === me ? e.nations[1] : e.nations[0];
+      return { text: `Battaglia navale contro ${nation(other)}${e.zone ? ` (${e.zone})` : ""}`, tone: "neutral", province: null };
+    }
+    case "fleetDestroyed": {
+      const at = e.zone ? ` (${e.zone})` : "";
+      if (e.owner === me) return { text: `Una tua flotta è stata affondata${at}`, tone: "bad", province: null };
+      if (e.by === me) return { text: `Flotta di ${nation(e.owner)} affondata${at}`, tone: "good", province: null };
+      return null;
+    }
     case "conquest":
       if (e.to === me) return { text: `Conquistata: ${province(e.province)} (${nation(e.from)})`, tone: "good", province: e.province };
       if (e.from === me) return { text: `Persa: ${province(e.province)}, ora di ${nation(e.to)}`, tone: "bad", province: e.province };
@@ -80,13 +91,20 @@ export function describeEvent(
       const at = where ? ` presso ${where}` : "";
       const losses = (n: number, none: string, one: string, many: string) => (n === 0 ? none : `${n} ${n === 1 ? one : many}`);
       if (e.by === me) {
-        const result = e.armyDestroyed ? "armata nemica distrutta" : losses(e.unitsLost, "bersaglio danneggiato", "unità nemica distrutta", "unità nemiche distrutte");
+        const result = e.naval
+          ? e.armyDestroyed
+            ? "flotta nemica affondata"
+            : losses(e.unitsLost, "navi danneggiate", "nave nemica affondata", "navi nemiche affondate")
+          : e.armyDestroyed
+            ? "armata nemica distrutta"
+            : losses(e.unitsLost, "bersaglio danneggiato", "unità nemica distrutta", "unità nemiche distrutte");
         const own = e.squadronDestroyed ? "; squadriglia abbattuta" : e.aircraftLost > 0 ? `; abbattuti ${e.aircraftLost} tuoi aerei` : "";
         return { text: `Attacco aereo${at}: ${result}${own}`, tone: e.squadronDestroyed ? "bad" : "good", province: e.province };
       }
       if (e.against === me) {
         const shot = e.aircraftLost > 0 ? `; la contraerea ha abbattuto ${e.aircraftLost} aerei` : "";
-        return { text: `Attacco aereo di ${nation(e.by)}${at}: ${losses(e.unitsLost, "unità danneggiate", "unità persa", "unità perse")}${shot}`, tone: "bad", province: e.province };
+        const lost = e.naval ? losses(e.unitsLost, "navi danneggiate", "nave affondata", "navi affondate") : losses(e.unitsLost, "unità danneggiate", "unità persa", "unità perse");
+        return { text: `Attacco aereo di ${nation(e.by)}${e.naval ? " sulla tua flotta" : at}: ${lost}${shot}`, tone: "bad", province: e.province };
       }
       return null;
     }

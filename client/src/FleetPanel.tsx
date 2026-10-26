@@ -1,10 +1,14 @@
 import type { Ref } from "react";
 import {
+  AIRCRAFT_TYPES,
+  carrierCapacity,
   fleetHealth,
   fleetPosition,
   fleetSightKm,
   fleetSpeedKmh,
   flatKm,
+  atWar,
+  fleetReachKm,
   harborOf,
   mayDock,
   seaZoneAt,
@@ -39,12 +43,13 @@ interface FleetPanelProps {
   onMode(mode: FleetMode): void;
   onSail(to: LngLat): void;
   onStop(): void;
+  onSelectSquadron(id: string): void;
   onSelectProvince(id: string): void;
   onClose(): void;
   ref?: Ref<HTMLElement>;
 }
 
-export function FleetPanel({ map, fleet, game, now, error, mode, onMode, onSail, onStop, onSelectProvince, onClose, ref }: FleetPanelProps) {
+export function FleetPanel({ map, fleet, game, now, error, mode, onMode, onSail, onStop, onSelectSquadron, onSelectProvince, onClose, ref }: FleetPanelProps) {
   const nation = map.nations.get(fleet.owner);
   const mine = fleet.owner === game.playerNation;
   const speed = fleetSpeedKmh(fleet);
@@ -61,6 +66,12 @@ export function FleetPanel({ map, fleet, game, now, error, mode, onMode, onSail,
   const destination = fleet.voyage ? fleet.voyage.points[fleet.voyage.points.length - 1]! : null;
   const destinationPort = destination ? harborProvince(map, game, fleet, destination) : null;
 
+  // Flotte nemiche a tiro in questo momento (il combattimento è automatico).
+  const inBattle = Object.values(game.fleets).some(
+    (f) => atWar(game, fleet.owner, f.owner) && flatKm(fleetPosition(f, now), here) <= Math.max(fleetReachKm(fleet), fleetReachKm(f)),
+  );
+  const capacity = carrierCapacity(fleet);
+  const aboard = Object.values(game.squadrons).filter((sq) => sq.base === fleet.id && !sq.flight);
   const groups = SHIP_TYPE_IDS.map((t) => ({ type: t, ships: fleet.ships.filter((s) => s.type === t) })).filter((g) => g.ships.length > 0);
   const upkeep: Record<string, number> = {};
   for (const s of fleet.ships) for (const [r, n] of Object.entries(SHIP_TYPES[s.type].upkeepPerDay)) upkeep[r] = (upkeep[r] ?? 0) + n;
@@ -108,6 +119,7 @@ export function FleetPanel({ map, fleet, game, now, error, mode, onMode, onSail,
           <span className="progress health" aria-hidden>
             <span style={{ width: `${health * 100}%` }} />
           </span>
+          {inBattle && <p className="error-text">In combattimento con una flotta nemica</p>}
           <p className="muted">
             Salute {Math.round(health * 100)}% · {speed} km/h · vista {fleetSightKm(fleet)} km
           </p>
@@ -194,6 +206,32 @@ export function FleetPanel({ map, fleet, game, now, error, mode, onMode, onSail,
           </tbody>
         </table>
         {groups.length > 1 && <p className="muted small-print">In evidenza il limite della flotta: naviga alla velocità della nave più lenta.</p>}
+
+        {capacity > 0 && (
+          <>
+            <h3>
+              Aerei a bordo · {aboard.reduce((n, sq) => n + sq.aircraft.length, 0)}/{capacity}
+            </h3>
+            {aboard.length === 0 ? (
+              <p className="muted small">
+                Nessuno. Caccia, bombardieri tattici e aerosiluranti possono trasferirsi qui da una base entro la loro portata (dal pannello della
+                squadriglia, "Vola").
+              </p>
+            ) : (
+              <ul className="neighbors">
+                {aboard.map((sq) => (
+                  <li key={sq.id}>
+                    <button onClick={() => onSelectSquadron(sq.id)}>
+                      <span className="neighbor-name">
+                        {[...new Set(sq.aircraft.map((a) => a.type))].map((t) => `${sq.aircraft.filter((a) => a.type === t).length}× ${AIRCRAFT_TYPES[t].name}`).join(", ")}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
 
         <h3>Mantenimento al giorno</h3>
         <CostList cost={upkeep} />

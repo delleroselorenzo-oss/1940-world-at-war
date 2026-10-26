@@ -212,8 +212,8 @@ export class MapRenderer {
     this.armyLayer.setSelected(id);
   }
 
-  setSquadrons(squadrons: Squadron[], playerNation: string | null): void {
-    this.squadronLayer.setSquadrons(squadrons, playerNation);
+  setSquadrons(squadrons: Squadron[], playerNation: string | null, fleets: Fleet[]): void {
+    this.squadronLayer.setSquadrons(squadrons, playerNation, fleets);
   }
 
   setSelectedSquadron(id: string | null): void {
