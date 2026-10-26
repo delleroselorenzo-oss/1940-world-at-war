@@ -35,6 +35,13 @@ export interface SeaZone {
   label: LngLat;
 }
 
+/** Porta sull'oceano: da qui entrano i convogli mercantili che vengono dal resto del mondo (fuori mappa). */
+export interface SeaGate {
+  id: string;
+  name: string;
+  at: LngLat;
+}
+
 /** Stretto o canale: le navi lo attraversano passando per le sue celle, che si possono chiudere. */
 export interface Strait {
   id: string;
@@ -55,6 +62,8 @@ export interface SeaData {
   harbor: Int32Array;
   /** Solo per il disegno: confini tra le zone di mare. */
   borders: LngLat[][];
+  /** Porte da cui arrivano i convogli (assenti = niente convogli: le importazioni via mare arrivano subito). */
+  gates?: SeaGate[];
 }
 
 export interface NavData {

@@ -1,5 +1,5 @@
 import { COMBAT } from "../data/combat.js";
-import { SHIP_TYPES, type ShipTypeId } from "../data/naval.js";
+import { CONVOY, SHIP_TYPES, type ShipTypeId } from "../data/naval.js";
 import type { LngLat, MapData, NationId, ProvinceId } from "../map/types.js";
 import { cellAt, cellCenter, flatKm } from "../nav/grid.js";
 import { findSeaRoute, nearestNavigable } from "../nav/sea.js";
@@ -21,11 +21,13 @@ export function fleetSpeedKmh(fleet: Fleet): number {
 }
 
 export function fleetSightKm(fleet: Fleet): number {
+  if (fleet.convoy) return CONVOY.sightKm;
   return Math.max(0, ...fleet.ships.map((s) => SHIP_TYPES[s.type].sightKm));
 }
 
 /** Salute media della flotta (0–1). */
 export function fleetHealth(fleet: Fleet): number {
+  if (fleet.convoy) return fleet.convoy.maxHp > 0 ? fleet.convoy.hp / fleet.convoy.maxHp : 0;
   let hp = 0;
   let max = 0;
   for (const s of fleet.ships) {
@@ -94,6 +96,7 @@ export function harborPoint(map: MapData, nav: NavData | undefined, province: Pr
  */
 export function planVoyage(state: GameState, nav: NavData, fleet: Fleet, target: LngLat, t: number): Voyage | string {
   if (fleet.transport) return "Il trasporto segue la sua rotta fino allo sbarco.";
+  if (fleet.convoy) return "Il convoglio segue la sua rotta fino al porto.";
   if (fleet.ships.length === 0) return "La flotta non ha navi.";
   if (nearestNavigable(nav, target) < 0) return "Le navi vanno solo per mare.";
   const from = fleetPosition(fleet, t);
@@ -131,13 +134,13 @@ export function newShip(s: GameState, type: ShipTypeId): Ship {
 /** Flotta della stessa nazione ferma entro la distanza di contatto (per unirsi a lei). */
 export function idleFleetNear(s: GameState, owner: NationId, at: LngLat, except?: string): Fleet | undefined {
   return Object.values(s.fleets).find(
-    (f) => f.owner === owner && !f.voyage && !f.transport && f.id !== except && flatKm(f.position, at) <= COMBAT.contactKm,
+    (f) => f.owner === owner && !f.voyage && !f.transport && !f.convoy && f.id !== except && flatKm(f.position, at) <= COMBAT.contactKm,
   );
 }
 
 /** Flotta ferma nel porto della provincia (per unirsi a lei). */
 export function dockedFleet(s: GameState, owner: NationId, port: ProvinceId, except?: string): Fleet | undefined {
-  return Object.values(s.fleets).find((f) => f.owner === owner && f.port === port && !f.voyage && !f.transport && f.id !== except);
+  return Object.values(s.fleets).find((f) => f.owner === owner && f.port === port && !f.voyage && !f.transport && !f.convoy && f.id !== except);
 }
 
 /**
@@ -148,8 +151,8 @@ export function navalOps(s: GameState, world: { nav?: NavData }, t: number): boo
   let changed = false;
   for (const id of Object.keys(s.fleets)) {
     const fleet = s.fleets[id];
-    // I trasporti hanno un ciclo loro (amphibious.ts).
-    if (!fleet || fleet.transport) continue;
+    // I trasporti e i convogli hanno un ciclo loro (amphibious.ts, convoys.ts).
+    if (!fleet || fleet.transport || fleet.convoy) continue;
     const arrival = voyageArrival(fleet);
     if (arrival !== null && arrival <= t) {
       fleet.position = fleet.voyage!.points[fleet.voyage!.points.length - 1]!;

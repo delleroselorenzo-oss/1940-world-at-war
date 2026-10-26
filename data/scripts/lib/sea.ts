@@ -12,6 +12,8 @@ import { Raster } from "./raster.js";
 export interface SeaConfig {
   zones: { id: string; name: string; seeds: LngLat[]; label?: LngLat }[];
   straits: { id: string; name: string; at: LngLat; radiusKm: number; channel?: LngLat[] }[];
+  /** Porte dei convogli sull'oceano: spostate sulla cella navigabile più vicina. */
+  gates?: { id: string; name: string; at: LngLat }[];
 }
 
 interface Grid {
@@ -128,7 +130,26 @@ export function buildSea(grid: Grid, map: MapData, land: FeatureCollection<Polyg
 
   const navigable = zone.reduce((n, v) => n + (v > 0 ? 1 : 0), 0);
   console.log(`  ${navigable} celle navigabili in ${zones.length} zone, ${straits.length} stretti`);
-  return { zone, strait, zones, straits, harbor, borders: zoneBorders(zone, width, height, bbox, step) };
+  // 7. Porte dei convogli: la cella navigabile più vicina al punto indicato.
+  const gates = (config.gates ?? []).map((g) => {
+    const start = cellOf(g.at);
+    let best = -1;
+    let bestD = Infinity;
+    const c0 = start % width;
+    const r0 = Math.floor(start / width);
+    for (let dr = -30; dr <= 30; dr++)
+      for (let dc = -30; dc <= 30; dc++) {
+        const c = c0 + dc;
+        const r = r0 + dr;
+        if (c < 0 || r < 0 || c >= width || r >= height || !zone[r * width + c]) continue;
+        const d = dc * dc + dr * dr;
+        if (d < bestD) [best, bestD] = [r * width + c, d];
+      }
+    if (best < 0) console.warn(`  ! porta ${g.name}: nessun mare vicino`);
+    return { id: g.id, name: g.name, at: best >= 0 ? round(centerOf(best)) : g.at };
+  });
+  console.log(`  ${gates.length} porte dei convogli`);
+  return { zone, strait, zones, straits, harbor, borders: zoneBorders(zone, width, height, bbox, step), gates };
 }
 
 // ---------------------------------------------------------------------------

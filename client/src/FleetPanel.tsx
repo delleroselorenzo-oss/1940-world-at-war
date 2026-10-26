@@ -2,6 +2,10 @@ import type { Ref } from "react";
 import {
   AIRCRAFT_TYPES,
   carrierCapacity,
+  CONVOY,
+  convoyCargoLeft,
+  RESOURCE_IDS,
+  RESOURCE_NAMES,
   fleetHealth,
   fleetPosition,
   fleetSightKm,
@@ -27,6 +31,7 @@ import {
 } from "@waw/shared";
 import type { LoadedMap } from "./map/loadMap.js";
 import { CostList } from "./ui/CostList.js";
+import { ResourceIcon } from "./ui/ResourceIcon.js";
 import { formatAmount, formatCountdown } from "./ui/format.js";
 
 // Pannello della flotta: dove si trova (porto, zona di mare, rotta), "Naviga" (il prossimo tocco sulla mappa dà la meta:
@@ -55,7 +60,71 @@ interface FleetPanelProps {
 }
 
 export function FleetPanel(props: FleetPanelProps) {
+  if (props.fleet.convoy) return <ConvoyPanel {...props} />;
   return props.fleet.transport ? <TransportPanel {...props} /> : <WarFleetPanel {...props} />;
+}
+
+/** Convoglio mercantile: porta le importazioni del giorno dalla porta sull'oceano al porto; qui si vede dove va e quanto carico è rimasto. */
+function ConvoyPanel({ map, fleet, game, now, onSelectProvince, onClose, ref }: FleetPanelProps) {
+  const convoy = fleet.convoy!;
+  const nation = map.nations.get(fleet.owner);
+  const mine = fleet.owner === game.playerNation;
+  const arrival = voyageArrival(fleet);
+  const where = seaZoneAt(map.nav, fleetPosition(fleet, now))?.name;
+  const gate = map.nav.sea?.gates?.find((g) => g.id === convoy.gate)?.name;
+  const left = convoyCargoLeft(convoy);
+  const cargo = RESOURCE_IDS.filter((r) => (left[r] ?? 0) >= 0.5);
+  return (
+    <aside className="panel army-panel" aria-label="Dettagli convoglio" ref={ref}>
+      <header className="panel-header">
+        <div>
+          <p className="panel-kicker">
+            <span className="swatch" style={{ background: nation?.color }} />
+            {nation?.name ?? fleet.owner}
+            {mine && <span className="tag">il tuo convoglio</span>}
+          </p>
+          <h2>Convoglio mercantile</h2>
+        </div>
+        <button className="icon-button" onClick={onClose} aria-label="Chiudi">
+          ×
+        </button>
+      </header>
+      <div className="panel-body">
+        <div className="army-status">
+          <p>
+            In navigazione{where ? ` · ${where}` : ""} verso il porto di{" "}
+            <button className="link" onClick={() => onSelectProvince(convoy.to)}>
+              {map.provinces.get(convoy.to)?.name ?? convoy.to}
+            </button>
+            {arrival !== null && <>, arriva tra {formatCountdown(((arrival - now) * 60) / game.clock.speed)}</>}
+          </p>
+          <p className="muted small">
+            {gate ? `Entrato da: ${gate}. ` : ""}
+            {CONVOY.kmh} km/h. Il convoglio non spara: lo attaccano le navi nemiche entro la loro vista (sottomarini compresi), l'artiglieria della
+            costa e gli aerei; arriva solo il carico rimasto. Una scorta di navi da guerra vicina combatte per lui.
+          </p>
+        </div>
+        <dl className="facts">
+          <div>
+            <dt>Integrità</dt>
+            <dd className={fleetHealth(fleet) < 0.5 ? "warning" : undefined}>{Math.round(fleetHealth(fleet) * 100)}%</dd>
+          </div>
+        </dl>
+        {mine && (
+          <>
+            <h3>Carico</h3>
+            <ul className="plain-list">
+              {cargo.map((r) => (
+                <li key={r}>
+                  <ResourceIcon resource={r} /> {formatAmount(left[r] ?? 0)} {RESOURCE_NAMES[r].toLowerCase()}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
+    </aside>
+  );
 }
 
 /** Trasporto delle truppe: segue da solo imbarco, navigazione e sbarco; qui si vede a che punto è e chi porta. */

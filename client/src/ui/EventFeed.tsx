@@ -72,6 +72,12 @@ export function describeEvent(
       if (e.by === me) return { text: `Flotta di ${nation(e.owner)} affondata${at}`, tone: "good", province: null };
       return null;
     }
+    case "convoySunk": {
+      const at = e.zone ? ` (${e.zone})` : "";
+      if (e.owner === me) return { text: e.by ? `Un tuo convoglio è stato affondato da ${nation(e.by)}${at}` : `Un tuo convoglio è andato perso: nessun porto dove arrivare`, tone: "bad", province: null };
+      if (e.by === me) return { text: `Convoglio di ${nation(e.owner)} affondato${at}`, tone: "good", province: null };
+      return null;
+    }
     case "conquest":
       if (e.to === me) return { text: `Conquistata: ${province(e.province)} (${nation(e.from)})`, tone: "good", province: e.province };
       if (e.from === me) return { text: `Persa: ${province(e.province)}, ora di ${nation(e.to)}`, tone: "bad", province: e.province };

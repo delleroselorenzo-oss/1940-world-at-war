@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import {
   BUILDINGS,
+  cargoAtSea,
+  convoysActive,
   importCapacityPerDay,
+  seaFraction,
   importFlows,
   RESOURCE_NAMES,
   syntheticPerDay,
@@ -31,8 +34,12 @@ interface TradePanelProps {
 export function TradePanel({ map, game, error, onSetImport, order, onSelectProvince, onClose }: TradePanelProps) {
   const [tab, setTab] = useState<"market" | "foreign">("market");
   const nation = game.playerNation;
-  const capacity = importCapacityPerDay(map.data, game, nation);
+  const capacity = importCapacityPerDay(map.data, game, nation, map.nav);
   const flows = importFlows(map.data, game, nation, capacity);
+  const byConvoy = convoysActive(map.nav);
+  const seaShare = byConvoy ? seaFraction(flows, capacity) : 0;
+  const atSea = cargoAtSea(game, nation);
+  const atSeaTotal = Object.values(atSea.cargo).reduce((sum, v) => sum + v, 0);
   const quota = map.nations.get(nation)?.oilConcessionPerDay ?? 0;
   const contracted = Object.values(game.nations[nation]?.imports ?? {}).reduce((sum, v) => sum + (v ?? 0), 0);
   const plants = map.data.provinces
@@ -67,14 +74,20 @@ export function TradePanel({ map, game, error, onSetImport, order, onSelectProvi
           <>
             <p className="muted">
               Il resto del mondo (Americhe, Medio Oriente, colonie) vende risorse a chi può farle arrivare: via mare dalle città costiere e
-              dai porti, via terra attraverso i vicini con cui non sei in guerra e senza embargo. Si paga in denaro a ogni accredito.
+              dai porti, via terra attraverso i vicini con cui non sei in guerra e senza embargo.
+              {byConvoy
+                ? " Via terra si paga a ogni accredito; via mare il carico del giorno parte a mezzanotte con un convoglio, pagato alla partenza, che le navi, i sottomarini e gli aerei nemici possono affondare."
+                : " Si paga in denaro a ogni accredito."}
             </p>
 
             <h3>Capacità di importazione</h3>
             <dl className="facts">
               <div>
                 <dt>Via mare</dt>
-                <dd>{formatAmount(capacity.sea)} al giorno</dd>
+                <dd className={capacity.blockadedPerDay > 0 ? "warning" : undefined}>
+                  {formatAmount(capacity.sea)} al giorno
+                  {capacity.blockadedPerDay > 0 && ` (−${formatAmount(capacity.blockadedPerDay)} per il blocco)`}
+                </dd>
               </div>
               <div>
                 <dt>Via terra</dt>
@@ -88,6 +101,29 @@ export function TradePanel({ map, game, error, onSetImport, order, onSelectProvi
                 </dd>
               </div>
             </dl>
+            {capacity.blockaded.length > 0 && (
+              <p className="warning small">
+                Porti bloccati da flotte nemiche:{" "}
+                {capacity.blockaded.map((id, i) => (
+                  <span key={id}>
+                    {i > 0 && ", "}
+                    <button className="link-button" onClick={() => onSelectProvince(id)}>
+                      {map.provinces.get(id)?.name ?? id}
+                    </button>
+                  </span>
+                ))}
+                . Una tua nave da guerra (o di un alleato) nella stessa zona di mare toglie il blocco.
+              </p>
+            )}
+            {byConvoy && (flows.length > 0 || atSea.convoys > 0) && (
+              <p className="muted small">
+                Via mare {Math.round(seaShare * 100)}% dei contratti
+                {atSea.convoys > 0
+                  ? ` · in mare ${atSea.convoys === 1 ? "1 convoglio" : `${atSea.convoys} convogli`} con ${formatAmount(atSeaTotal)} di carico`
+                  : " · nessun convoglio in mare"}
+                .
+              </p>
+            )}
             <p className="muted small">
               Ogni città costiera vale {formatAmount(TRADE.portCityPerDay)}, ogni porto costruito dal genio {formatAmount(TRADE.portPerLevel)};
               ogni vicino in pace {formatAmount(TRADE.overlandPerNeighbor)} (al massimo {formatAmount(TRADE.overlandMax)}).

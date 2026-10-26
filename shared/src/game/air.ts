@@ -14,6 +14,7 @@ import { detected } from "./submarines.js";
 import { mapIndex } from "./mapIndex.js";
 import { armyPosition } from "./movement.js";
 import { terrainAt } from "./terrain.js";
+import { sinkConvoy } from "./convoys.js";
 import { applyShipDamage, cargoDamage, shipClass } from "./navalCombat.js";
 import { fleetHealth, fleetPosition } from "./navy.js";
 import type { Aircraft, Army, Fleet, GameState, Squadron, StrikeMission } from "./state.js";
@@ -169,7 +170,7 @@ function targetOf(state: GameState, id: string): Target | undefined {
   const army = state.armies[id];
   if (army) return army.units.length > 0 ? { kind: "army", army, owner: army.owner } : undefined;
   const fleet = state.fleets[id];
-  if (fleet) return fleet.ships.length > 0 || (fleet.transport?.army.units.length ?? 0) > 0 ? { kind: "fleet", fleet, owner: fleet.owner } : undefined;
+  if (fleet) return fleet.ships.length > 0 || (fleet.transport?.army.units.length ?? 0) > 0 || (fleet.convoy?.hp ?? 0) > 0 ? { kind: "fleet", fleet, owner: fleet.owner } : undefined;
   return undefined;
 }
 
@@ -345,6 +346,7 @@ function strikeFleet(s: GameState, world: { map: MapData; nav?: NavData }, sq: S
 
   const eff = efficiency(squadronHealth(sq));
   if (target.transport) return strikeTransport(s, sq, target, at, eff, before.aircraft, t);
+  if (target.convoy) return strikeConvoy(s, world, sq, target, at, eff, before.aircraft, t);
   const n = target.ships.length;
   const damage = { surface: 0, sub: 0 };
   for (const c of ["surface", "sub"] as const) {
@@ -404,6 +406,31 @@ function strikeTransport(s: GameState, sq: Squadron, target: Fleet, at: LngLat, 
     logEvent(s, { time: t, type: "armyDestroyed", owner: target.owner, by: sq.owner, at, province: null });
     delete s.fleets[target.id];
   }
+  if (sq.aircraft.length === 0) delete s.squadrons[sq.id];
+}
+
+/** Attacco a un convoglio: gli aerei tolgono punti vita (e carico) con i valori contro le navi. */
+function strikeConvoy(s: GameState, world: { nav?: NavData }, sq: Squadron, target: Fleet, at: LngLat, eff: number, aircraftBefore: number, t: number) {
+  const convoy = target.convoy!;
+  const values = sq.aircraft.map((a) => AIRCRAFT_TYPES[a.type].vsShip ?? 0).sort((x, y) => y - x);
+  let total = 0;
+  values.forEach((v, i) => (total += v * groupWeight(i)));
+  convoy.hp -= total * eff;
+  const sunk = convoy.hp <= 1e-6;
+  logEvent(s, {
+    time: t,
+    type: "airStrike",
+    by: sq.owner,
+    against: target.owner,
+    at,
+    province: null,
+    aircraftLost: aircraftBefore - sq.aircraft.length,
+    unitsLost: 0,
+    squadronDestroyed: sq.aircraft.length === 0,
+    armyDestroyed: sunk,
+    naval: true,
+  });
+  if (sunk) sinkConvoy(s, world.nav, target, sq.owner, t);
   if (sq.aircraft.length === 0) delete s.squadrons[sq.id];
 }
 

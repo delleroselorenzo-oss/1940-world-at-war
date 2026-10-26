@@ -14,6 +14,7 @@ import type { World } from "./orders.js";
 // Il mare (colonne 20-21, una sola zona) ha gli approdi di B1 (colonna 20, riga 2) e di A9 (colonna 21, riga 2).
 // Con `neutralBetween` la provincia A3 appartiene invece a una terza nazione, CCC.
 // Con `railway` la strada è invece una ferrovia.
+// Con `gates` c'è una porta dei convogli in fondo al mare (colonna 20, riga 4).
 
 export const STEP = 0.1;
 const WIDTH = 23;
@@ -28,7 +29,7 @@ export function cell(col: number, row: number): [number, number] {
   return [(col + 0.5) * STEP, (HEIGHT - row - 0.5) * STEP];
 }
 
-export function testWorld(options: { withBridge?: boolean; neutralBetween?: boolean; railway?: boolean } = {}): World {
+export function testWorld(options: { withBridge?: boolean; neutralBetween?: boolean; railway?: boolean; gates?: boolean } = {}): World {
   const ids = Object.keys(columns);
   const provinces: Province[] = ids.map((id) => {
     const [c0, c1] = columns[id]!;
@@ -114,6 +115,7 @@ export function testWorld(options: { withBridge?: boolean; neutralBetween?: bool
       straits: [],
       harbor: Int32Array.from(ids, (id) => (id === "B1" ? ROAD_ROW * WIDTH + 20 : id === "A9" ? ROAD_ROW * WIDTH + 21 : -1)),
       borders: [],
+      ...(options.gates ? { gates: [{ id: "ocean", name: "Oceano", at: cell(20, 4) }] } : {}),
     },
   };
   return { map, nav };

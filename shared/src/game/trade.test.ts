@@ -73,7 +73,7 @@ describe("riserve iniziali", () => {
 describe("mercato estero", () => {
   it("capacità: città costiere, porti e vicini in pace", () => {
     let game = newGame();
-    expect(importCapacityPerDay(map, game, "AAA")).toEqual({ sea: TRADE.portCityPerDay, overland: TRADE.overlandPerNeighbor, total: TRADE.portCityPerDay + TRADE.overlandPerNeighbor });
+    expect(importCapacityPerDay(map, game, "AAA")).toMatchObject({ sea: TRADE.portCityPerDay, overland: TRADE.overlandPerNeighbor, total: TRADE.portCityPerDay + TRADE.overlandPerNeighbor });
     game = { ...game, buildings: { ...game.buildings, A1: { ...game.buildings.A1, port: 1 } } };
     expect(importCapacityPerDay(map, game, "AAA").sea).toBe(TRADE.portCityPerDay + TRADE.portPerLevel);
     // In guerra con l'unico vicino, la via di terra si chiude.

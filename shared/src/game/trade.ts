@@ -1,15 +1,19 @@
 import { BUILDINGS } from "../data/buildings.js";
 import { ECONOMY, RESOURCE_IDS, TRADE, type EconomyConfig } from "../data/economy.js";
-import type { MapData, NationId, Province, ResourceId } from "../map/types.js";
+import type { MapData, NationId, Province, ProvinceId, ResourceId } from "../map/types.js";
 import { tradeBlocked } from "./diplomacy.js";
 import { emptyAmounts, productionFactor } from "./economy.js";
 import { mapIndex } from "./mapIndex.js";
+import type { NavData } from "../nav/types.js";
+import { blockadedPorts, seaPorts } from "./blockade.js";
 import type { GameState, ProvinceBuildings, ProvinceState, ResourceAmounts } from "./state.js";
 
 // Mercato estero e carburante sintetico. Il resto del mondo non è sulla mappa ma vende risorse
 // a chi può farle arrivare: via mare dalle città costiere e dai porti, via terra attraverso i vicini in pace.
 // Il carburante sintetico trasforma metallo in petrolio. Entrambi agiscono a ogni tick, solo se ci sono
 // le risorse per pagare (denaro) o da trasformare (metallo).
+// Con il mare sulla mappa (porte dei convogli in `nav.sea.gates`) la parte che arriva via mare non arriva a ogni tick:
+// parte ogni giorno con un convoglio (convoys.ts). I porti bloccati (blockade.ts) non contano nella capacità.
 
 export interface ImportCapacity {
   /** Città costiere e porti. */
@@ -17,19 +21,27 @@ export interface ImportCapacity {
   /** Attraverso le nazioni confinanti con cui non si è in guerra. */
   overland: number;
   total: number;
+  /** Porti bloccati dal nemico (non contano in `sea`). */
+  blockaded: ProvinceId[];
+  /** Capacità persa per il blocco. */
+  blockadedPerDay: number;
 }
 
-/** Quanto può arrivare dall'estero ogni giorno. */
-export function importCapacityPerDay(map: MapData, state: GameState, nation: NationId): ImportCapacity {
+/** Quanto può arrivare dall'estero ogni giorno. Con `nav`, senza i porti bloccati. */
+export function importCapacityPerDay(map: MapData, state: GameState, nation: NationId, nav?: NavData): ImportCapacity {
   const index = mapIndex(map);
   let sea = 0;
+  let blockadedPerDay = 0;
+  const closed = nav?.sea ? blockadedPorts(map, state, nav, nation) : new Set<ProvinceId>();
+  for (const port of seaPorts(map, state, nation)) {
+    if (closed.has(port.province)) blockadedPerDay += port.perDay;
+    else sea += port.perDay;
+  }
   const neighbors = new Set<NationId>();
   for (const [id, ps] of Object.entries(state.provinces)) {
     if (ps.owner !== nation) continue;
     const province = index.provinces.get(id);
     if (!province) continue;
-    if (province.coastal && province.type === "urban") sea += TRADE.portCityPerDay;
-    sea += (state.buildings[id]?.port ?? 0) * TRADE.portPerLevel;
     for (const n of province.neighbors) {
       const owner = state.provinces[n.id]?.owner;
       if (owner && owner !== nation) neighbors.add(owner);
@@ -37,7 +49,19 @@ export function importCapacityPerDay(map: MapData, state: GameState, nation: Nat
   }
   const peaceful = [...neighbors].filter((other) => !tradeBlocked(state, nation, other)).length;
   const overland = Math.min(TRADE.overlandMax, peaceful * TRADE.overlandPerNeighbor);
-  return { sea, overland, total: sea + overland };
+  return { sea, overland, total: sea + overland, blockaded: [...closed], blockadedPerDay };
+}
+
+/** Le importazioni via mare viaggiano con i convogli (servono le porte sull'oceano nella rete di movimento). */
+export function convoysActive(nav: NavData | undefined): boolean {
+  return (nav?.sea?.gates?.length ?? 0) > 0;
+}
+
+/** Quota delle importazioni che arriva via mare: prima si riempie la via di terra, il resto passa per i porti. */
+export function seaFraction(flows: readonly ImportFlow[], capacity: ImportCapacity): number {
+  const used = flows.reduce((sum, f) => sum + f.perDay, 0);
+  if (used <= 0) return 0;
+  return Math.max(0, used - Math.min(used, capacity.overland)) / used;
 }
 
 export interface ImportFlow {
@@ -56,11 +80,11 @@ export interface ImportFlow {
  * Importazioni di una nazione al giorno, con la capacità di adesso (prima di vedere se c'è il denaro).
  * I contratti si dividono la capacità: se non basta per tutti, ognuno arriva nella stessa proporzione.
  */
-export function importFlows(map: MapData, state: GameState, nation: NationId, capacity?: ImportCapacity): ImportFlow[] {
+export function importFlows(map: MapData, state: GameState, nation: NationId, capacity?: ImportCapacity, nav?: NavData): ImportFlow[] {
   const contracts = state.nations[nation]?.imports ?? {};
   const requested = RESOURCE_IDS.filter((r) => (contracts[r] ?? 0) > 0 && TRADE.prices[r] !== undefined).map((r) => [r, contracts[r]!] as const);
   if (requested.length === 0) return [];
-  const room = (capacity ?? importCapacityPerDay(map, state, nation)).total;
+  const room = (capacity ?? importCapacityPerDay(map, state, nation, nav)).total;
   const total = requested.reduce((sum, [, v]) => sum + v, 0);
   const share = total > room ? room / total : 1;
   const quota = map.nations.find((n) => n.id === nation)?.oilConcessionPerDay ?? 0;
@@ -105,8 +129,9 @@ export function tradePerDay(map: MapData, state: GameState, nation: NationId, ec
 /**
  * Un tick di commercio e trasformazioni per tutte le nazioni (modifica `s` sul posto):
  * prima il carburante sintetico (fin dove basta il metallo), poi le importazioni (fin dove basta il denaro).
+ * Con i convogli (`nav` con le porte sull'oceano) qui arriva solo la parte via terra.
  */
-export function applyTradeTick(s: GameState, map: MapData, ticksPerDay: number, economy: EconomyConfig = ECONOMY) {
+export function applyTradeTick(s: GameState, map: MapData, ticksPerDay: number, economy: EconomyConfig = ECONOMY, nav?: NavData) {
   const synthetic = new Map<NationId, { metal: number; oil: number }>();
   for (const province of map.provinces) {
     const ps = s.provinces[province.id];
@@ -126,12 +151,15 @@ export function applyTradeTick(s: GameState, map: MapData, ticksPerDay: number, 
 
   for (const [nation, n] of Object.entries(s.nations)) {
     if (!n.imports) continue;
-    for (const flow of importFlows(map, s, nation)) {
-      const cost = flow.cost / ticksPerDay;
+    const capacity = importCapacityPerDay(map, s, nation, nav);
+    const flows = importFlows(map, s, nation, capacity);
+    const part = convoysActive(nav) ? 1 - seaFraction(flows, capacity) : 1;
+    for (const flow of flows) {
+      const cost = (flow.cost * part) / ticksPerDay;
       if (cost <= 0) continue;
       const share = Math.min(1, n.stock.money / cost);
       n.stock.money = Math.max(0, n.stock.money - cost * share);
-      n.stock[flow.resource] += (flow.perDay / ticksPerDay) * share;
+      n.stock[flow.resource] += ((flow.perDay * part) / ticksPerDay) * share;
     }
   }
 }

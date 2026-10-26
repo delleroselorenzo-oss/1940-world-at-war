@@ -186,7 +186,7 @@ export function SquadronPanel({
               {target
                 ? `armata di ${map.nations.get(target.owner)?.name ?? target.owner} (${target.units.length} unità)`
                 : targetFleet
-                  ? `flotta di ${map.nations.get(targetFleet.owner)?.name ?? targetFleet.owner} (${targetFleet.ships.length} navi)${targetZone ? `, ${targetZone}` : ""}`
+                  ? `${targetFleet.convoy ? "convoglio" : targetFleet.transport ? "trasporto" : "flotta"} di ${map.nations.get(targetFleet.owner)?.name ?? targetFleet.owner}${targetFleet.ships.length > 0 ? ` (${targetFleet.ships.length} navi)` : ""}${targetZone ? `, ${targetZone}` : ""}`
                   : "—"}
               {targetProvince && <> presso {link(targetProvince)}</>}
             </p>

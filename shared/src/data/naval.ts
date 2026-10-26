@@ -147,3 +147,16 @@ export const NAVAL = {
   /** Lo sbarco si cerca entro questo numero di celle (0,1°) dalla meta. */
   landingSearchCells: 40,
 } as const;
+
+/** Convogli mercantili e blocco navale (docs/game-design.md, §8 "Marina", passo 6). */
+export const CONVOY = {
+  /** Velocità dei mercantili (circa 10 nodi). */
+  kmh: 20,
+  /** Vista della scorta del convoglio. */
+  sightKm: 10,
+  /** Punti vita per ogni 1.000 di carico (almeno `minHp`): un convoglio grande regge di più. */
+  hpPer1000: 4,
+  minHp: 10,
+  /** Ogni giorno a mezzanotte parte un convoglio per ogni nazione con importazioni via mare. */
+  departEveryMinutes: 1440,
+} as const;

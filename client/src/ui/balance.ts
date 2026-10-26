@@ -6,6 +6,7 @@ import {
   syntheticPerDay,
   type GameState,
   type MapData,
+  type NavData,
   type ResourceAmounts,
   type ResourceId,
 } from "@waw/shared";
@@ -26,12 +27,13 @@ export interface ResourceBalance {
   syntheticUse: number;
 }
 
-export function nationBalance(map: MapData, state: GameState, nation: string): Record<ResourceId, ResourceBalance> {
+/** Con `nav` le importazioni tengono conto dei porti bloccati (i convogli ne portano la media al giorno). */
+export function nationBalance(map: MapData, state: GameState, nation: string, nav?: NavData): Record<ResourceId, ResourceBalance> {
   const production = nationProductionPerDay(map, state, nation);
   const upkeep = nationUpkeepPerDay(state, nation);
   const imports = emptyAmounts();
   let importCost = 0;
-  for (const flow of importFlows(map, state, nation)) {
+  for (const flow of importFlows(map, state, nation, undefined, nav)) {
     imports[flow.resource] += flow.perDay;
     importCost += flow.cost;
   }

@@ -104,9 +104,10 @@ export class FleetLayer {
     const selected = fleet.id === this.selected;
     const sailing = fleet.voyage !== null;
     const cargo = fleet.transport?.army.units.length;
-    const subs = !cargo && fleet.ships.every((s) => s.type === "submarine");
+    const convoy = fleet.convoy !== undefined;
+    const subs = !cargo && !convoy && fleet.ships.every((s) => s.type === "submarine");
     const submerged = isSubmerged(fleet);
-    const look = `${color}|${mine}|${selected}|${sailing}|${fleet.ships.length}|${subs}|${submerged}|${cargo}`;
+    const look = `${color}|${mine}|${selected}|${sailing}|${fleet.ships.length}|${subs}|${submerged}|${cargo}|${convoy}`;
     if (look !== badge.look) {
       badge.look = look;
       const border = selected ? SELECT_COLOR : mine ? "#ffffff" : "#1b1b1b";
@@ -115,13 +116,13 @@ export class FleetLayer {
         .fill(color)
         .stroke({ width: selected ? 3 : mine ? 2 : 1.2, color: border });
       if (cargo) drawTransport(g);
+      else if (convoy) drawConvoy(g);
       else if (subs) drawSubmarine(g);
       else drawShip(g);
       badge.container.alpha = submerged ? 0.7 : 1;
-      // Numero di navi in un cerchietto in basso a destra.
-      g.circle(HALF_W, HALF_H * 0.8, 6).fill("#1b1b1b");
-      // Per un trasporto: le unità a bordo.
-      badge.label.text = String(cargo ?? fleet.ships.length);
+      // Numero di navi in un cerchietto in basso a destra (per un trasporto: le unità a bordo; il convoglio non ne ha).
+      if (!convoy) g.circle(HALF_W, HALF_H * 0.8, 6).fill("#1b1b1b");
+      badge.label.text = convoy ? "" : String(cargo ?? fleet.ships.length);
       badge.container.zIndex = selected ? 3 : sailing ? 2 : mine ? 1 : 0;
     }
     return badge;
@@ -164,6 +165,14 @@ function drawSubmarine(g: Graphics): void {
   g.roundRect(-10, 0, 20, 4.5, 2.2).fill("#ffffff").stroke({ width: 0.8, color: "#1b1b1b", alpha: 0.6 });
   g.rect(-2.5, -3.5, 5, 4).fill("#ffffff").stroke({ width: 0.8, color: "#1b1b1b", alpha: 0.6 });
   g.rect(-0.5, -6, 1, 2.5).fill("#ffffff");
+}
+
+/** Convoglio: due piccoli mercantili in fila. */
+function drawConvoy(g: Graphics): void {
+  for (const [dx, dy] of [[-5, -2.5], [4, 2]] as const) {
+    g.poly([dx - 5, dy, dx + 5, dy, dx + 4, dy + 3, dx - 4.5, dy + 3]).fill("#ffffff").stroke({ width: 0.7, color: "#1b1b1b", alpha: 0.6 });
+    g.rect(dx - 3, dy - 2.5, 3.5, 2.5).fill("#ffffff").stroke({ width: 0.7, color: "#1b1b1b", alpha: 0.6 });
+  }
 }
 
 /** Sagoma stilizzata di un mercantile: scafo lungo con il carico a cassoni. */

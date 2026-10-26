@@ -111,6 +111,18 @@ export interface Transport extends SeaPlan {
   until: number;
 }
 
+/** Convoglio mercantile: porta le importazioni via mare da una porta sull'oceano a un porto della nazione. */
+export interface Convoy {
+  /** Carico alla partenza (quello che arriva è in proporzione ai punti vita rimasti). */
+  cargo: Partial<ResourceAmounts>;
+  hp: number;
+  maxHp: number;
+  /** Porto di destinazione. */
+  to: ProvinceId;
+  /** Porta da cui è entrato (id di `nav.sea.gates`). */
+  gate: string;
+}
+
 export type SquadronId = string;
 
 /** Aereo di una squadriglia. */
@@ -184,6 +196,8 @@ export interface Fleet {
   voyage: Voyage | null;
   /** Trasporto delle truppe (allora `ships` è vuoto): si muove da solo, imbarco → navigazione → sbarco. */
   transport?: Transport;
+  /** Convoglio mercantile (allora `ships` è vuoto): naviga da solo fino al suo porto e consegna il carico. */
+  convoy?: Convoy;
   /** Solo sottomarini: dopo un attacco restano visibili al nemico fino a questo minuto. */
   revealedUntil?: number;
   /** Provincia del porto dove è ormeggiata (all'approdo di una provincia propria o alleata); null in mare o in viaggio. */
@@ -337,6 +351,8 @@ export type GameEvent =
   /** Un'armata è sbarcata (`provinceOwner`: di chi era la provincia in quel momento). */
   | { time: number; type: "landing"; owner: NationId; at: LngLat; province: ProvinceId | null; provinceOwner: NationId | null }
   | { time: number; type: "fleetDestroyed"; fleet: FleetId; owner: NationId; by: NationId; at: LngLat; zone: string | null }
+  /** Convoglio affondato (by = null: perso perché non aveva più un porto dove arrivare). */
+  | { time: number; type: "convoySunk"; owner: NationId; by: NationId | null; at: LngLat; zone: string | null; cargo: Partial<ResourceAmounts> }
   | { time: number; type: "conquest"; province: ProvinceId; from: NationId; to: NationId }
   /** La provincia si è ribellata ed è tornata alla nazione d'origine. */
   | { time: number; type: "revolt"; province: ProvinceId; from: NationId; to: NationId }

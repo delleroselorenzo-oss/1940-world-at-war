@@ -419,7 +419,7 @@ function Game({ map }: { map: LoadedMap }) {
   const imports = playerNation ? state?.nations[playerNation]?.imports : undefined;
   const relationsRecord = state?.relations;
   const balance = useMemo(
-    () => (state && playerNation ? nationBalance(map.data, state, playerNation) : null),
+    () => (state && playerNation ? nationBalance(map.data, state, playerNation, map.nav) : null),
     [map, provinces, armiesRecord, squadronsRecord, playerNation, buildingsRecord, imports, relationsRecord],
   );
 

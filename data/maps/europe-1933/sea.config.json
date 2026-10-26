@@ -42,5 +42,12 @@
     { "id": "dardanelles", "name": "Dardanelli", "at": [26.4, 40.2], "radiusKm": 10, "channel": [[26.18, 40.03], [26.4, 40.2], [26.68, 40.42]] },
     { "id": "messina", "name": "Stretto di Messina", "at": [15.62, 38.22], "radiusKm": 8, "channel": [[15.67, 38.32], [15.62, 38.22], [15.56, 38.05]] },
     { "id": "kerch", "name": "Stretto di Kerč", "at": [36.6, 45.3], "radiusKm": 10, "channel": [[36.62, 45.45], [36.6, 45.3], [36.55, 45.1]] }
+  ],
+  "gates": [
+    { "id": "iceland", "name": "Atlantico (rotta dell'Islanda)", "at": [-11.9, 63.5] },
+    { "id": "west-approaches", "name": "Atlantico (approcci occidentali)", "at": [-11.9, 52] },
+    { "id": "gibraltar", "name": "Atlantico (rotta di Gibilterra)", "at": [-11.9, 38] },
+    { "id": "suez", "name": "Suez", "at": [32.4, 34.1] },
+    { "id": "persia", "name": "Persia", "at": [51.5, 37.6] }
   ]
 }

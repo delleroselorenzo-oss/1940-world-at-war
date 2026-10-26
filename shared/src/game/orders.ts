@@ -117,7 +117,7 @@ export function applyOrder(state: GameState, world: World, nation: NationId, ord
     case "cancelBuild":
       return cancelBuild(state, nation, order.province);
     case "setImport":
-      return setImport(state, world.map, nation, order.resource, order.perDay);
+      return setImport(state, world.map, world.nav, nation, order.resource, order.perDay);
     case "propose":
       return propose(state, nation, order.to, order.kind);
     case "answerProposal":
@@ -179,6 +179,7 @@ function stopFleet(state: GameState, nation: NationId, id: FleetId): OrderResult
   const current = state.fleets[id];
   if (!current || current.owner !== nation) return fail("Flotta sconosciuta.");
   if (current.transport) return fail("Il trasporto segue la sua rotta fino allo sbarco.");
+  if (current.convoy) return fail("Il convoglio segue la sua rotta fino al porto.");
   if (!current.voyage) return fail("La flotta è già ferma.");
   const fleet = { ...current };
   haltFleet(fleet, state.time);
@@ -352,13 +353,13 @@ function cancelBuild(state: GameState, nation: NationId, provinceId: ProvinceId)
   return ok({ ...state, nations: { ...state.nations, [nation]: { ...state.nations[nation]!, stock } }, construction: rest });
 }
 
-function setImport(state: GameState, map: MapData, nation: NationId, resource: ResourceId, perDay: number): OrderResult {
+function setImport(state: GameState, map: MapData, nav: NavData | undefined, nation: NationId, resource: ResourceId, perDay: number): OrderResult {
   if (TRADE.prices[resource] === undefined) return fail("Questa risorsa non si compra all'estero.");
   if (!Number.isFinite(perDay) || perDay < 0 || perDay > TRADE.maxContractPerDay) return fail("Quantità non valida.");
   const n = state.nations[nation]!;
   // Tutti i contratti insieme non possono superare la capacità di importazione di adesso.
   const contracted = Object.entries(n.imports ?? {}).reduce((sum, [r, v]) => (r === resource ? sum : sum + (v ?? 0)), 0);
-  const capacity = importCapacityPerDay(map, state, nation).total;
+  const capacity = importCapacityPerDay(map, state, nation, nav).total;
   if (perDay > 0 && contracted + Math.round(perDay) > capacity)
     return fail(`Supera la capacità di importazione: restano ${Math.max(0, Math.floor(capacity - contracted))} al giorno.`);
   const { [resource]: _, ...others } = n.imports ?? {};

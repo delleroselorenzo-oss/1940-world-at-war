@@ -9,7 +9,8 @@ import { applyDamage, armyHealth, canFireAtRange, damageAgainst, efficiency, gro
 import { atWar, logEvent, pairKey, relationOf, viewersOf } from "./diplomacy.js";
 import { detected, revealSubmarine } from "./submarines.js";
 import { armyPosition } from "./movement.js";
-import { fleetHealth, fleetPosition } from "./navy.js";
+import { fleetHealth, fleetPosition, fleetSightKm } from "./navy.js";
+import { sinkConvoy } from "./convoys.js";
 import type { Army, Fleet, GameState, Ship } from "./state.js";
 
 // Combattimento navale (docs/game-design.md, §8 "Marina", passo 3), a ogni tick di combattimento come a terra.
@@ -23,6 +24,8 @@ import type { Army, Fleet, GameState, Ship } from "./state.js";
 //  - Una flotta ormeggiata in un proprio porto e non colpita si ripara.
 //  - I trasporti (armate imbarcate) non sparano: i colpi vanno alle unità a bordo. Durante l'imbarco e lo sbarco anche le armate
 //    nemiche entro la distanza di contatto li colpiscono, senza risposta (lo sbarco su una costa difesa costa caro).
+//  - I convogli mercantili non sparano: le navi nemiche li attaccano entro la loro vista (si avvicinano per colpirli),
+//    con i valori d'attacco di tutte le navi; i colpi tolgono punti vita e con loro una parte del carico.
 
 type ShipClass = "surface" | "sub";
 const SHIP_CLASSES: readonly ShipClass[] = ["surface", "sub"];
@@ -53,6 +56,11 @@ export function fleetDamageTo(fleet: Fleet, target: Fleet, km: number): Record<S
   const offensive = fleet.voyage !== null;
   const shooters = fleet.ships.filter((s) => reachKm(s) >= km);
   const eff = efficiency(fleetHealth(fleet));
+  // Contro un convoglio sparano tutte le navi, all'attacco: si avvicinano quanto serve.
+  if (target.convoy) {
+    out.surface = weighted(fleet.ships.map((s) => SHIP_TYPES[s.type].vsShip.attack)) * eff;
+    return out;
+  }
   // Un trasporto conta come una nave di superficie: il danno va alle unità a bordo.
   if (target.transport) {
     out.surface = weighted(shooters.map((s) => (offensive ? SHIP_TYPES[s.type].vsShip.attack : SHIP_TYPES[s.type].vsShip.defense))) * eff;
@@ -99,7 +107,7 @@ export function cargoDamage(target: Army, total: number): ReturnType<typeof noDa
 
 /** Danno per tick dell'artiglieria di un'armata contro una flotta (solo navi di superficie). */
 export function artilleryDamageTo(army: Army, target: Fleet, km: number): Record<ShipClass, number> {
-  if (target.transport) {
+  if (target.transport || target.convoy) {
     const guns = army.units.filter((u) => (UNIT_TYPES[u.type].rangeKm ?? 0) >= km);
     return { surface: weighted(guns.map((u) => UNIT_TYPES[u.type].vsShip?.attack ?? 0)) * efficiency(armyHealth(army)), sub: 0 };
   }
@@ -134,7 +142,7 @@ type NavalHit =
 /** Combattimento navale al tick `t`. Modifica `s`; restituisce true se sono cambiate navi o unità. */
 export function navalFight(s: GameState, world: { nav?: NavData }, t: number): boolean {
   const fleets = Object.values(s.fleets)
-    .filter((f) => f.ships.length > 0 || (f.transport?.army.units.length ?? 0) > 0)
+    .filter((f) => f.ships.length > 0 || (f.transport?.army.units.length ?? 0) > 0 || (f.convoy?.hp ?? 0) > 0)
     .sort((a, b) => (a.id < b.id ? -1 : 1));
   const armies = Object.values(s.armies).filter((a) => a.units.length > 0).sort((a, b) => (a.id < b.id ? -1 : 1));
   if (fleets.length === 0) return false;
@@ -156,15 +164,16 @@ export function navalFight(s: GameState, world: { nav?: NavData }, t: number): b
   const firing = new Set<string>();
 
   for (const f of fleets) {
-    if (f.ships.length === 0) continue; // i trasporti non sparano
+    if (f.ships.length === 0) continue; // i trasporti e i convogli non sparano
     const here = fleetAt.get(f.id)!;
     const reach = fleetReachKm(f);
+    const hunt = Math.max(reach, fleetSightKm(f));
     let target: Fleet | undefined;
     let best = Infinity;
     for (const g of fleets) {
       if (g.owner === f.owner || !atWar(s, f.owner, g.owner) || !canSee(f.owner, g)) continue;
       const d = flatKm(here, fleetAt.get(g.id)!);
-      if (d <= reach && d < best) [target, best] = [g, d];
+      if (d <= (g.convoy ? hunt : reach) && d < best) [target, best] = [g, d];
     }
     if (target) {
       hits.push({ kind: "fleet", by: { owner: f.owner, at: here }, target, damage: fleetDamageTo(f, target, best) });
@@ -224,6 +233,15 @@ export function navalFight(s: GameState, world: { nav?: NavData }, t: number): b
       if (!s.fleets[f.id]) continue;
       hitFleets.add(f.id);
       battleNews(s, world, h.by.owner, f.owner, fleetAt.get(f.id)!, t);
+      if (f.convoy) {
+        if (h.kind !== "fleet" || h.damage.surface <= 0) continue;
+        f.convoy.hp -= h.damage.surface;
+        if (f.convoy.hp <= 1e-6) {
+          sinkConvoy(s, world.nav, f, h.by.owner, t);
+          changed = true;
+        }
+        continue;
+      }
       if (f.transport) {
         const cargo = f.transport.army;
         const before = cargo.units.length;

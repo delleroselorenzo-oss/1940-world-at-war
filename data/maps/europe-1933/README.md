@@ -11,7 +11,7 @@ File generati da `npm run map:build`: **non modificarli a mano**, cambia `config
 | `terrain.config.json` | Parametri del terreno delle province (soglie e correzioni a mano con il motivo) |
 | `nav.config.json` | Parametri della rete di movimento: quali fiumi fanno da ostacolo, quali strade e ferrovie |
 | `nav.json` | Rete di movimento: griglia della terraferma, fiumi, strade, ferrovie, ponti, mare (`NavData` di `@waw/shared`) |
-| `sea.config.json` | Zone di mare (punti da cui crescono, nome) e stretti (dove, raggio, canale) |
+| `sea.config.json` | Zone di mare (punti da cui crescono, nome), stretti (dove, raggio, canale) e porte dei convogli sull'oceano |
 | `relief.jpg`, `relief.json` | Mappa base del rilievo (solo grafica) e dove va, in km nella proiezione della mappa |
 
 ## Come viene costruita
@@ -45,7 +45,7 @@ Script: [`data/scripts/build-nav.ts`](../../scripts/build-nav.ts), eseguito dopo
 3. **Strade e ferrovie** principali (Natural Earth `roads` e `railroads`, scalerank ≤ 6), semplificate a un punto ogni ~5 km mantenendo gli incroci.
 4. **Ponti**: ogni tratto di strada o ferrovia che attraversa un grande fiume (~580).
 5. **Terreno** di ogni cella: quello della sua provincia; "Città" entro 10 km dal centro delle province urbane.
-6. **Mare** ([`lib/sea.ts`](../../scripts/lib/sea.ts), parametri in `sea.config.json`): è acqua ogni cella che non è terra (terra = tutte le suddivisioni di Natural Earth, anche fuori gioco come l'Africa, più le province; i grandi laghi contano come terra). Le **zone di mare** (30, dall'Atlantico al Caspio) crescono insieme dai loro punti finché si incontrano: per spostare un confine si sposta o si aggiunge un punto. Gli **stretti** (Gibilterra, Øresund, Grande e Piccolo Belt, canale di Kiel, Bosforo, Dardanelli, Messina, Kerč) sono le celle entro un raggio da un punto, o lungo un canale che la griglia non vedrebbe; le province sulle rive li controllano. Ogni provincia che tocca il mare ha un **approdo**: la cella di mare accanto più vicina al suo centro (167 province, le stesse marcate "costiere").
+6. **Mare** ([`lib/sea.ts`](../../scripts/lib/sea.ts), parametri in `sea.config.json`): è acqua ogni cella che non è terra (terra = tutte le suddivisioni di Natural Earth, anche fuori gioco come l'Africa, più le province; i grandi laghi contano come terra). Le **zone di mare** (30, dall'Atlantico al Caspio) crescono insieme dai loro punti finché si incontrano: per spostare un confine si sposta o si aggiunge un punto. Gli **stretti** (Gibilterra, Øresund, Grande e Piccolo Belt, canale di Kiel, Bosforo, Dardanelli, Messina, Kerč) sono le celle entro un raggio da un punto, o lungo un canale che la griglia non vedrebbe; le province sulle rive li controllano. Ogni provincia che tocca il mare ha un **approdo**: la cella di mare accanto più vicina al suo centro (167 province, le stesse marcate "costiere"). Le **porte dei convogli** (Atlantico: Islanda, approcci occidentali, Gibilterra; Suez; Persia) sono il punto da cui entrano i mercantili del mercato estero, spostato sulla cella di mare più vicina.
 
 File grezzi necessari in `data/raw/` (da <https://github.com/nvkelso/natural-earth-vector/tree/master/geojson>): `ne_10m_rivers_lake_centerlines.geojson`, `ne_10m_roads.geojson`, `ne_10m_railroads.geojson`.
 

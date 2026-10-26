@@ -9,7 +9,8 @@ import type { LngLat, MapData, NationId, Province } from "../map/types.js";
 import { flatKm, provinceIdAt } from "../nav/grid.js";
 import type { NavData } from "../nav/types.js";
 import { airOps, evacuateBases, nextAirEvent } from "./air.js";
-import { isShipType } from "../data/naval.js";
+import { CONVOY, isShipType } from "../data/naval.js";
+import { convoyOps, dispatchConvoys } from "./convoys.js";
 import { navalFight } from "./navalCombat.js";
 import { embark, marchPlan, nextTransportEvent, transportOps } from "./amphibious.js";
 import { dockedFleet, harborPoint, navalOps, newFleet, newShip, nextNavalEvent } from "./navy.js";
@@ -135,6 +136,7 @@ export function advance(state: GameState, world: EngineWorld, until: number, eco
           ...f,
           ships: f.ships.map((x) => ({ ...x })),
           ...(f.transport ? { transport: { ...f.transport, army: { ...f.transport.army, units: f.transport.army.units.map((u) => ({ ...u })) } } } : {}),
+          ...(f.convoy ? { convoy: { ...f.convoy, cargo: { ...f.convoy.cargo } } } : {}),
         },
       ]),
     ),
@@ -173,6 +175,7 @@ export function advance(state: GameState, world: EngineWorld, until: number, eco
     changed = airOps(s, world, t) || changed;
     changed = navalOps(s, world, t) || changed;
     changed = transportOps(s, world, t) || changed;
+    changed = convoyOps(s, world, t) || changed;
     if (t === nextSample) {
       changed = expireDiplomacy(s, t) || changed;
       changed = sample(s, world, t) || changed;
@@ -193,7 +196,8 @@ export function advance(state: GameState, world: EngineWorld, until: number, eco
         // Il mantenimento non porta le scorte sotto zero (le carenze avranno effetto sul morale).
         for (const r of RESOURCE_IDS) stock[r] = Math.max(0, stock[r] + perDay[r] / ticksPerDay);
       }
-      applyTradeTick(s, map, ticksPerDay, economy);
+      applyTradeTick(s, map, ticksPerDay, economy, world.nav);
+      if (t % CONVOY.departEveryMinutes === 0) dispatchConvoys(s, world, t);
       if (t % economy.dayMinutes === 0 && updateMorale(s, world, t)) rates = netPerDayByNation(map, s, economy);
     }
   }
