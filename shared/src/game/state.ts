@@ -161,6 +161,8 @@ export interface Fleet {
   /** Dove si trova ferma, o da dove è partita la navigazione in corso. */
   position: LngLat;
   voyage: Voyage | null;
+  /** Solo sottomarini: dopo un attacco restano visibili al nemico fino a questo minuto. */
+  revealedUntil?: number;
   /** Provincia del porto dove è ormeggiata (all'approdo di una provincia propria o alleata); null in mare o in viaggio. */
   port: ProvinceId | null;
 }

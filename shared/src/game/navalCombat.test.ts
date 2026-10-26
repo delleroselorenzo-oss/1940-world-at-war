@@ -94,3 +94,42 @@ describe("combattimento navale", () => {
     expect(hp(game, f.id)).toBeCloseTo(30 + SHIP_TYPES.cruiser.hp * 0.03);
   });
 });
+
+describe("sottomarini", () => {
+  it("in immersione non si vedono e non si colpiscono; attaccando si scoprono", async () => {
+    const { visionOf } = await import("./vision.js");
+    let game = newGame();
+    const sub = fleet(game, "AAA", cell(20, 1), ["submarine"]);
+    const cruiser = fleet(game, "BBB", cell(20, 4), ["cruiser"]); // a circa 33 km: fuori tiro per entrambi
+    expect(visionOf(game, world, "BBB").fleets.has(sub.id)).toBe(false); // l'incrociatore vede 30 km e non scopre sottomarini
+    expect(visionOf(game, world, "AAA").fleets.has(cruiser.id)).toBe(false); // il sottomarino vede solo 15 km
+
+    // Il sottomarino si avvicina a 3 km e attacca per primo; da lì in poi si vede.
+    game.fleets[sub.id] = { ...sub, position: [cell(20, 4)[0], cell(20, 4)[1] + 0.03] };
+    expect(visionOf(game, world, "BBB").fleets.has(sub.id)).toBe(false);
+    game = advance(game, world, 30);
+    expect(game.fleets[cruiser.id]!.ships[0]!.hp).toBeLessThan(SHIP_TYPES.cruiser.hp);
+    expect(game.fleets[sub.id]!.ships[0]!.hp).toBe(SHIP_TYPES.submarine.hp); // primo colpo senza risposta
+    expect(visionOf(game, world, "BBB").fleets.has(sub.id)).toBe(true);
+    game = advance(game, world, 60);
+    expect(game.fleets[sub.id]!.ships[0]!.hp).toBeLessThan(SHIP_TYPES.submarine.hp);
+  });
+
+  it("il cacciatorpediniere li scopre entro 15 km", async () => {
+    const { visionOf } = await import("./vision.js");
+    const game = newGame();
+    const sub = fleet(game, "AAA", cell(20, 1), ["submarine"]);
+    fleet(game, "BBB", cell(21, 1), ["destroyer"]); // a circa 11 km
+    expect(visionOf(game, world, "BBB").fleets.has(sub.id)).toBe(true);
+  });
+
+  it("in porto stanno in superficie", async () => {
+    const { visionOf } = await import("./vision.js");
+    const game = newGame();
+    const sub = fleet(game, "BBB", cell(20, 2), ["submarine"], "B1");
+    game.provinces.B1 = { ...game.provinces.B1!, owner: "BBB" };
+    expect(visionOf(game, world, "AAA").fleets.has(sub.id)).toBe(false); // B1 è nella nebbia per AAA
+    fleet(game, "AAA", cell(21, 2), ["cruiser"]);
+    expect(visionOf(game, world, "AAA").fleets.has(sub.id)).toBe(true);
+  });
+});

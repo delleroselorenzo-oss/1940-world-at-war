@@ -6,7 +6,8 @@ import { flatKm, provinceIdAt } from "../nav/grid.js";
 import { seaZoneAt } from "../nav/sea.js";
 import type { NavData } from "../nav/types.js";
 import { applyDamage, armyHealth, canFireAtRange, efficiency, groupWeight, isAttacking, noDamage } from "./combat.js";
-import { atWar, logEvent, pairKey, relationOf } from "./diplomacy.js";
+import { atWar, logEvent, pairKey, relationOf, viewersOf } from "./diplomacy.js";
+import { detected, revealSubmarine } from "./submarines.js";
 import { armyPosition } from "./movement.js";
 import { fleetHealth, fleetPosition } from "./navy.js";
 import type { Army, Fleet, GameState, Ship } from "./state.js";
@@ -115,18 +116,32 @@ export function navalFight(s: GameState, world: { nav?: NavData }, t: number): b
   const armyAt = new Map(armies.map((a) => [a.id, armyPosition(a, t)]));
   const hits: NavalHit[] = [];
 
+  // Chi scopre i sottomarini nemici, per nazione (con chi condivide la mappa).
+  const spotted = new Map<string, (g: Fleet) => boolean>();
+  const canSee = (nation: string, g: Fleet) => {
+    let fn = spotted.get(nation);
+    if (!fn) {
+      const viewers = viewersOf(s, nation);
+      fn = (x: Fleet) => detected(s, viewers, x, t);
+      spotted.set(nation, fn);
+    }
+    return fn(g);
+  };
+  const firing = new Set<string>();
+
   for (const f of fleets) {
     const here = fleetAt.get(f.id)!;
     const reach = fleetReachKm(f);
     let target: Fleet | undefined;
     let best = Infinity;
     for (const g of fleets) {
-      if (g.owner === f.owner || !atWar(s, f.owner, g.owner)) continue;
+      if (g.owner === f.owner || !atWar(s, f.owner, g.owner) || !canSee(f.owner, g)) continue;
       const d = flatKm(here, fleetAt.get(g.id)!);
       if (d <= reach && d < best) [target, best] = [g, d];
     }
     if (target) {
       hits.push({ kind: "fleet", by: { owner: f.owner, at: here }, target, damage: fleetDamageTo(f, target, best) });
+      firing.add(f.id);
       continue;
     }
     // Nessuna flotta a tiro: i cannoni sulla costa.
@@ -149,12 +164,15 @@ export function navalFight(s: GameState, world: { nav?: NavData }, t: number): b
     let target: Fleet | undefined;
     let best = Infinity;
     for (const f of fleets) {
-      if (!atWar(s, a.owner, f.owner)) continue;
+      if (!atWar(s, a.owner, f.owner) || !canSee(a.owner, f)) continue;
       const d = flatKm(here, fleetAt.get(f.id)!);
       if (d <= range && d < best) [target, best] = [f, d];
     }
     if (target) hits.push({ kind: "fleet", by: { owner: a.owner, at: here }, target, damage: artilleryDamageTo(a, target, best) });
   }
+
+  // Chi ha sparato da sott'acqua si è scoperto.
+  for (const id of firing) revealSubmarine(s.fleets[id]!, t);
 
   let changed = false;
   const hitFleets = new Set<string>();

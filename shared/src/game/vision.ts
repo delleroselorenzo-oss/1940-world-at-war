@@ -4,7 +4,8 @@ import type { LngLat, MapData, NationId, ProvinceId } from "../map/types.js";
 import { flatKm, provinceIdAt } from "../nav/grid.js";
 import type { NavData } from "../nav/types.js";
 import { squadronPosition } from "./air.js";
-import { hasAgreement } from "./diplomacy.js";
+import { viewersOf } from "./diplomacy.js";
+import { detected } from "./submarines.js";
 import { armyPosition } from "./movement.js";
 import { fleetPosition, fleetSightKm } from "./navy.js";
 import type { Army, ArmyId, FleetId, GameState, Squadron, SquadronId } from "./state.js";
@@ -14,7 +15,10 @@ import type { Army, ArmyId, FleetId, GameState, Squadron, SquadronId } from "./s
 // e tutto quello che sta entro la vista (`sightKm`) delle proprie armate, flotte e degli aerei in volo
 // (una flotta ormeggiata vede anche la provincia del suo porto).
 // Con la mappa condivisa (o l'alleanza) si vede anche quello che vede l'altra nazione.
-// Proprietari e morale delle province sono sempre noti; nella nebbia restano nascosti armate, squadriglie, edifici e lavori.
+// Proprietari e morale delle province sono sempre noti; nella nebbia restano nascosti armate, squadriglie, flotte, edifici e lavori.
+// I sottomarini in immersione si vedono solo se scoperti (submarines.ts).
+
+export { viewersOf };
 
 export const VISION = {
   /** Un'armata nemica avvistata mostra la composizione solo entro questa distanza da una propria armata. */
@@ -35,12 +39,6 @@ interface VisionWorld {
   nav?: NavData;
 }
 
-/** La nazione e chi condivide la mappa con lei (accordo di visione condivisa o alleanza). */
-export function viewersOf(state: GameState, nation: NationId): Set<NationId> {
-  const viewers = new Set([nation]);
-  for (const other of Object.keys(state.nations)) if (other !== nation && hasAgreement(state, nation, other, "sharedVision")) viewers.add(other);
-  return viewers;
-}
 
 /** Vista dell'armata: quella dell'unità che vede più lontano. */
 export function armySightKm(army: Army): number {
@@ -90,7 +88,8 @@ export function visionOf(state: GameState, world: VisionWorld, nation: NationId,
   for (const a of Object.values(state.armies)) if (viewers.has(a.owner) || seen(armyPosition(a, t))) armies.add(a.id);
   const fleets = new Set<FleetId>();
   for (const f of Object.values(state.fleets)) {
-    if (viewers.has(f.owner) || (f.port ? provinces.has(f.port) : false) || seen(fleetPosition(f, t))) fleets.add(f.id);
+    if (viewers.has(f.owner)) fleets.add(f.id);
+    else if (((f.port ? provinces.has(f.port) : false) || seen(fleetPosition(f, t))) && detected(state, viewers, f, t)) fleets.add(f.id);
   }
   const squadrons = new Set<SquadronId>();
   for (const sq of Object.values(state.squadrons)) {

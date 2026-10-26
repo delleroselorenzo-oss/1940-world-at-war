@@ -70,6 +70,18 @@ describe("marina", () => {
     expect(game.fleets[a.id]!.ships).toHaveLength(2);
   });
 
+  it("in mare aperto si unisce alla flotta ferma entro 5 km", () => {
+    let game = newGame();
+    const a = newFleet(game, "BBB", cell(20, 0), null);
+    a.ships.push(newShip(game, "cruiser"));
+    const b = newFleet(game, "BBB", cell(21, 4), null);
+    b.ships.push(newShip(game, "destroyer"));
+    game = order(game, "BBB", { type: "sail", fleet: b.id, target: [cell(20, 0)[0] + 0.02, cell(20, 0)[1]] }); // a circa 2 km
+    game = advance(game, world, 24 * 60);
+    expect(Object.keys(game.fleets)).toEqual([a.id]);
+    expect(game.fleets[a.id]!.ships).toHaveLength(2);
+  });
+
   it("non va per terra e si ferma a comando", () => {
     let game = newGame();
     const fleet = newFleet(game, "BBB", cell(20, 0), null);

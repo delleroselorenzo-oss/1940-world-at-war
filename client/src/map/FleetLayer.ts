@@ -1,10 +1,11 @@
 import { Container, Graphics, Text } from "pixi.js";
-import { fleetPosition, type Fleet } from "@waw/shared";
+import { fleetPosition, isSubmerged, type Fleet } from "@waw/shared";
 import type { Camera } from "./camera.js";
 import type { LoadedMap } from "./loadMap.js";
 import { project } from "./projection.js";
 
-// Flotte sulla mappa: un gettone allungato col colore della nazione, la sagoma di una nave e il numero di navi.
+// Flotte sulla mappa: un gettone allungato col colore della nazione, la sagoma di una nave (di un sottomarino se la flotta
+// ne ha solo; in immersione il gettone è velato) e il numero di navi.
 // Più flotte nello stesso punto (lo stesso porto) si impilano. Per la flotta selezionata: la rotta che resta.
 // Le dimensioni sono in pixel dello schermo (indipendenti dallo zoom).
 
@@ -102,7 +103,9 @@ export class FleetLayer {
     const mine = fleet.owner === this.playerNation;
     const selected = fleet.id === this.selected;
     const sailing = fleet.voyage !== null;
-    const look = `${color}|${mine}|${selected}|${sailing}|${fleet.ships.length}`;
+    const subs = fleet.ships.every((s) => s.type === "submarine");
+    const submerged = isSubmerged(fleet);
+    const look = `${color}|${mine}|${selected}|${sailing}|${fleet.ships.length}|${subs}|${submerged}`;
     if (look !== badge.look) {
       badge.look = look;
       const border = selected ? SELECT_COLOR : mine ? "#ffffff" : "#1b1b1b";
@@ -110,7 +113,9 @@ export class FleetLayer {
       g.roundRect(-HALF_W, -HALF_H, HALF_W * 2, HALF_H * 2, HALF_H)
         .fill(color)
         .stroke({ width: selected ? 3 : mine ? 2 : 1.2, color: border });
-      drawShip(g);
+      if (subs) drawSubmarine(g);
+      else drawShip(g);
+      badge.container.alpha = submerged ? 0.7 : 1;
       // Numero di navi in un cerchietto in basso a destra.
       g.circle(HALF_W, HALF_H * 0.8, 6).fill("#1b1b1b");
       badge.label.text = String(fleet.ships.length);
@@ -149,4 +154,11 @@ function drawShip(g: Graphics): void {
     .stroke({ width: 0.8, color: "#1b1b1b", alpha: 0.6 });
   g.rect(-4, -3, 8, 4).fill("#ffffff").stroke({ width: 0.8, color: "#1b1b1b", alpha: 0.6 });
   g.rect(-1, -6, 2.5, 3).fill("#ffffff").stroke({ width: 0.8, color: "#1b1b1b", alpha: 0.6 });
+}
+
+/** Sagoma stilizzata di un sottomarino: scafo basso e torretta. */
+function drawSubmarine(g: Graphics): void {
+  g.roundRect(-10, 0, 20, 4.5, 2.2).fill("#ffffff").stroke({ width: 0.8, color: "#1b1b1b", alpha: 0.6 });
+  g.rect(-2.5, -3.5, 5, 4).fill("#ffffff").stroke({ width: 0.8, color: "#1b1b1b", alpha: 0.6 });
+  g.rect(-0.5, -6, 1, 2.5).fill("#ffffff");
 }

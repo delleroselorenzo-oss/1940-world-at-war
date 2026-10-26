@@ -9,7 +9,8 @@ import { seaZoneAt } from "../nav/sea.js";
 import type { NavData } from "../nav/types.js";
 import { buildingLevel, fortDamageFactor } from "./buildings.js";
 import { applyDamage, armyAntiAir, efficiency, groupWeight, isAttacking, lerp, lowerMorale, moraleDamage, noDamage } from "./combat.js";
-import { atWar, hasAgreement, logEvent } from "./diplomacy.js";
+import { atWar, hasAgreement, logEvent, viewersOf } from "./diplomacy.js";
+import { detected } from "./submarines.js";
 import { mapIndex } from "./mapIndex.js";
 import { armyPosition } from "./movement.js";
 import { terrainAt } from "./terrain.js";
@@ -176,9 +177,9 @@ function targetPosition(target: Target, t: number): LngLat {
   return target.kind === "army" ? armyPosition(target.army, t) : fleetPosition(target.fleet, t);
 }
 
-/** Il bersaglio si può ancora attaccare: esiste, non è distrutto ed è di una nazione in guerra con chi attacca. */
-function validTarget(state: GameState, nation: NationId, target: Target | undefined): target is Target {
-  return !!target && atWar(state, nation, target.owner);
+/** Il bersaglio si può ancora attaccare: esiste, non è distrutto, è di una nazione in guerra con chi attacca e (un sottomarino) è scoperto. */
+function validTarget(state: GameState, nation: NationId, target: Target | undefined, t = state.time): target is Target {
+  return !!target && atWar(state, nation, target.owner) && (target.kind === "army" || detected(state, viewersOf(state, nation), target.fleet, t));
 }
 
 /**
@@ -208,6 +209,7 @@ export function planStrike(state: GameState, map: MapData, sq: Squadron, targetI
   if (!target) return "Bersaglio sconosciuto.";
   if (target.owner === sq.owner) return "Non puoi attaccare le tue forze.";
   if (!atWar(state, sq.owner, target.owner)) return "Puoi attaccare solo armate e flotte delle nazioni con cui sei in guerra.";
+  if (!validTarget(state, sq.owner, target, t)) return "Bersaglio non visibile.";
   const range = squadronRangeKm(sq);
   const radius = range / 2;
   const here = squadronPosition(state, sq, map, t);
@@ -309,7 +311,7 @@ function strikeArrival(s: GameState, world: { map: MapData; nav?: NavData }, sq:
   const f = sq.flight!;
   const m = sq.mission;
   const target = m ? targetOf(s, m.target) : undefined;
-  if (!m || !validTarget(s, sq.owner, target)) {
+  if (!m || !validTarget(s, sq.owner, target, t)) {
     returnToBase(s, map, sq, f.to, f.fuelKm, t);
     return false;
   }

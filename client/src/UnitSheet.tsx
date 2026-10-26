@@ -152,6 +152,14 @@ export function UnitSheet({ unit, image, stock, onRecruit, onClose }: UnitSheetP
             <dd>
               {type.sightKm} km{air && " · in volo"}
             </dd>
+            {(ship?.subDetectKm || air?.subDetectKm) && (
+              <>
+                <dt>Scopre i sottomarini</dt>
+                <dd>
+                  entro {ship?.subDetectKm ?? air?.subDetectKm} km{air && " · in volo"}
+                </dd>
+              </>
+            )}
             {ground?.rangeKm && (
               <>
                 <dt>Gittata</dt>

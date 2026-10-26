@@ -1,3 +1,4 @@
+import { COMBAT } from "../data/combat.js";
 import { SHIP_TYPES, type ShipTypeId } from "../data/naval.js";
 import type { LngLat, MapData, NationId, ProvinceId } from "../map/types.js";
 import { cellAt, cellCenter, flatKm } from "../nav/grid.js";
@@ -11,7 +12,8 @@ import type { Fleet, GameState, Ship, Voyage } from "./state.js";
 //  - Una flotta va alla velocità della nave più lenta, per la rotta navale più breve (nav/sea.ts).
 //  - Gli stretti sono chiusi a chi è in guerra con il padrone di una delle rive.
 //  - Arrivata all'approdo di una provincia propria (o di chi ha concesso il passaggio, o di un alleato) si ormeggia
-//    nel porto; nello stesso porto le flotte della stessa nazione si uniscono.
+//    nel porto. Arrivata entro la distanza di contatto (5 km) da una flotta della stessa nazione ferma, si unisce a lei,
+//    in porto come in mare aperto.
 //  - Le navi nuove escono nel porto della città con il cantiere navale.
 
 export function fleetSpeedKmh(fleet: Fleet): number {
@@ -125,13 +127,18 @@ export function newShip(s: GameState, type: ShipTypeId): Ship {
   return { id: `u${s.nextId++}`, type, hp: SHIP_TYPES[type].hp };
 }
 
+/** Flotta della stessa nazione ferma entro la distanza di contatto (per unirsi a lei). */
+export function idleFleetNear(s: GameState, owner: NationId, at: LngLat, except?: string): Fleet | undefined {
+  return Object.values(s.fleets).find((f) => f.owner === owner && !f.voyage && f.id !== except && flatKm(f.position, at) <= COMBAT.contactKm);
+}
+
 /** Flotta ferma nel porto della provincia (per unirsi a lei). */
 export function dockedFleet(s: GameState, owner: NationId, port: ProvinceId, except?: string): Fleet | undefined {
   return Object.values(s.fleets).find((f) => f.owner === owner && f.port === port && !f.voyage && f.id !== except);
 }
 
 /**
- * Operazioni navali al minuto `t`: arrivi (ormeggio nel porto se c'è, unione con la flotta già ormeggiata)
+ * Operazioni navali al minuto `t`: arrivi (ormeggio nel porto se c'è, unione con una flotta ferma lì vicino)
  * e flotte che perdono il porto (la provincia è passata a un'altra nazione): restano in rada. Modifica `s`.
  */
 export function navalOps(s: GameState, world: { nav?: NavData }, t: number): boolean {
@@ -144,7 +151,7 @@ export function navalOps(s: GameState, world: { nav?: NavData }, t: number): boo
       fleet.position = fleet.voyage!.points[fleet.voyage!.points.length - 1]!;
       fleet.voyage = null;
       fleet.port = world.nav ? portAt(s, world.nav, fleet.owner, fleet.position) : null;
-      const host = fleet.port ? dockedFleet(s, fleet.owner, fleet.port, fleet.id) : undefined;
+      const host = (fleet.port ? dockedFleet(s, fleet.owner, fleet.port, fleet.id) : undefined) ?? idleFleetNear(s, fleet.owner, fleet.position, fleet.id);
       if (host) {
         host.ships.push(...fleet.ships);
         // Gli aerei della portaerei passano alla flotta che la accoglie.

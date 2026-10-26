@@ -31,6 +31,8 @@ export interface ShipType {
   /** Ore di gioco per costruirla in una città con il cantiere navale. */
   productionHours: number;
   upkeepPerDay: Partial<Record<ResourceId, number>>;
+  /** Scopre i sottomarini nemici entro questa distanza (sonar e cariche di profondità). */
+  subDetectKm?: number;
   /** Solo portaerei: quanti aerei può ospitare (squadriglie con base sulla nave). */
   aircraftCapacity?: number;
 }
@@ -40,7 +42,7 @@ export const SHIP_TYPES: Record<ShipTypeId, ShipType> = {
     id: "submarine",
     name: "Sottomarino",
     building: "shipyard",
-    description: "Nascosto finché non attacca: affonda le navi e i convogli e taglia le importazioni via mare. Come i Type VII e i classe Ščuka.",
+    description: "Invisibile in immersione: lo scoprono solo i cacciatorpediniere vicini e gli aerei, oppure quando attacca. Affonda le navi e i convogli e taglia le importazioni via mare. Come i Type VII e i classe Ščuka.",
     speedKmh: 25,
     sightKm: 15,
     hp: 25,
@@ -56,12 +58,13 @@ export const SHIP_TYPES: Record<ShipTypeId, ShipType> = {
     id: "destroyer",
     name: "Cacciatorpediniere",
     building: "shipyard",
-    description: "Nave veloce di scorta: dà la caccia ai sottomarini e protegge i convogli. Come i classe Tribal e i Z1.",
+    description: "Nave veloce di scorta: scopre i sottomarini entro 15 km, dà loro la caccia e protegge i convogli. Come i classe Tribal e i Z1.",
     speedKmh: 40,
     sightKm: 25,
     hp: 35,
     vsShip: { attack: 3, defense: 3 },
     vsSub: { attack: 6, defense: 5 },
+    subDetectKm: 15,
     antiAir: 2,
     shore: { soft: 1, light: 0.5, heavy: 0.25 },
     rangeKm: 12,
@@ -133,4 +136,6 @@ export const NAVAL = {
   repairPerTick: 0.03,
   /** Una nuova notizia di battaglia navale tra le stesse due nazioni solo se in mare non si combatteva da più di questi minuti. */
   battleNewsGapMinutes: 120,
+  /** Un sottomarino che attacca si scopre: resta visibile al nemico per questi minuti. */
+  subRevealMinutes: 60,
 } as const;

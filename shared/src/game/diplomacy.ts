@@ -34,6 +34,13 @@ export function hasAgreement(state: GameState, a: NationId, b: NationId, kind: A
   return r.alliance === true || (kind !== "alliance" && r[kind]);
 }
 
+/** La nazione e chi condivide la mappa con lei (accordo di visione condivisa o alleanza). */
+export function viewersOf(state: GameState, nation: NationId): Set<NationId> {
+  const viewers = new Set([nation]);
+  for (const other of Object.keys(state.nations)) if (other !== nation && hasAgreement(state, nation, other, "sharedVision")) viewers.add(other);
+  return viewers;
+}
+
 /** Nazioni in guerra con `nation`. */
 export function enemiesOf(state: GameState, nation: NationId): NationId[] {
   const out: NationId[] = [];

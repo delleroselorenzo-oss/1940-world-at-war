@@ -20,6 +20,8 @@ export interface AircraftType {
   speedKmh: number;
   /** Vista in volo: vede le armate e le squadriglie nemiche entro questa distanza. A terra vede la sua base. */
   sightKm: number;
+  /** In volo scopre i sottomarini nemici entro questa distanza (assente = non li vede). */
+  subDetectKm?: number;
   /** Può avere come base una portaerei. */
   carrier?: boolean;
   /** Minuti a terra per rifornirsi dopo ogni volo (senza costi: è compreso nel mantenimento). */
@@ -65,6 +67,7 @@ export const AIRCRAFT_TYPES: Record<AircraftTypeId, AircraftType> = {
   },
   tacticalBomber: {
     id: "tacticalBomber",
+    subDetectKm: 10,
     carrier: true,
     name: "Bombardiere tattico",
     building: "aircraftFactory",
@@ -86,6 +89,7 @@ export const AIRCRAFT_TYPES: Record<AircraftTypeId, AircraftType> = {
   },
   torpedoBomber: {
     id: "torpedoBomber",
+    subDetectKm: 15,
     carrier: true,
     name: "Aerosilurante",
     building: "aircraftFactory",
@@ -126,6 +130,7 @@ export const AIRCRAFT_TYPES: Record<AircraftTypeId, AircraftType> = {
   },
   recon: {
     id: "recon",
+    subDetectKm: 30,
     name: "Ricognitore",
     building: "aircraftFactory",
     description: "Vede lontano e pattuglia il mare; attacca poco. Come l'Hudson e il Sunderland (~3.000 km).",

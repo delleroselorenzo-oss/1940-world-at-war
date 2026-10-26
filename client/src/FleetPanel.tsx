@@ -10,6 +10,7 @@ import {
   atWar,
   fleetReachKm,
   harborOf,
+  isSubmerged,
   mayDock,
   seaZoneAt,
   SHIP_TYPE_IDS,
@@ -120,6 +121,13 @@ export function FleetPanel({ map, fleet, game, now, error, mode, onMode, onSail,
             <span style={{ width: `${health * 100}%` }} />
           </span>
           {inBattle && <p className="error-text">In combattimento con una flotta nemica</p>}
+          {mine && isSubmerged(fleet) && (
+            <p className="small">
+              {(fleet.revealedUntil ?? 0) > now
+                ? `Scoperta dopo l'attacco: il nemico la vede ancora per ${countdown(fleet.revealedUntil!)}.`
+                : "In immersione: il nemico non la vede finché non la scopre un cacciatorpediniere vicino o un aereo, o finché non attacca."}
+            </p>
+          )}
           <p className="muted">
             Salute {Math.round(health * 100)}% · {speed} km/h · vista {fleetSightKm(fleet)} km
           </p>
