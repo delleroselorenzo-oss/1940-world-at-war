@@ -10,6 +10,7 @@ export * from "./data/engineering.js";
 export * from "./data/buildings.js";
 export * from "./data/leaders.js";
 export * from "./data/diplomacy.js";
+export * from "./data/doctrines.js";
 export * from "./game/state.js";
 export * from "./game/clock.js";
 export * from "./game/economy.js";

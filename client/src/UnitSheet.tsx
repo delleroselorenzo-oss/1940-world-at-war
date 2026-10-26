@@ -25,6 +25,8 @@ import { formatAmount, formatDelay } from "./ui/format.js";
 
 interface UnitSheetProps {
   unit: ProducibleId;
+  /** Foto dell'unità nella dottrina del giocatore. */
+  image: string | undefined;
   stock: ResourceAmounts;
   onRecruit(): void;
   onClose(): void;
@@ -46,7 +48,7 @@ const percent = (factor: number) => {
   return p === 0 ? "—" : `${p > 0 ? "+" : "−"}${Math.abs(p)}%`;
 };
 
-export function UnitSheet({ unit, stock, onRecruit, onClose }: UnitSheetProps) {
+export function UnitSheet({ unit, image, stock, onRecruit, onClose }: UnitSheetProps) {
   useEffect(() => {
     // In cattura e senza propagare: Esc chiude solo la scheda, non il pannello sotto.
     const onKey = (e: KeyboardEvent) => {
@@ -92,7 +94,7 @@ export function UnitSheet({ unit, stock, onRecruit, onClose }: UnitSheetProps) {
         </header>
         <div className="sheet-body">
           <div className="sheet-image" aria-hidden>
-            Immagine in arrivo
+            {image ? <img src={image} alt="" /> : "Immagine in arrivo"}
           </div>
           <p>{type.description}</p>
 

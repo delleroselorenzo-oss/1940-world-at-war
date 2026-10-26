@@ -355,6 +355,33 @@ Esempio: l'armata di una capitale (3 fanterie + 1 artiglieria) che assalta un'ar
 - È l'elemento che sostituisce la casualità: due battaglie uguali danno risultati diversi perché sono guidate da generali diversi.
 - Da decidere: come si ottengono, se possono morire o essere catturati, se migliorano con l'esperienza.
 
+### Dottrine (deciso il 26/10/2026, da realizzare)
+- Quattro dottrine: **Alleati, Nipponici, Nazisti, Comunisti**. Ogni nazione ha quella storicamente più vicina. Per ora cambiano solo le foto delle unità (`icone/icone <dottrina>/`).
+- Regola: ogni dottrina ha **un vantaggio e uno svantaggio**, niente di più. Entrambi si devono notare, ma senza esagerare: indicativamente **±15%**, da tarare giocando.
+- Lo svantaggio non deve peggiorare un punto già debole dell'economia reale (per esempio il petrolio tedesco), altrimenti la nazione diventa ingiocabile.
+- Valori indicativi (da tarare):
+
+| Dottrina | Vantaggio | Svantaggio |
+|---|---|---|
+| Comunisti | Fanteria più economica (−15% sui costi) | Marina più debole (−15% su attacco e difesa delle navi) |
+| Nazisti | Corazzati più forti in attacco (+15%) | Le province conquistate recuperano il morale più lentamente (+3 punti al giorno invece di +5), quindi restano più a lungo a rischio di rivolta |
+| Alleati | Commercio: +15% di capacità di importazione dal mercato estero | Arruolamento della fanteria più lento (+15% di tempo) |
+| Nipponici | Marina e aviazione navale più forti (+15%) | Carri più deboli (−15% su attacco e difesa dei corazzati) |
+
+- **Dottrina di partenza** (giugno 1933, `shared/src/data/doctrines.ts`):
+  - **Nazisti**: Germania, Austria, Città Libera di Danzica, Italia, Ungheria, Romania, Bulgaria.
+  - **Comunisti**: Unione Sovietica.
+  - **Alleati**: tutte le altre, comprese le neutrali (Irlanda, Svizzera, Svezia, Portogallo, Turchia) e la Spagna, che nel 1933 è la Seconda Repubblica.
+  - **Nipponici**: nessuna nazione europea. Le foto sono pronte per quando la mappa si allargherà.
+- **La dottrina cambia solo con un evento storico** (§13), quindi solo nella partita storica; nella partita libera resta quella di partenza. Come tutti gli eventi, accade da solo se la nazione è un bot; se è di un giocatore diventa una sua scelta.
+- Cambi previsti:
+  - **Spagna**: guerra civile (17/7/1936), Repubblica → Comunisti oppure nazionalisti → Nazisti (storico).
+  - **Italia**: armistizio (settembre 1943) → Alleati.
+  - **Romania e Bulgaria**: cambio di campo (agosto–settembre 1944) → Comunisti.
+  - Da valutare più avanti: Francia di Vichy, Finlandia nella guerra di continuazione, Albania occupata, Baltici annessi, Jugoslavia di Tito.
+- La nave appoggio per idrovolanti Dédalo, della Repubblica spagnola, fa da portaerei dei Comunisti (l'URSS non ne ebbe mai una).
+- Più avanti si deciderà se i generali possono attenuare lo svantaggio o rafforzare il vantaggio.
+
 ## 10. Conquista e vittoria
 
 - Una provincia si conquista **attraversandola** (anche senza fermarsi, in qualsiasi punto) quando dentro non ci sono armate nemiche. Serve essere in guerra con il proprietario (entrare senza accordi la fa scattare).
@@ -385,7 +412,28 @@ Pannello "Diplomazia" nella barra in basso: elenco delle nazioni con i rapporti,
 
 ## 13. Storia: eventi, scenari e salto nel tempo (deciso il 25/10/2026)
 
-La partita parte da una data storica, ma i giocatori possono cambiare la storia. Per questo gli eventi storici (Anschluss, Monaco, patto Molotov-Ribbentrop…) **non sono un copione**: sono **opportunità con condizioni**, che accadono solo se la partita ci arriva in una situazione in cui hanno senso. Le stesse regole valgono in ogni modalità: partita normale, partita in solitaria con il salto nel tempo, multigiocatore.
+La partita parte da una data storica, ma i giocatori possono cambiare la storia. Per questo gli eventi storici (Anschluss, Monaco, patto Molotov-Ribbentrop…) **non sono un copione**: sono **opportunità con condizioni**, che accadono solo se la partita ci arriva in una situazione in cui hanno senso.
+
+### Tipi di partita (deciso il 26/10/2026)
+
+All'inizio, nella **lobby**, chi crea la partita sceglie il tipo e la data di partenza; poi ognuno sceglie la sua nazione (le altre sono bot).
+
+- **Partita storica**: gli eventi di questo capitolo sono attivi e arrivano le **forze fuori mappa** (Stati Uniti, aiuti all'URSS, più avanti il Giappone). La storia spinge, ma ogni evento ha le sue condizioni: se la partita è andata diversamente, l'evento salta. Con un bot l'evento accade da solo; con un giocatore diventa una sua scelta. Solo qui vale l'opzione *storia fedele / storia libera* per le scelte dei bot.
+- **Partita libera**: si sceglie l'anno di partenza e da lì decidono solo i giocatori. Niente eventi, niente forze fuori mappa, niente cambi di dottrina; i capi cambiano solo per data quando il cambio non dipende dalla guerra (elezioni, morti naturali).
+
+In entrambi i tipi la partita può partire da una data diversa dal 1933 (vedi "Partire da una data").
+
+Ordine di lavoro: la scelta del tipo e della data va prima nella "Nuova partita" della partita locale; la lobby vera, con gli amici che scelgono le nazioni, arriva con il server multigiocatore (milestone 5).
+
+### Forze fuori mappa (solo partita storica)
+
+Potenze senza province sulla mappa (per ora **Stati Uniti**; il **Giappone** se la mappa si allarga, con la dottrina Nipponici; il **Commonwealth** come rinforzi del Regno Unito). Non costruiscono e non hanno economia: agiscono solo con i loro eventi.
+
+- **Sbarchi**: a una data, se le condizioni ci sono, compaiono armate (dottrina Alleati) su un tratto di costa: Sicilia, Salerno, Anzio, Normandia, Provenza. Sono gestite come un bot alleato di chi è in guerra con il bersaglio, e combattono con le regole normali. Finché manca la marina compaiono direttamente sulla spiaggia; con la marina arriveranno con un convoglio che si può intercettare.
+- **Forza proporzionata**: la dimensione dello sbarco dipende dalla situazione (quante armate difendono la zona, come va la guerra), così non schiaccia una difesa preparata e non è inutile contro una costa vuota.
+- **Condizioni sempre presenti**: gli Stati Uniti sono in guerra solo con chi è in guerra con il Regno Unito o l'URSS dopo Pearl Harbor (7/12/1941); sbarcano in Sicilia solo se l'Italia è in guerra con gli Alleati; in Normandia solo se la Francia del nord è in mano nemica. Se l'Italia è rimasta neutrale, nessuno sbarca in Sicilia.
+- **Aiuti**: risorse al giorno (Affitti e prestiti al Regno Unito da marzo 1941, all'URSS da ottobre 1941), finché la nazione è in guerra con la Germania. Con la marina passeranno da porti e convogli che si possono attaccare (Murmansk).
+- Chi è il bersaglio (un giocatore o un bot) riceve l'avviso dello sbarco poche ore prima, come un'informazione dello spionaggio.
 
 ### Com'è fatto un evento
 
@@ -402,7 +450,7 @@ La partita parte da una data storica, ma i giocatori possono cambiare la storia.
 2. **C'è almeno un giocatore umano**: l'evento diventa una **scelta** (notifica e riquadro con le risposte). Se gli umani sono più di uno, risponde prima chi propone, poi chi riceve, poi chi può intervenire.
 3. **Le condizioni non ci sono più**: l'evento salta, anche se era già in attesa di risposta. Se la Francia non si è arresa, Pétain non arriva.
 
-**Opzione di partita**: *storia fedele* (i bot scelgono sempre la risposta storica) oppure *storia libera* (i bot scelgono secondo la situazione, quando avranno un comportamento proprio). Gli umani scelgono sempre liberamente.
+**Opzione della partita storica**: *storia fedele* (i bot scelgono sempre la risposta storica) oppure *storia libera* (i bot scelgono secondo la situazione, quando avranno un comportamento proprio). Gli umani scelgono sempre liberamente.
 
 Gli eventi si controllano a ogni **cambio giorno**, insieme a morale e rivolte. Le risposte sono ordini come gli altri (validati dal server), e le scelte dei bot dipendono solo dallo stato e dal seme della partita: stesse scelte, stessa storia, anche recuperando molte ore in un colpo.
 
@@ -413,7 +461,7 @@ Gli eventi si controllano a ogni **cambio giorno**, insieme a morale e rivolte. 
 
 ### Partire da una data (scenari)
 
-- A inizio partita si sceglie la data dal calendario. La partita parte con la situazione storica di quel giorno: **confini** (da CShapes, che li ha giorno per giorno: si genera una mappa per data come quella del 1933), **capi** in carica, **guerre e accordi** in corso, eventi già accaduti (che non si ripetono).
+- A inizio partita si sceglie la data dal calendario. La partita parte con la situazione storica di quel giorno: **confini** (si parte dalla mappa del 1933 e si applicano in automatico gli eventi storici accaduti fino a quella data, con le risposte storiche: è lo stesso codice del salto nel tempo; CShapes, che ha i confini giorno per giorno, serve da controllo), **capi** in carica, **guerre e accordi** in corso, eventi già accaduti (che non si ripetono).
 - Date proposte per i primi scenari: **1 giugno 1933** (attuale), **1 marzo 1938** (prima dell'Anschluss), **1 settembre 1939** (invasione della Polonia), **22 giugno 1941** (operazione Barbarossa).
 - Popolazione ed economia restano quelle del 1933 corrette per i confini (per ora); le riserve di petrolio e le scorte si adeguano alla data.
 
@@ -428,42 +476,95 @@ Gli eventi si controllano a ogni **cambio giorno**, insieme a morale e rivolte. 
 - Nel multigiocatore non si salta: le scelte arrivano come notifiche con la loro scadenza.
 - Dipende dai **bot**: finché non hanno un comportamento, il salto fa scorrere economia, costruzioni ed eventi, ma le nazioni bot non muovono armate.
 
-### Primi eventi (1933–1945)
+### Eventi della partita storica (1933–1945)
 
-Le province coinvolte (Sudeti, Memel, Carelia, Bessarabia…) si definiranno come gruppi nella configurazione della mappa. Tra parentesi la data storica; "→" indica la risposta storica.
+Le province coinvolte (Sudeti, Memel, Carelia, Bessarabia, Renania…) si definiranno come gruppi nella configurazione della mappa. Tra parentesi la data storica; "→" indica la risposta storica, quella che scelgono i bot con la storia fedele. Molti eventi sono **spinte storiche per i bot**: un giocatore umano può sempre rifiutare.
+
+Nazioni nuove (Slovacchia, Croazia, Repubblica Sociale Italiana, Francia di Vichy): per ora le loro province passano a chi le controllava storicamente (Germania, Italia, Ungheria); più avanti potranno diventare nazioni bot vere.
+
+**1933–1936: verso il riarmo**
+
+| Evento | Finestra | Coinvolti | Condizioni principali | Scelte ed effetti |
+|---|---|---|---|---|
+| Patto tedesco-polacco (26/1/1934) | 1934–1938 | GER propone, POL riceve | non in guerra | accetta → non aggressione (decade con la crisi di Danzica) (→ sì) |
+| Putsch di luglio in Austria (25/7/1934) | lug–dic 1934 | GER, AUT, ITA | AUT indipendente | i nazisti austriaci uccidono Dollfuss, capo Schuschnigg; ITA sceglie se schierare armate al Brennero (→ sì): GER non può proporre l'Anschluss per 1 anno |
+| Plebiscito della Saar (13/1/1935) | gen–dic 1935 | GER | la Saar non è tedesca (se è sulla mappa come zona a parte) | la Saar passa a GER |
+| Riarmo tedesco (16/3/1935) | 1935–1936 | GER, poi GBR, FRA, ITA | — | GER sceglie la coscrizione (→ sì): più manodopera, morale −5 nelle nazioni vicine; GBR, FRA e ITA scelgono il fronte di Stresa (→ sì): accordo tra loro per 1 anno |
+| Patto franco-sovietico (2/5/1935) | 1935–1937 | FRA propone, SOV riceve | non in guerra | accetta → visione condivisa e garanzia reciproca contro GER (→ sì) |
+| Guerra d'Etiopia (3/10/1935) | 1935–1936 | ITA, poi GBR e FRA | ITA non in guerra in Europa | ITA attacca l'Etiopia fuori mappa (→ sì): costo in risorse per 6 mesi; GBR e FRA scelgono le sanzioni (→ sì): embargo verso ITA per 6 mesi, il fronte di Stresa decade |
+| Rimilitarizzazione della Renania (7/3/1936) | 1936–1937 | GER, poi FRA e GBR | la Renania è tedesca e smilitarizzata (fino a qui GER non può tenerci armate né fortificazioni) | GER entra (→ sì); FRA sceglie se intervenire (guerra con GER) o lasciar fare (→ lascia fare) |
+| Guerra civile spagnola (17/7/1936) | lug 1936 – 1939 | ESP, poi GER, ITA, SOV | ESP esiste e non è in guerra | dottrina della Spagna: Repubblica → Comunisti oppure nazionalisti → Nazisti (→ nazionalisti, capo Franco dal 1/4/1939). GER, ITA e SOV scelgono se mandare aiuti (risorse) alla parte amica. Semplificata: nessuna guerra simulata sulla mappa |
+| Asse Roma-Berlino (1/11/1936) | 1936–1939 | GER propone, ITA riceve | non in guerra | accetta → visione condivisa (→ sì); sblocca il patto d'acciaio |
+
+**1938–1939: le crisi**
 
 | Evento | Finestra | Coinvolti | Condizioni principali | Scelte ed effetti |
 |---|---|---|---|---|
 | Anschluss (12/3/1938) | mar–dic 1938 | GER propone, AUT riceve | entrambe esistono, confinano, non in guerra | accetta → AUT annessa a GER, capo Seyss-Inquart per 2 giorni; rifiuta → nulla, GER può dichiarare guerra |
 | Sudeti / Monaco (29/9/1938) | set 1938 – mar 1939 | GER propone, CZE riceve, GBR e FRA garanti | GER confina con i Sudeti, CZE li possiede | CZE cede → Sudeti a GER; CZE rifiuta → GBR e FRA scelgono se garantire (guerra a GER se attacca) o lasciar fare (→ lasciano fare) |
 | Primo arbitrato di Vienna (2/11/1938) | nov 1938 – mar 1939 | HUN propone, CZE riceve | dopo i Sudeti | accetta → Slovacchia meridionale a HUN |
-| Fine della Cecoslovacchia (15/3/1939) | mar–dic 1939 | GER propone, CZE riceve | dopo i Sudeti | accetta → Boemia e Moravia a GER, Rutenia a HUN, capo Hácha; rifiuta → guerra |
+| Fine della Cecoslovacchia (15/3/1939) | mar–dic 1939 | GER propone, CZE riceve | dopo i Sudeti | accetta → Boemia e Moravia a GER, Slovacchia protettorato tedesco, Rutenia a HUN, capo Hácha; rifiuta → guerra |
 | Memel (22/3/1939) | mar–dic 1939 | GER propone, LTU riceve | GER confina con Memel | accetta → Memel a GER |
+| Garanzia alla Polonia (31/3/1939) | mar–ago 1939 | GBR e FRA | dopo la fine della Cecoslovacchia | garantiscono (→ sì): guerra automatica a chi attacca la Polonia (anche a Romania e Grecia dopo l'Albania) |
 | Albania (7/4/1939) | apr–dic 1939 | ITA propone, ALB riceve | non in guerra | accetta → ALB annessa a ITA; rifiuta → guerra (→ ITA attacca) |
-| Patto Molotov-Ribbentrop (23/8/1939) | ago 1939 – giu 1941 | GER propone, SOV riceve | non in guerra tra loro | accetta → non aggressione e sfere d'influenza: sblocca Polonia orientale, Baltici, Bessarabia, guerra d'inverno |
+| Patto d'acciaio (22/5/1939) | 1939–1940 | GER propone, ITA riceve | dopo l'asse Roma-Berlino | accetta → alleanza (→ sì) |
+| Patto Molotov-Ribbentrop (23/8/1939) | ago 1939 – giu 1941 | GER propone, SOV riceve | non in guerra tra loro | accetta → non aggressione e sfere d'influenza: sblocca Polonia orientale, Baltici, Bessarabia, guerra d'inverno (→ sì). Senza patto la Polonia orientale non viene invasa e la Polonia resiste più a lungo |
 | Danzica e Polonia (1/9/1939) | ago–dic 1939 | GER propone, POL riceve, GBR e FRA garanti | DAN e POL esistono | POL cede Danzica e corridoio → passano a GER; rifiuta → GER sceglie se attaccare (→ attacca), GBR e FRA se dichiarare guerra (→ la dichiarano) |
 | Polonia orientale (17/9/1939) | set 1939 – giu 1940 | SOV | dopo il patto, GER in guerra con POL | SOV entra in guerra con POL; alla pace le province a est della linea concordata vanno a SOV |
-| Guerra d'inverno (30/11/1939) | nov 1939 – 1940 | SOV propone, FIN riceve | dopo il patto | FIN cede la Carelia → passa a SOV; rifiuta → guerra (→ rifiuta) |
+| Basi sovietiche nei Baltici (set–ott 1939) | 1939–1940 | SOV propone, EST, LVA, LTU ricevono | dopo il patto | accetta → diritto di passaggio per SOV (→ sì); Vilnius a LTU |
+| Guerra d'inverno (30/11/1939) | nov 1939 – 1940 | SOV propone, FIN riceve | dopo il patto | FIN cede la Carelia → passa a SOV; rifiuta → guerra (→ rifiuta); pace di Mosca (12/3/1940) proposta da SOV dopo 3 mesi |
+
+**1940–1941: la guerra in Europa**
+
+| Evento | Finestra | Coinvolti | Condizioni principali | Scelte ed effetti |
+|---|---|---|---|---|
+| Danimarca e Norvegia (9/4/1940) | 1940 | GER | GER in guerra con GBR, DNK e NOR neutrali | GER attacca (→ sì); DNK sceglie se resistere o arrendersi (→ si arrende in un giorno: annessa a GER come occupata) |
+| Attacco a occidente (10/5/1940) | 1940–1941 | GER | GER in guerra con FRA, Paesi Bassi e Belgio neutrali | GER dichiara guerra a NLD, BEL, LUX (→ sì); GBR e FRA possono entrare in Belgio con il diritto di passaggio |
 | Entrata in guerra dell'Italia (10/6/1940) | mag–dic 1940 | ITA | GER in guerra con FRA | ITA dichiara guerra a FRA e GBR (→ sì) o resta neutrale |
 | Armistizio francese (22/6/1940) | 1940–1944 | FRA, GER | Parigi in mano tedesca, FRA e GER in guerra | FRA firma → pace con GER, il nord passa a GER, capo Pétain (Vichy); continua → capo de Gaulle, governo in esilio |
 | Baltici (giu 1940) | 1940–1941 | SOV propone, EST, LVA, LTU ricevono | dopo il patto | accetta → annessione a SOV; rifiuta → guerra |
 | Bessarabia e Bucovina (28/6/1940) | 1940–1941 | SOV propone, ROU riceve | dopo il patto | accetta → province a SOV; rifiuta → guerra |
 | Secondo arbitrato di Vienna (30/8/1940) | 1940–1941 | HUN propone, ROU riceve, GER arbitro | ROU possiede la Transilvania | accetta → Transilvania settentrionale a HUN, poi abdicazione di Carlo II (capo Antonescu) |
 | Dobrugia meridionale (7/9/1940) | 1940–1941 | BGR propone, ROU riceve | ROU possiede la Dobrugia meridionale | accetta → passa a BGR |
+| Guerra italo-greca (28/10/1940) | 1940–1941 | ITA propone, GRC riceve | ITA possiede l'Albania | ultimatum: GRC accetta (basi italiane) o rifiuta (→ "Όχι": guerra); GBR sceglie se aiutare la Grecia (→ sì) |
 | Patto tripartito (nov 1940 – mar 1941) | 1940–1941 | GER propone, HUN, ROU, BGR, YUG ricevono | non in guerra con GER | accetta → diritto di passaggio per GER; per YUG segue il colpo di stato (capo Pietro II) che lo annulla |
-| Caduta di Mussolini (25/7/1943) | 1943–1945 | ITA | nemici in una provincia italiana, ITA in guerra | capo Badoglio, poi armistizio: pace con i nemici, guerra con GER (→ sì) |
-| Cambi di campo (ago–set 1944) | 1944–1945 | ROU, BGR, FIN | truppe sovietiche nelle loro province | pace con SOV e guerra a GER (ROU, BGR) o armistizio (FIN); cambi di capo (Michele I, Georgiev) |
-| Fine del Reich (30/4/1945) | 1945 | GER | Berlino in mano nemica | capo Dönitz, resa |
+| Affitti e prestiti (11/3/1941) | 1941–1945 | Stati Uniti → GBR | GBR in guerra con GER | aiuti in risorse al giorno (forza fuori mappa) |
+| Jugoslavia e Grecia (6/4/1941) | 1941 | GER, ITA, HUN, BGR | YUG ha annullato il patto tripartito, oppure GRC in guerra con ITA | GER attacca (→ sì); alla pace province alla Croazia (→ ITA e GER per ora), a HUN e BGR |
+| Operazione Barbarossa (22/6/1941) | 1941–1942 | GER, poi ROU, HUN, FIN, ITA | dopo il patto, GER e SOV non in guerra | GER rompe il patto e attacca (→ sì); ROU e ITA scelgono se unirsi (→ sì); HUN (→ sì, 27/6); FIN guerra di continuazione (→ sì, 25/6) |
+| Aiuti all'URSS (ott 1941) | 1941–1945 | Stati Uniti e GBR → SOV | SOV in guerra con GER | aiuti in risorse al giorno (forza fuori mappa) |
+| Pearl Harbor (7/12/1941) | dic 1941 | Stati Uniti, GER, ITA | — | gli Stati Uniti entrano in guerra; GER e ITA scelgono se dichiarare guerra agli Stati Uniti (→ sì, 11/12): senza, niente sbarchi americani contro di loro |
+
+**1942–1945: la svolta**
+
+| Evento | Finestra | Coinvolti | Condizioni principali | Scelte ed effetti |
+|---|---|---|---|---|
+| Incursione su Dieppe (19/8/1942) | 1942 | Commonwealth → GER | la costa della Manica è in mano tedesca | piccolo sbarco che si ritira dopo 1 giorno (forza fuori mappa) |
+| Sbarco in Nordafrica e occupazione della Francia di Vichy (8–11/11/1942) | 1942–1943 | Stati Uniti, GER | c'è la Francia di Vichy | fuori mappa: risorse e morale; GER sceglie se occupare la Francia meridionale (→ sì) |
+| Sbarco in Sicilia (10/7/1943) | 1943–1944 | Stati Uniti e GBR → ITA | ITA in guerra con gli Alleati, la Sicilia è italiana o tedesca | sbarco in Sicilia (forza fuori mappa) |
+| Caduta di Mussolini (25/7/1943) | 1943–1945 | ITA | nemici in una provincia italiana, ITA in guerra | il Gran Consiglio sfiducia Mussolini (→ sì): capo Badoglio |
+| Armistizio italiano (8/9/1943) | 1943–1945 | ITA, poi GER | dopo la caduta di Mussolini | ITA firma (→ sì): pace con gli Alleati, guerra con GER, dottrina Alleati; GER sceglie l'occupazione dell'Italia del nord (→ sì): province a nord della linea del fronte passano a GER (Repubblica Sociale per ora tedesca) |
+| Sbarchi a Salerno e Anzio (9/9/1943, 22/1/1944) | 1943–1944 | Stati Uniti e GBR → GER o ITA | nemici degli Alleati nell'Italia del sud o del centro | sbarchi (forza fuori mappa) |
+| Occupazione dell'Ungheria (19/3/1944) | 1944 | GER, HUN | HUN alleata di GER, SOV vicina al confine | GER occupa le province ungheresi (→ sì) |
+| Sbarco in Normandia (6/6/1944) | 1944–1945 | Stati Uniti, GBR, Commonwealth → GER | la Francia del nord è in mano a un nemico degli Alleati | grande sbarco in Normandia (forza fuori mappa) |
+| Insurrezione di Varsavia (1/8/1944) | 1944 | POL in esilio | Varsavia occupata, SOV a meno di 50 km | rivolta nella provincia: armata polacca che combatte da sola (→ sì); SOV sceglie se aiutarla (→ no) |
+| Sbarco in Provenza (15/8/1944) | 1944 | Stati Uniti e Francia libera → GER | la Francia del sud è in mano tedesca | sbarco in Provenza (forza fuori mappa) |
+| Liberazione di Parigi (25/8/1944) | 1944–1945 | FRA in esilio | Parigi in mano alleata | torna il governo francese: capo de Gaulle, province liberate a FRA |
+| Cambi di campo (ago–set 1944) | 1944–1945 | ROU, BGR, FIN | truppe sovietiche nelle loro province | pace con SOV e guerra a GER con dottrina Comunisti (ROU 23/8, BGR 9/9) o armistizio (FIN 19/9); cambi di capo (Michele I, Georgiev) |
+| Szálasi al potere (15/10/1944) | 1944–1945 | HUN, GER | HUN tenta l'armistizio con SOV in guerra | GER impone Szálasi (→ sì): HUN resta nell'Asse |
+| Insurrezione del nord Italia (25/4/1945) | 1945 | ITA (del sud) | province italiane in mano tedesca, Alleati vicini | le province del nord senza armate tedesche tornano all'Italia |
+| Fine del Reich (30/4/1945) | 1945 | GER | Berlino in mano nemica | capo Dönitz, resa (8/5/1945): pace con tutti, la partita storica finisce |
 
 Regola generale, non legata a una data: una nazione che perde la capitale ma ha ancora province (o è in guerra con un alleato) forma un **governo in esilio** con il suo capo storico, se ne ha uno (Polonia, Paesi Bassi, Norvegia, Belgio, Grecia, Jugoslavia, Lussemburgo).
 
 ### Cosa serve prima, nel motore
 
-- **Pace** e **patto di non aggressione** nella diplomazia (oggi c'è solo la guerra).
+- **Patto di non aggressione** e **garanzia** nella diplomazia (pace e tregua ci sono già).
+- **Forze fuori mappa**: armate che compaiono sulla costa, aiuti in risorse; poi la marina per i convogli.
+- **Cambio di dottrina** di una nazione come effetto di un evento (oggi la dottrina è fissa per nazione).
 - **Gruppi di province** per gli eventi nella configurazione della mappa.
 - **Stato degli eventi** nella partita: accaduti, in attesa di risposta (con scadenza), decaduti.
 - **Avanzare fino a uno stop**: una variante di `advance` che si ferma al primo evento che chiede una scelta (o a una minaccia), da usare per il salto.
-- Per gli scenari: mappe generate per altre date e un file di scenario (data, guerre e accordi in corso, eventi già accaduti).
+- Per gli scenari: un file di scenario per data (guerre e accordi in corso, eventi già accaduti), ottenuto applicando gli eventi storici alla mappa del 1933.
 
 ---
 

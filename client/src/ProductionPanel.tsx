@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AIRCRAFT_TYPE_IDS,
   AIRCRAFT_TYPES,
+  doctrineOf,
   isAircraftType,
   BUILDING_TYPES,
   canAfford,
@@ -21,6 +22,7 @@ import { ClockIcon } from "./ui/ClockIcon.js";
 import { CostList } from "./ui/CostList.js";
 import { formatCountdown, formatDelay } from "./ui/format.js";
 import { UnitSheet } from "./UnitSheet.js";
+import { UnitThumb, unitImageUrl } from "./ui/unitImages.js";
 
 // Produzione: una striscia con le categorie, poi una riga per unità (immagine, costi, tempo, Arruola).
 // Toccando la riga si apre la scheda con tutte le caratteristiche; Arruola elenca le città dove si può
@@ -54,6 +56,7 @@ interface ProductionPanelProps {
 
 export function ProductionPanel({ map, game, now, only, order, onFocusProvince, onHighlight, onBuild, onClearOnly, onClose }: ProductionPanelProps) {
   const me = game.playerNation;
+  const doctrine = doctrineOf(me);
   const [category, setCategory] = useState<BuildingId>("barracks");
   const [unit, setUnit] = useState<ProducibleId | null>(null);
   const [info, setInfo] = useState<ProducibleId | null>(null);
@@ -147,7 +150,7 @@ export function ProductionPanel({ map, game, now, only, order, onFocusProvince, 
                 return (
                   <li key={t} className="unit-row">
                     <button className="unit-row-info" onClick={() => setInfo(t)} aria-label={`Caratteristiche: ${u.name}`}>
-                      <span className="unit-thumb" aria-hidden />
+                      <UnitThumb src={unitImageUrl(doctrine, t)} />
                       <span className="unit-row-text">
                         <strong>{u.name}</strong>
                         <CostList cost={u.cost} stock={stock} />
@@ -165,7 +168,7 @@ export function ProductionPanel({ map, game, now, only, order, onFocusProvince, 
               {PLANNED_UNITS.filter((u) => u.building === category).map((u) => (
                 <li key={u.id} className="unit-row planned" title={u.description}>
                   <div className="unit-row-info">
-                    <span className="unit-thumb" aria-hidden />
+                    <UnitThumb src={unitImageUrl(doctrine, u.id)} />
                     <span className="unit-row-text">
                       <strong>{u.name}</strong>
                       <span className="muted small">{u.description}</span>
@@ -237,6 +240,7 @@ export function ProductionPanel({ map, game, now, only, order, onFocusProvince, 
       {info && (
         <UnitSheet
           unit={info}
+          image={unitImageUrl(doctrine, info)}
           stock={stock}
           onRecruit={() => {
             setUnit(info);
