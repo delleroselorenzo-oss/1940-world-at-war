@@ -93,6 +93,7 @@ export function harborPoint(map: MapData, nav: NavData | undefined, province: Pr
  * Restituisce la navigazione con gli orari, oppure il motivo per cui non si può.
  */
 export function planVoyage(state: GameState, nav: NavData, fleet: Fleet, target: LngLat, t: number): Voyage | string {
+  if (fleet.transport) return "Il trasporto segue la sua rotta fino allo sbarco.";
   if (fleet.ships.length === 0) return "La flotta non ha navi.";
   if (nearestNavigable(nav, target) < 0) return "Le navi vanno solo per mare.";
   const from = fleetPosition(fleet, t);
@@ -129,12 +130,14 @@ export function newShip(s: GameState, type: ShipTypeId): Ship {
 
 /** Flotta della stessa nazione ferma entro la distanza di contatto (per unirsi a lei). */
 export function idleFleetNear(s: GameState, owner: NationId, at: LngLat, except?: string): Fleet | undefined {
-  return Object.values(s.fleets).find((f) => f.owner === owner && !f.voyage && f.id !== except && flatKm(f.position, at) <= COMBAT.contactKm);
+  return Object.values(s.fleets).find(
+    (f) => f.owner === owner && !f.voyage && !f.transport && f.id !== except && flatKm(f.position, at) <= COMBAT.contactKm,
+  );
 }
 
 /** Flotta ferma nel porto della provincia (per unirsi a lei). */
 export function dockedFleet(s: GameState, owner: NationId, port: ProvinceId, except?: string): Fleet | undefined {
-  return Object.values(s.fleets).find((f) => f.owner === owner && f.port === port && !f.voyage && f.id !== except);
+  return Object.values(s.fleets).find((f) => f.owner === owner && f.port === port && !f.voyage && !f.transport && f.id !== except);
 }
 
 /**
@@ -145,7 +148,8 @@ export function navalOps(s: GameState, world: { nav?: NavData }, t: number): boo
   let changed = false;
   for (const id of Object.keys(s.fleets)) {
     const fleet = s.fleets[id];
-    if (!fleet) continue;
+    // I trasporti hanno un ciclo loro (amphibious.ts).
+    if (!fleet || fleet.transport) continue;
     const arrival = voyageArrival(fleet);
     if (arrival !== null && arrival <= t) {
       fleet.position = fleet.voyage!.points[fleet.voyage!.points.length - 1]!;

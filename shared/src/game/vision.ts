@@ -75,7 +75,8 @@ export function visionOf(state: GameState, world: VisionWorld, nation: NationId,
   }
   for (const f of Object.values(state.fleets)) {
     if (!viewers.has(f.owner)) continue;
-    eyes.push({ at: fleetPosition(f, t), km: fleetSightKm(f) });
+    // Un trasporto vede quanto l'armata che porta.
+    eyes.push({ at: fleetPosition(f, t), km: Math.max(fleetSightKm(f), f.transport ? armySightKm(f.transport.army) : 0) });
     if (f.port) provinces.add(f.port);
   }
   for (const p of map.provinces) if (!provinces.has(p.id) && eyes.some((e) => flatKm(e.at, p.center) <= e.km)) provinces.add(p.id);

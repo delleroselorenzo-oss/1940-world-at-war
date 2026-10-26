@@ -11,6 +11,7 @@ import type { NavData } from "../nav/types.js";
 import { airOps, evacuateBases, nextAirEvent } from "./air.js";
 import { isShipType } from "../data/naval.js";
 import { navalFight } from "./navalCombat.js";
+import { embark, marchPlan, nextTransportEvent, transportOps } from "./amphibious.js";
 import { dockedFleet, harborPoint, navalOps, newFleet, newShip, nextNavalEvent } from "./navy.js";
 import { buildingLevel, downgradeBuildings, fortDamageFactor } from "./buildings.js";
 import {
@@ -127,7 +128,16 @@ export function advance(state: GameState, world: EngineWorld, until: number, eco
       Object.entries(state.armies).map(([id, a]) => [id, { ...a, units: a.units.map((u) => ({ ...u })) }]),
     ),
     squadrons: Object.fromEntries(Object.entries(state.squadrons).map(([id, sq]) => [id, { ...sq, aircraft: sq.aircraft.map((a) => ({ ...a })) }])),
-    fleets: Object.fromEntries(Object.entries(state.fleets).map(([id, f]) => [id, { ...f, ships: f.ships.map((x) => ({ ...x })) }])),
+    fleets: Object.fromEntries(
+      Object.entries(state.fleets).map(([id, f]) => [
+        id,
+        {
+          ...f,
+          ships: f.ships.map((x) => ({ ...x })),
+          ...(f.transport ? { transport: { ...f.transport, army: { ...f.transport.army, units: f.transport.army.units.map((u) => ({ ...u })) } } } : {}),
+        },
+      ]),
+    ),
     production: Object.fromEntries(Object.entries(state.production).map(([id, q]) => [id, q.map((item) => ({ ...item }))])),
     buildings: { ...state.buildings },
     construction: { ...state.construction },
@@ -152,7 +162,7 @@ export function advance(state: GameState, world: EngineWorld, until: number, eco
       if (a.task && a.task.finishesAt < t) t = a.task.finishesAt;
       if (a.departure && a.departure.at < t) t = a.departure.at;
     }
-    t = Math.min(t, nextAirEvent(s), nextNavalEvent(s));
+    t = Math.min(t, nextAirEvent(s), nextNavalEvent(s), nextTransportEvent(s));
     if (t > until) break;
     s.time = t;
 
@@ -162,6 +172,7 @@ export function advance(state: GameState, world: EngineWorld, until: number, eco
     depart(s, world, t);
     changed = airOps(s, world, t) || changed;
     changed = navalOps(s, world, t) || changed;
+    changed = transportOps(s, world, t) || changed;
     if (t === nextSample) {
       changed = expireDiplomacy(s, t) || changed;
       changed = sample(s, world, t) || changed;
@@ -327,6 +338,13 @@ function sample(s: GameState, world: EngineWorld, t: number): boolean {
     a.position = move.points[move.points.length - 1]!;
     a.move = null;
     a.settledAt = t;
+    // Arrivata al porto d'imbarco di una marcia oltre il mare: sale sul trasporto.
+    if (a.seaPlan) {
+      if (nav) embark(s, nav, a, t);
+      else a.seaPlan = null;
+      changed = true;
+      continue;
+    }
     const host = idleArmyNear(s, a.owner, a.position, a.id);
     if (host) {
       // L'artiglieria appena arrivata deve ancora mettersi in batteria.
@@ -576,9 +594,10 @@ function depart(s: GameState, world: EngineWorld, t: number) {
     if (!departure || departure.at > t) continue;
     a.departure = null;
     if (!nav || a.move) continue;
-    const route = planRoute(s, nav, a.owner, a.position, departure.target, moverOf(a));
-    if (!route || route.km < 0.5) continue;
-    a.move = scheduleRoute(route, moverOf(a), t);
+    const plan = marchPlan(s, nav, a.owner, a.position, departure.target, moverOf(a));
+    if (typeof plan === "string" || (plan.route.km < 0.5 && !plan.seaPlan)) continue;
+    a.move = scheduleRoute(plan.route, moverOf(a), t);
+    a.seaPlan = plan.seaPlan;
     // Partendo si abbandona un eventuale lavoro in corso (le risorse tornano indietro).
     if (a.task?.cost) refund(s.nations[a.owner]!.stock, a.task.cost);
     a.task = null;

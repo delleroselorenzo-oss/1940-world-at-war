@@ -12,6 +12,10 @@ import {
   harborOf,
   isSubmerged,
   mayDock,
+  NAVAL,
+  provinceIdAt,
+  UNIT_TYPE_IDS,
+  UNIT_TYPES,
   seaZoneAt,
   SHIP_TYPE_IDS,
   SHIP_TYPES,
@@ -50,7 +54,76 @@ interface FleetPanelProps {
   ref?: Ref<HTMLElement>;
 }
 
-export function FleetPanel({ map, fleet, game, now, error, mode, onMode, onSail, onStop, onSelectSquadron, onSelectProvince, onClose, ref }: FleetPanelProps) {
+export function FleetPanel(props: FleetPanelProps) {
+  return props.fleet.transport ? <TransportPanel {...props} /> : <WarFleetPanel {...props} />;
+}
+
+/** Trasporto delle truppe: segue da solo imbarco, navigazione e sbarco; qui si vede a che punto è e chi porta. */
+function TransportPanel({ map, fleet, game, now, onSelectProvince, onClose, ref }: FleetPanelProps) {
+  const tr = fleet.transport!;
+  const nation = map.nations.get(fleet.owner);
+  const mine = fleet.owner === game.playerNation;
+  const countdown = (t: number) => formatCountdown(((t - now) * 60) / game.clock.speed);
+  const link = (id: string) => (
+    <button className="link" onClick={() => onSelectProvince(id)}>
+      {map.provinces.get(id)?.name ?? id}
+    </button>
+  );
+  const landProvince = provinceIdAt(map.nav, tr.landPoint);
+  const where = seaZoneAt(map.nav, fleetPosition(fleet, now))?.name;
+  const units = UNIT_TYPE_IDS.map((t) => ({ type: t, n: tr.army.units.filter((u) => u.type === t).length })).filter((g) => g.n > 0);
+  return (
+    <aside className="panel army-panel" aria-label="Dettagli trasporto" ref={ref}>
+      <header className="panel-header">
+        <div>
+          <p className="panel-kicker">
+            <span className="swatch" style={{ background: nation?.color }} />
+            {nation?.name ?? fleet.owner}
+            {mine && <span className="tag">il tuo trasporto</span>}
+          </p>
+          <h2>Trasporto · {tr.army.units.length} unità</h2>
+        </div>
+        <button className="icon-button" onClick={onClose} aria-label="Chiudi">
+          ×
+        </button>
+      </header>
+      <div className="panel-body">
+        <div className="army-status">
+          <p>
+            {tr.phase === "boarding" ? (
+              <>
+                Imbarco nel porto di {link(tr.embark)} · parte tra {countdown(tr.until)}
+              </>
+            ) : tr.phase === "sailing" ? (
+              <>
+                In navigazione{where ? ` · ${where}` : ""} · sbarca {landProvince ? <>presso {link(landProvince)}</> : "sulla costa"}, arriva tra{" "}
+                {countdown(tr.until)}
+              </>
+            ) : (
+              <>
+                Sbarco in corso {landProvince ? <>presso {link(landProvince)}</> : ""} · a terra tra {countdown(tr.until)}
+              </>
+            )}
+          </p>
+          <p className="muted small">
+            {NAVAL.transportKmh} km/h. Il trasporto non spara: in mare lo colpiscono navi e aerei nemici, durante l'imbarco e lo sbarco anche le
+            armate nemiche vicine alla costa. Una scorta di navi da guerra vicina combatte per lui.
+          </p>
+        </div>
+        <h3>A bordo</h3>
+        <ul className="plain-list">
+          {units.map(({ type, n }) => (
+            <li key={type}>
+              {n}× {UNIT_TYPES[type].name}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </aside>
+  );
+}
+
+function WarFleetPanel({ map, fleet, game, now, error, mode, onMode, onSail, onStop, onSelectSquadron, onSelectProvince, onClose, ref }: FleetPanelProps) {
   const nation = map.nations.get(fleet.owner);
   const mine = fleet.owner === game.playerNation;
   const speed = fleetSpeedKmh(fleet);

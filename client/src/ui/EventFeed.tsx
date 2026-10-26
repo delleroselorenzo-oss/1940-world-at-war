@@ -59,6 +59,13 @@ export function describeEvent(
       const other = e.nations[0] === me ? e.nations[1] : e.nations[0];
       return { text: `Battaglia navale contro ${nation(other)}${e.zone ? ` (${e.zone})` : ""}`, tone: "neutral", province: null };
     }
+    case "landing": {
+      const where = province(e.province);
+      const at = where ? ` presso ${where}` : "";
+      if (e.owner === me) return { text: `Sbarco completato${at}`, tone: "good", province: e.province };
+      if (e.provinceOwner === me) return { text: `Sbarco di ${nation(e.owner)}${at}`, tone: "bad", province: e.province };
+      return null;
+    }
     case "fleetDestroyed": {
       const at = e.zone ? ` (${e.zone})` : "";
       if (e.owner === me) return { text: `Una tua flotta è stata affondata${at}`, tone: "bad", province: null };

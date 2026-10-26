@@ -158,6 +158,12 @@ export function ArmyPanel(props: ArmyPanelProps) {
         {/* 2. Stato attuale */}
         <div className="army-status">
           <p>{statusLine(army, now, fighting, foes.length, place, countdown)}</p>
+          {army.seaPlan && (
+            <p className="small">
+              Oltre il mare: va al porto di {map.provinces.get(army.seaPlan.embark)?.name ?? army.seaPlan.embark}, si imbarca e sbarca sulla costa
+              più vicina alla meta.
+            </p>
+          )}
           {known && (
             <>
               <span className="progress health" aria-hidden>

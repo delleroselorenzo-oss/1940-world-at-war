@@ -28,10 +28,10 @@ import { canAfford, pay, refund } from "./economy.js";
 import { mapIndex } from "./mapIndex.js";
 import { cancelMarketOrder, marketOrderMissing, placeMarketOrder, roundPrice } from "./market.js";
 import { armyPosition, moverOf, scheduleRoute } from "./movement.js";
-import { planRoute } from "./routing.js";
 import type { AgreementKind, Army, ArmyId, FleetId, GameState, ProposalKind, SquadronId, WorkType } from "./state.js";
 import { importCapacityPerDay } from "./trade.js";
 import { availableWorks } from "./works.js";
+import { marchPlan } from "./amphibious.js";
 import { haltFleet, planVoyage, startVoyage } from "./navy.js";
 
 // Ordini dei giocatori. Ogni ordine viene validato qui: oggi lo usa il browser,
@@ -178,6 +178,7 @@ function sail(state: GameState, nav: NavData, nation: NationId, id: FleetId, tar
 function stopFleet(state: GameState, nation: NationId, id: FleetId): OrderResult {
   const current = state.fleets[id];
   if (!current || current.owner !== nation) return fail("Flotta sconosciuta.");
+  if (current.transport) return fail("Il trasporto segue la sua rotta fino allo sbarco.");
   if (!current.voyage) return fail("La flotta è già ferma.");
   const fleet = { ...current };
   haltFleet(fleet, state.time);
@@ -246,10 +247,11 @@ function move(
   // Un'armata in marcia (anche se sta combattendo: è una ritirata) riparte dal punto in cui si trova adesso.
   const from = armyPosition(army, state.time);
   const mover = moverOf(army, useRail);
-  const route = planRoute(state, nav, nation, from, target, mover);
-  if (!route) return fail("Punto non raggiungibile via terra (senza attraversare paesi terzi).");
-  if (route.km < 0.5) return fail("L'armata è già lì.");
-  const base = { ...army, position: from, halted: null, task: null, assault: attack, useRail };
+  const plan = marchPlan(state, nav, nation, from, target, mover);
+  if (typeof plan === "string") return fail(plan);
+  const { route, seaPlan } = plan;
+  if (route.km < 0.5 && !seaPlan) return fail("L'armata è già lì.");
+  const base = { ...army, position: from, halted: null, task: null, assault: attack, useRail, seaPlan };
   const refunded = refundTask(state, army);
   // Con il ritardo si ferma subito; il percorso si ricalcola alla partenza (nel frattempo la mappa può cambiare).
   const next =
@@ -292,6 +294,7 @@ function stop(state: GameState, nation: NationId, armyId: ArmyId): OrderResult {
         halted: null,
         task: null,
         departure: null,
+        seaPlan: null,
         settledAt: army.move ? state.time : army.settledAt,
       },
     },

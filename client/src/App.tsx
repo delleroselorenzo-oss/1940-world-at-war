@@ -143,6 +143,8 @@ function Game({ map }: { map: LoadedMap }) {
   // Province evidenziate dai pannelli Edifici e Produzione.
   const [highlighted, setHighlighted] = useState<ReadonlySet<string>>(NO_HIGHLIGHT);
   const mapRef = useRef<MapViewHandle>(null);
+  // Armata a bordo del trasporto selezionato (per riselezionarla quando sbarca).
+  const landedArmyRef = useRef<string | null>(null);
   const panelRef = useRef<HTMLElement>(null);
 
   const select = useCallback((next: Selection) => {
@@ -203,9 +205,18 @@ function Game({ map }: { map: LoadedMap }) {
 
   // Un'armata selezionata può essere sparita (si è unita a un'altra) o finita nella nebbia: si deseleziona.
   useEffect(() => {
-    if (selection?.kind === "army" && state && (!state.armies[selection.id] || (vision && !vision.armies.has(selection.id)))) setSelection(null);
+    if (selection?.kind === "army" && state && !state.armies[selection.id]) {
+      // L'armata si è imbarcata: si passa al suo trasporto.
+      const transport = Object.values(state.fleets).find((f) => f.transport?.army.id === selection.id);
+      setSelection(transport ? { kind: "fleet", id: transport.id } : null);
+    } else if (selection?.kind === "army" && state && vision && !vision.armies.has(selection.id)) setSelection(null);
     if (selection?.kind === "squadron" && state && (!state.squadrons[selection.id] || (vision && !vision.squadrons.has(selection.id)))) setSelection(null);
-    if (selection?.kind === "fleet" && state && (!state.fleets[selection.id] || (vision && !vision.fleets.has(selection.id)))) setSelection(null);
+    if (selection?.kind === "fleet" && state && !state.fleets[selection.id]) {
+      // Il trasporto ha sbarcato: si torna all'armata.
+      const army = landedArmyRef.current;
+      setSelection(army && state.armies[army] ? { kind: "army", id: army } : null);
+    } else if (selection?.kind === "fleet" && state && vision && !vision.fleets.has(selection.id)) setSelection(null);
+    landedArmyRef.current = selection?.kind === "fleet" ? (state?.fleets[selection.id]?.transport?.army.id ?? null) : null;
   }, [selection, state, vision]);
 
   const mySquadronSelected = !!selectedSquadron && selectedSquadron.owner === state?.playerNation;

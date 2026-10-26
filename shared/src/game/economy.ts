@@ -73,6 +73,7 @@ export function nationUpkeepPerDay(state: GameState, nation: NationId): Resource
   for (const fleet of Object.values(state.fleets)) {
     if (fleet.owner !== nation) continue;
     for (const ship of fleet.ships) addPartial(total, SHIP_TYPES[ship.type].upkeepPerDay);
+    for (const unit of fleet.transport?.army.units ?? []) addPartial(total, UNIT_TYPES[unit.type].upkeepPerDay);
   }
   return total;
 }
@@ -97,6 +98,7 @@ export function netPerDayByNation(map: MapData, state: GameState, economy: Econo
   for (const fleet of Object.values(state.fleets)) {
     const total = out.get(fleet.owner);
     if (total) for (const ship of fleet.ships) addPartial(total, SHIP_TYPES[ship.type].upkeepPerDay, -1);
+    if (total) for (const unit of fleet.transport?.army.units ?? []) addPartial(total, UNIT_TYPES[unit.type].upkeepPerDay, -1);
   }
   return out;
 }

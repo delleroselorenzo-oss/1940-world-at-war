@@ -88,6 +88,27 @@ export interface Army {
   task: ArmyTask | null;
   /** Minuto in cui si è fermata l'ultima volta (assente = ferma da sempre): conta per la messa in batteria dell'artiglieria. */
   settledAt?: number;
+  /** Marcia oltre il mare: arrivata al porto d'imbarco l'armata diventa un trasporto (vedi `Transport`). */
+  seaPlan?: SeaPlan | null;
+}
+
+/** Piano di un viaggio per mare di un'armata. */
+export interface SeaPlan {
+  /** Provincia del porto d'imbarco (l'armata ci arriva a piedi o in treno). */
+  embark: ProvinceId;
+  /** Dove il trasporto arriva dal mare (una cella di mare accanto alla costa) e dove l'armata mette piede a terra. */
+  landAt: LngLat;
+  landPoint: LngLat;
+  /** Meta finale, da raggiungere a piedi dopo lo sbarco. */
+  target: LngLat;
+}
+
+/** Armata imbarcata: il trasporto è una flotta senza navi da guerra che porta l'armata. */
+export interface Transport extends SeaPlan {
+  army: Army;
+  phase: "boarding" | "sailing" | "landing";
+  /** Fine dell'imbarco o dello sbarco. */
+  until: number;
 }
 
 export type SquadronId = string;
@@ -161,6 +182,8 @@ export interface Fleet {
   /** Dove si trova ferma, o da dove è partita la navigazione in corso. */
   position: LngLat;
   voyage: Voyage | null;
+  /** Trasporto delle truppe (allora `ships` è vuoto): si muove da solo, imbarco → navigazione → sbarco. */
+  transport?: Transport;
   /** Solo sottomarini: dopo un attacco restano visibili al nemico fino a questo minuto. */
   revealedUntil?: number;
   /** Provincia del porto dove è ormeggiata (all'approdo di una provincia propria o alleata); null in mare o in viaggio. */
@@ -311,6 +334,8 @@ export type GameEvent =
   | { time: number; type: "battle"; at: LngLat; province: ProvinceId | null; nations: [NationId, NationId] }
   /** Battaglia navale tra flotte (o tra una flotta e le batterie della costa): `zone` è il nome della zona di mare. */
   | { time: number; type: "navalBattle"; at: LngLat; zone: string | null; nations: [NationId, NationId] }
+  /** Un'armata è sbarcata (`provinceOwner`: di chi era la provincia in quel momento). */
+  | { time: number; type: "landing"; owner: NationId; at: LngLat; province: ProvinceId | null; provinceOwner: NationId | null }
   | { time: number; type: "fleetDestroyed"; fleet: FleetId; owner: NationId; by: NationId; at: LngLat; zone: string | null }
   | { time: number; type: "conquest"; province: ProvinceId; from: NationId; to: NationId }
   /** La provincia si è ribellata ed è tornata alla nazione d'origine. */

@@ -138,4 +138,12 @@ export const NAVAL = {
   battleNewsGapMinutes: 120,
   /** Un sottomarino che attacca si scopre: resta visibile al nemico per questi minuti. */
   subRevealMinutes: 60,
+  /** Trasporti delle truppe: velocità, imbarco e sbarco (più rapidi dove c'è un porto o un cantiere navale). */
+  transportKmh: 25,
+  boardMinutes: 180,
+  boardPortMinutes: 120,
+  landMinutes: 240,
+  landPortMinutes: 120,
+  /** Lo sbarco si cerca entro questo numero di celle (0,1°) dalla meta. */
+  landingSearchCells: 40,
 } as const;

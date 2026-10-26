@@ -14,7 +14,7 @@ import { detected } from "./submarines.js";
 import { mapIndex } from "./mapIndex.js";
 import { armyPosition } from "./movement.js";
 import { terrainAt } from "./terrain.js";
-import { applyShipDamage, shipClass } from "./navalCombat.js";
+import { applyShipDamage, cargoDamage, shipClass } from "./navalCombat.js";
 import { fleetHealth, fleetPosition } from "./navy.js";
 import type { Aircraft, Army, Fleet, GameState, Squadron, StrikeMission } from "./state.js";
 
@@ -169,7 +169,7 @@ function targetOf(state: GameState, id: string): Target | undefined {
   const army = state.armies[id];
   if (army) return army.units.length > 0 ? { kind: "army", army, owner: army.owner } : undefined;
   const fleet = state.fleets[id];
-  if (fleet) return fleet.ships.length > 0 ? { kind: "fleet", fleet, owner: fleet.owner } : undefined;
+  if (fleet) return fleet.ships.length > 0 || (fleet.transport?.army.units.length ?? 0) > 0 ? { kind: "fleet", fleet, owner: fleet.owner } : undefined;
   return undefined;
 }
 
@@ -344,6 +344,7 @@ function strikeFleet(s: GameState, world: { map: MapData; nav?: NavData }, sq: S
   sq.aircraft = damageAircraft(sq.aircraft, antiAir);
 
   const eff = efficiency(squadronHealth(sq));
+  if (target.transport) return strikeTransport(s, sq, target, at, eff, before.aircraft, t);
   const n = target.ships.length;
   const damage = { surface: 0, sub: 0 };
   for (const c of ["surface", "sub"] as const) {
@@ -376,6 +377,34 @@ function strikeFleet(s: GameState, world: { map: MapData; nav?: NavData }, sq: S
     delete s.fleets[target.id];
   }
   if (squadronDestroyed) delete s.squadrons[sq.id];
+}
+
+/** Attacco a un trasporto: gli aerei colpiscono le unità a bordo con i valori contro le navi. */
+function strikeTransport(s: GameState, sq: Squadron, target: Fleet, at: LngLat, eff: number, aircraftBefore: number, t: number) {
+  const cargo = target.transport!.army;
+  const before = cargo.units.length;
+  const values = sq.aircraft.map((a) => AIRCRAFT_TYPES[a.type].vsShip ?? 0).sort((x, y) => y - x);
+  let total = 0;
+  values.forEach((v, i) => (total += v * groupWeight(i)));
+  cargo.units = applyDamage(cargo.units, cargoDamage(cargo, total * eff));
+  const destroyed = cargo.units.length === 0;
+  logEvent(s, {
+    time: t,
+    type: "airStrike",
+    by: sq.owner,
+    against: target.owner,
+    at,
+    province: null,
+    aircraftLost: aircraftBefore - sq.aircraft.length,
+    unitsLost: before - cargo.units.length,
+    squadronDestroyed: sq.aircraft.length === 0,
+    armyDestroyed: destroyed,
+  });
+  if (destroyed) {
+    logEvent(s, { time: t, type: "armyDestroyed", owner: target.owner, by: sq.owner, at, province: null });
+    delete s.fleets[target.id];
+  }
+  if (sq.aircraft.length === 0) delete s.squadrons[sq.id];
 }
 
 /** Contraerea della flotta: come per le armate, con il limite di gruppo e l'efficienza per salute. */
