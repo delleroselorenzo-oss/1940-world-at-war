@@ -1,7 +1,7 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from "react";
 import type { Army, LngLat, Squadron } from "@waw/shared";
 import type { LoadedMap } from "./loadMap.js";
-import { MapRenderer } from "./MapRenderer.js";
+import { MapRenderer, type ProvinceStyle } from "./MapRenderer.js";
 import type { MapWorks } from "./TerrainLayer.js";
 
 export interface MapViewHandle {
@@ -13,8 +13,8 @@ export interface MapViewHandle {
 interface MapViewProps {
   map: LoadedMap;
   selectedId: string | null;
-  /** Proprietario attuale di ogni provincia (dallo stato di gioco). */
-  owners?: Record<string, string>;
+  /** Modalità della mappa, proprietari, morale, rapporti e nebbia di guerra. */
+  provinceStyle?: ProvinceStyle;
   armies: Army[];
   squadrons: Squadron[];
   /** Armate in combattimento in questo momento. */
@@ -39,7 +39,7 @@ interface MapViewProps {
 export function MapView({
   map,
   selectedId,
-  owners,
+  provinceStyle,
   armies,
   squadrons,
   engaged,
@@ -71,8 +71,8 @@ export function MapView({
   nowRef.current = now;
   const armiesRef = useRef({ armies, playerNation, engaged });
   armiesRef.current = { armies, playerNation, engaged };
-  const ownersRef = useRef(owners);
-  ownersRef.current = owners;
+  const styleRef = useRef(provinceStyle);
+  styleRef.current = provinceStyle;
   const worksRef = useRef(works);
   worksRef.current = works;
 
@@ -89,8 +89,10 @@ export function MapView({
           tooltip.hidden = true;
           return;
         }
-        const owner = ownersRef.current?.[p.id] ?? p.nation;
-        tooltip.textContent = `${p.name} · ${map.nations.get(owner)?.name ?? owner}`;
+        const style = styleRef.current;
+        const owner = style?.owners[p.id] ?? p.nation;
+        const morale = style?.mode === "morale" ? style.morale[p.id] : undefined;
+        tooltip.textContent = `${p.name} · ${map.nations.get(owner)?.name ?? owner}${morale !== undefined ? ` · morale ${Math.round(morale)}%` : ""}`;
         tooltip.hidden = false;
       },
       onPointerMove: (x, y) => {
@@ -98,7 +100,7 @@ export function MapView({
       },
     });
     rendererRef.current = renderer;
-    if (ownersRef.current) renderer.setOwners(ownersRef.current);
+    if (styleRef.current) renderer.setProvinceStyle(styleRef.current);
     if (worksRef.current) renderer.setWorks(worksRef.current);
     renderer.setArmies(armiesRef.current.armies, armiesRef.current.playerNation, armiesRef.current.engaged);
     renderer.setSquadrons(squadronsRef.current, armiesRef.current.playerNation);
@@ -114,8 +116,8 @@ export function MapView({
   }, [selectedId]);
 
   useEffect(() => {
-    if (owners) rendererRef.current?.setOwners(owners);
-  }, [owners]);
+    if (provinceStyle) rendererRef.current?.setProvinceStyle(provinceStyle);
+  }, [provinceStyle]);
 
   useEffect(() => {
     rendererRef.current?.setArmies(armies, playerNation, engaged);

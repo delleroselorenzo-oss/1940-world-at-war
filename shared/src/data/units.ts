@@ -44,6 +44,8 @@ export interface UnitType {
   building: BuildingId;
   /** Velocità di marcia in km/h di gioco. */
   speedKmh: number;
+  /** Vista: l'armata vede le armate nemiche entro questa distanza (con la nebbia di guerra, vedi vision.ts). */
+  sightKm: number;
   hp: number;
   armor: ArmorClass;
   /** Danno per tick (30 minuti) contro ciascuna classe: `attack` quando attacca o marcia, `defense` quando difende da ferma. */
@@ -77,6 +79,7 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
     building: "barracks",
     name: "Fanteria",
     speedKmh: 20,
+    sightKm: 15,
     hp: 15,
     armor: "soft",
     attack: { soft: 2, light: 1, heavy: 0.5 },
@@ -93,6 +96,7 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
     building: "barracks",
     name: "Fanteria motorizzata",
     speedKmh: 32,
+    sightKm: 20,
     hp: 15,
     armor: "soft",
     attack: { soft: 2.5, light: 1.25, heavy: 0.75 },
@@ -109,6 +113,7 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
     building: "tankFactory",
     name: "Autoblindo",
     speedKmh: 40,
+    sightKm: 40,
     hp: 12,
     armor: "light",
     attack: { soft: 4, light: 1.75, heavy: 0.75 },
@@ -125,6 +130,7 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
     building: "tankFactory",
     name: "Carro leggero",
     speedKmh: 30,
+    sightKm: 20,
     hp: 20,
     armor: "light",
     attack: { soft: 3.5, light: 2.5, heavy: 1 },
@@ -141,6 +147,7 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
     building: "tankFactory",
     name: "Carro pesante",
     speedKmh: 22,
+    sightKm: 15,
     hp: 30,
     armor: "heavy",
     attack: { soft: 3, light: 3, heavy: 3 },
@@ -157,6 +164,7 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
     building: "artilleryFactory",
     name: "Artiglieria",
     speedKmh: 18,
+    sightKm: 20,
     hp: 10,
     armor: "soft",
     attack: { soft: 3, light: 1.5, heavy: 1 },
@@ -176,6 +184,7 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
     building: "artilleryFactory",
     name: "Anticarro",
     speedKmh: 18,
+    sightKm: 10,
     hp: 10,
     armor: "soft",
     attack: { soft: 1.5, light: 2, heavy: 1.5 },
@@ -191,6 +200,7 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
     building: "artilleryFactory",
     name: "Antiaerea",
     speedKmh: 18,
+    sightKm: 15,
     hp: 10,
     armor: "soft",
     attack: { soft: 1, light: 0.5, heavy: 0.5 },
@@ -207,6 +217,7 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
     name: "Genio",
     role: "engineer",
     speedKmh: 20,
+    sightKm: 15,
     hp: 12,
     armor: "soft",
     attack: { soft: 1, light: 0.5, heavy: 0.25 },
@@ -224,6 +235,7 @@ export const UNIT_TYPES: Record<UnitTypeId, UnitType> = {
     name: "Sanità",
     role: "medic",
     speedKmh: 20,
+    sightKm: 10,
     hp: 10,
     armor: "soft",
     attack: { soft: 0.5, light: 0.25, heavy: 0 },

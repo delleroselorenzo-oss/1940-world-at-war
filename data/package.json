@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsx scripts/build-europe-1933.ts && tsx scripts/build-terrain.ts && tsx scripts/build-nav.ts",
-    "build:nav": "tsx scripts/build-nav.ts"
+    "build": "tsx scripts/build-europe-1933.ts && tsx scripts/build-terrain.ts && tsx scripts/build-nav.ts && tsx scripts/build-relief.ts",
+    "build:nav": "tsx scripts/build-nav.ts",
+    "build:relief": "tsx scripts/build-relief.ts"
   },
   "dependencies": {
     "@turf/turf": "^7.2.0",
@@ -13,6 +14,7 @@
     "polylabel": "^2.0.1"
   },
   "devDependencies": {
-    "@types/geojson": "^7946.0.16"
+    "@types/geojson": "^7946.0.16",
+    "jpeg-js": "^0.4.4"
   }
 }

@@ -341,6 +341,23 @@ Esempio: l'armata di una capitale (3 fanterie + 1 artiglieria) che assalta un'ar
 - Cambia la regola di prima ("solo bonus, mai penalità"): i mezzi corazzati sono penalizzati in città, foresta e montagna.
 - Più avanti: valichi come passaggi obbligati, truppe da montagna, generali con bonus su un terreno.
 
+### Nebbia di guerra (deciso e fatto il 26/10/2026)
+- **Cosa si vede**: le proprie province (anche quelle appena conquistate), la provincia dove sta ogni propria armata o squadriglia a terra, e tutto quello che sta entro la **vista** delle proprie armate (l'unità che vede più lontano) e degli aerei in volo. Le province confinanti restano nella nebbia: per vedere oltre il confine serve un'armata o un aereo. Calcolo nel motore (`shared/src/game/vision.ts`), così il server potrà mandare a ogni giocatore solo quello che vede.
+- **Vista per unità** (`sightKm`, nella scheda): autoblindo 40 km; motorizzata, carro leggero e artiglieria (osservatori) 20 km; fanteria, carro pesante, antiaerea e genio 15 km; anticarro e sanità 10 km. Aerei in volo: caccia e aerosilurante 50 km, bombardieri 40 km, ricognitore 150 km.
+- **Mappa condivisa** (o alleanza): si vede anche tutto quello che vede l'altra nazione.
+- **Nella nebbia**: proprietario e morale delle province sono noti (come dai giornali); armate, squadriglie, edifici, costruzioni e lavori (ponti distrutti, ponti di barche, ospedali) no. L'arruolamento si vede solo nelle province proprie o di chi condivide la mappa.
+- **Armate nemiche avvistate**: si vedono sulla mappa, ma la composizione (unità, salute, forza) solo con una propria armata entro **15 km**.
+- Le province nella nebbia hanno un velo grigio in tutte le modalità della mappa.
+
+### Modalità della mappa (deciso e fatto il 26/10/2026)
+- Selettore in alto a sinistra, accanto allo zoom (sul telefono lo zoom è a destra); la scelta resta salvata nel browser.
+- **Politica**: colori delle nazioni, semitrasparenti sopra il rilievo (lo stesso per morale e diplomazia).
+- **Mappa base del rilievo**, sempre sotto: immagine generata da altitudine e copertura del suolo reali (`data/scripts/build-relief.ts`): boschi verdi, campi e prati verde chiaro, zone aride ocra, tundra grigio-verde; salendo di quota roccia e, sulle vette più alte, neve; un'ombreggiatura leggera da nord-ovest su un'altitudine ammorbidita (si vedono le grandi catene, non ogni montagna). Solo grafica: il terreno di gioco delle province non cambia.
+- **Rilievo**: la mappa base pulita, con i soli confini.
+- **Morale**: tutte le province, dal rosso mattone (0%) all'ocra (50%) al verde salvia (100%); il tooltip mostra il valore.
+- **Diplomazia**: grigio neutro; la propria nazione in grigio-azzurro tenue, chi condivide la mappa (o è alleato) in verde salvia, tregua in ocra, guerra in rosso spento. Con la nebbia, il proprio blocco risalta sul resto.
+- In tutte le modalità: confini delle province sottili e **confini tra stati** marcati (tracciati dove cambia il proprietario).
+
 ### Interfaccia dell'armata
 - Toccando un'armata si apre il suo pannello. Dall'alto: **comandante** (con accanto i pulsanti delle azioni), **stato attuale** (cosa fa e quando finisce, salute complessiva), **azioni**, **composizione** per tipo di unità (quantità, salute, velocità, attacco/difesa; evidenziata l'unità più lenta), riepilogo di forza e mantenimento.
 - **Prima si sceglie l'azione, poi si tocca la mappa**: niente ordini dati da un tocco "indovinato". Azioni di mappa: **Muovi** (marcia, al contatto si difende), **Attacca** (marcia in assetto d'assalto verso un punto o verso la posizione attuale di un'armata nemica). Il pulsante vale per un solo ordine; senza azione scelta un tocco seleziona soltanto. Esc annulla l'azione.
@@ -398,7 +415,7 @@ Pannello "Diplomazia" nella barra in basso: elenco delle nazioni con i rapporti,
 - **Guerra**: si dichiara da soli (o scatta entrando senza accordi nel territorio altrui). Fa cadere tregua e accordi.
 - **Pace** e **tregua**: si propongono in guerra e l'altro accetta o rifiuta. La **tregua** ferma i combattimenti per **7 giorni**, poi la guerra riprende da sola se nel frattempo non si fa la pace. Dopo una pace o una tregua le armate rimaste nel territorio dell'altro hanno **24 ore** per ritirarsi senza far ripartire la guerra; le province conquistate restano a chi le ha prese.
 - **Accordi** (in pace, si propongono, ognuno li può revocare da solo quando vuole):
-  - **mappa condivisa** (visione condivisa: servirà con la nebbia di guerra; intanto le armate possono entrare senza guerra);
+  - **mappa condivisa** (visione condivisa: si vede quello che vede l'altra nazione, vedi "Nebbia di guerra"; le armate possono entrare senza guerra);
   - **diritto di passaggio** (attraversare il territorio dell'altro, anche in treno);
   - **alleanza** (passaggio e mappa condivisa insieme). Non trascina automaticamente in guerra: chi è alleato decide da sé.
 - **Embargo**: si decide da soli contro una nazione; niente scambi in borsa con lei e niente importazioni via terra attraverso il suo territorio.

@@ -2,6 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import {
   airBases,
   armyPosition,
+  atWar,
+  hasAgreement,
+  inTruce,
+  knowsComposition,
+  provinceIdAt,
+  visionOf,
   flatKm,
   squadronPosition,
   squadronRangeKm,
@@ -14,6 +20,8 @@ import {
   type ResourceId,
   type BuildingId,
   type WorkType,
+  type GameState,
+  type Vision,
 } from "@waw/shared";
 import { ArmyPanel, type ArmyMode } from "./ArmyPanel.js";
 import { BuildingsPanel } from "./BuildingsPanel.js";
@@ -22,6 +30,10 @@ import { ProductionPanel } from "./ProductionPanel.js";
 import { useLocalGame } from "./game/useLocalGame.js";
 import { loadMap, type LoadedMap } from "./map/loadMap.js";
 import { MapView, type MapViewHandle } from "./map/MapView.js";
+import type { MapWorks } from "./map/TerrainLayer.js";
+import type { ProvinceStyle } from "./map/MapRenderer.js";
+import type { MapMode, Standing } from "./map/mapModes.js";
+import { MapModeSwitch } from "./ui/MapModeSwitch.js";
 import { ProvincePanel } from "./ProvincePanel.js";
 import { SquadronPanel, type SquadronMode } from "./SquadronPanel.js";
 import { TradePanel } from "./TradePanel.js";
@@ -49,6 +61,32 @@ type Selection =
   | null;
 
 const NO_HIGHLIGHT: ReadonlySet<string> = new Set();
+const MAP_MODE_KEY = "waw.mapMode";
+
+/** Rapporto di ogni nazione con il giocatore, per la mappa della diplomazia. */
+function standingsOf(state: GameState, nations: string[]): Record<string, Standing> {
+  const me = state.playerNation;
+  const standing = (n: string): Standing =>
+    n === me ? "self" : hasAgreement(state, me, n, "sharedVision") ? "shared" : atWar(state, me, n) ? "war" : inTruce(state, me, n) ? "truce" : "neutral";
+  return Object.fromEntries(nations.map((n) => [n, standing(n)]));
+}
+
+/** Lavori sulla mappa che il giocatore vede: i propri (e di chi condivide la mappa) e quelli nelle province visibili. */
+function visibleWorks(state: GameState, vision: Vision, map: LoadedMap): MapWorks {
+  const seen = (at: LngLat) => {
+    const id = provinceIdAt(map.nav, at);
+    return id !== null && vision.provinces.has(id);
+  };
+  const bridgeAt = new Map(map.nav.bridges.map((b) => [b.id, b.at]));
+  return {
+    destroyedBridges: state.destroyedBridges.filter((id) => {
+      const at = bridgeAt.get(id);
+      return at !== undefined && seen(at);
+    }),
+    pontoons: Object.fromEntries(Object.entries(state.pontoons).filter(([, p]) => vision.viewers.has(p.owner) || seen(p.at))),
+    hospitals: Object.fromEntries(Object.entries(state.hospitals).filter(([, h]) => vision.viewers.has(h.owner) || seen(h.at))),
+  };
+}
 
 export function App() {
   const [map, setMap] = useState<LoadedMap | null>(null);
@@ -143,11 +181,22 @@ function Game({ map }: { map: LoadedMap }) {
   const myArmySelected = !!selectedArmy && selectedArmy.owner === state?.playerNation;
   const selectedSquadron = selection?.kind === "squadron" ? state?.squadrons[selection.id] : undefined;
 
-  // Un'armata selezionata può essere sparita (si è unita a un'altra): si deseleziona.
+  // Nebbia di guerra: cosa vede il giocatore (si aggiorna ogni secondo, col tempo di gioco).
+  const vision = useMemo(() => (state ? visionOf(state, { map: map.data, nav: map.nav }, state.playerNation, game.now) : null), [map, state, game.now]);
+  // Lo stesso insieme di province finché non cambia, così la mappa ridisegna la nebbia solo quando serve.
+  const visibleRef = useRef<{ key: string; set: ReadonlySet<string> } | null>(null);
+  const visibleProvinces = useMemo(() => {
+    if (!vision) return null;
+    const key = [...vision.provinces].sort().join(",");
+    if (visibleRef.current?.key !== key) visibleRef.current = { key, set: vision.provinces };
+    return visibleRef.current.set;
+  }, [vision]);
+
+  // Un'armata selezionata può essere sparita (si è unita a un'altra) o finita nella nebbia: si deseleziona.
   useEffect(() => {
-    if (selection?.kind === "army" && state && !state.armies[selection.id]) setSelection(null);
-    if (selection?.kind === "squadron" && state && !state.squadrons[selection.id]) setSelection(null);
-  }, [selection, state]);
+    if (selection?.kind === "army" && state && (!state.armies[selection.id] || (vision && !vision.armies.has(selection.id)))) setSelection(null);
+    if (selection?.kind === "squadron" && state && (!state.squadrons[selection.id] || (vision && !vision.squadrons.has(selection.id)))) setSelection(null);
+  }, [selection, state, vision]);
 
   const mySquadronSelected = !!selectedSquadron && selectedSquadron.owner === state?.playerNation;
   const choosingBase = mySquadronSelected && squadronMode === "fly";
@@ -273,9 +322,44 @@ function Game({ map }: { map: LoadedMap }) {
     [provinces],
   );
   const armiesRecord = state?.armies;
-  const armies = useMemo(() => (armiesRecord ? Object.values(armiesRecord) : []), [armiesRecord]);
   const squadronsRecord = state?.squadrons;
-  const squadrons = useMemo(() => (squadronsRecord ? Object.values(squadronsRecord) : []), [squadronsRecord]);
+  // Sulla mappa solo armate e squadriglie che il giocatore vede; l'elenco cambia solo quando cambia qualcosa.
+  const visibleArmyKey = vision ? [...vision.armies].sort().join(",") : "";
+  const armies = useMemo(
+    () => (armiesRecord ? Object.values(armiesRecord).filter((a) => !vision || vision.armies.has(a.id)) : []),
+    [armiesRecord, visibleArmyKey],
+  );
+  const visibleSquadronKey = vision ? [...vision.squadrons].sort().join(",") : "";
+  const squadrons = useMemo(
+    () => (squadronsRecord ? Object.values(squadronsRecord).filter((sq) => !vision || vision.squadrons.has(sq.id)) : []),
+    [squadronsRecord, visibleSquadronKey],
+  );
+  const works = useMemo(() => (state && vision ? visibleWorks(state, vision, map) : null), [state?.destroyedBridges, state?.pontoons, state?.hospitals, visibleProvinces]);
+
+  // Modalità della mappa, ricordata nel browser.
+  const [mapMode, setMapMode] = useState<MapMode>(() => {
+    try {
+      const saved = localStorage.getItem(MAP_MODE_KEY);
+      return saved === "terrain" || saved === "morale" || saved === "diplomacy" ? saved : "political";
+    } catch {
+      return "political";
+    }
+  });
+  const changeMapMode = useCallback((mode: MapMode) => {
+    setMapMode(mode);
+    try {
+      localStorage.setItem(MAP_MODE_KEY, mode);
+    } catch {
+      // senza localStorage la scelta vale solo per questa visita
+    }
+  }, []);
+  const morale = useMemo(() => (provinces ? Object.fromEntries(Object.entries(provinces).map(([id, p]) => [id, p.morale])) : {}), [provinces]);
+  const relationsForStyle = state?.relations;
+  const standings = useMemo(() => (state ? standingsOf(state, [...map.nations.keys()]) : {}), [map, relationsForStyle, state?.playerNation]);
+  const provinceStyle = useMemo<ProvinceStyle | undefined>(
+    () => (owners ? { mode: mapMode, owners, morale, standings, visible: visibleProvinces } : undefined),
+    [mapMode, owners, morale, standings, visibleProvinces],
+  );
   // Entrate e uscite giornaliere (produzione, mantenimento, commercio, carburante sintetico):
   // cambiano con province, armate, edifici, contratti e guerre, non a ogni tick.
   const playerNation = state?.playerNation;
@@ -350,12 +434,12 @@ function Game({ map }: { map: LoadedMap }) {
       <MapView
         ref={mapRef}
         map={map}
-        owners={owners}
+        provinceStyle={provinceStyle}
         armies={armies}
         squadrons={squadrons}
         engaged={engagedSet}
         playerNation={state?.playerNation ?? null}
-        works={state}
+        works={works}
         targeting={targeting || choosingBase || choosingTarget}
         selectedId={selectedProvince?.id ?? null}
         selectedArmyId={selectedArmy?.id ?? null}
@@ -378,6 +462,8 @@ function Game({ map }: { map: LoadedMap }) {
           ⤢
         </button>
       </div>
+
+      {state && <MapModeSwitch mode={mapMode} onChange={changeMapMode} />}
 
       {game.offline && <OfflineBanner report={game.offline} onClose={game.dismissOffline} />}
 
@@ -445,6 +531,7 @@ function Game({ map }: { map: LoadedMap }) {
           map={map}
           province={selectedProvince}
           game={state}
+          vision={vision}
           now={game.now}
           error={orderError}
           onDeclareWar={declareWar}
@@ -467,6 +554,7 @@ function Game({ map }: { map: LoadedMap }) {
           now={game.now}
           error={orderError}
           foes={foes}
+          known={!vision || knowsComposition(state, vision, selectedArmy, game.now)}
           mode={armyMode}
           delayMinutes={delayMinutes}
           onMode={(m) => {

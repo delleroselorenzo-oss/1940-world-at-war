@@ -23,6 +23,7 @@ import {
   TERRAIN_NAMES,
   terrainAt,
   UNIT_TYPES,
+  VISION,
   WORK_NAMES,
   type Army,
   type GameState,
@@ -48,6 +49,8 @@ interface ArmyPanelProps {
   error: string | null;
   /** Armate nemiche a contatto in questo momento. */
   foes: Army[];
+  /** Si conosce la composizione (armata propria, o nemica vista da vicino). */
+  known: boolean;
   mode: ArmyMode;
   delayMinutes: number;
   /** Il prossimo ordine di marcia può usare il treno. */
@@ -65,7 +68,7 @@ interface ArmyPanelProps {
 }
 
 export function ArmyPanel(props: ArmyPanelProps) {
-  const { map, army, game, now, error, foes, mode, delayMinutes, useRail, onMode, onDelay, onUseRail, onStop, onWork, onCancelWork, onSelectArmy, onSelectProvince, onClose, ref } =
+  const { map, army, game, now, error, foes, known, mode, delayMinutes, useRail, onMode, onDelay, onUseRail, onStop, onWork, onCancelWork, onSelectArmy, onSelectProvince, onClose, ref } =
     props;
   const nation = map.nations.get(army.owner);
   const mine = army.owner === game.playerNation;
@@ -109,7 +112,7 @@ export function ArmyPanel(props: ArmyPanelProps) {
             {nation?.name ?? army.owner}
             {mine && <span className="tag">la tua armata</span>}
           </p>
-          <h2>Armata · {army.units.length} unità</h2>
+          <h2>{known ? `Armata · ${army.units.length} unità` : "Armata"}</h2>
         </div>
         <button className="icon-button" onClick={onClose} aria-label="Chiudi">
           ×
@@ -155,14 +158,18 @@ export function ArmyPanel(props: ArmyPanelProps) {
         {/* 2. Stato attuale */}
         <div className="army-status">
           <p>{statusLine(army, now, fighting, foes.length, place, countdown)}</p>
-          <span className="progress health" aria-hidden>
-            <span style={{ width: `${health * 100}%` }} />
-          </span>
-          <p className="muted">
-            Salute {Math.round(health * 100)}% · {terrain ? `${TERRAIN_NAMES[terrain]}, ` : ""}
-            {terrainSpeed.toLocaleString("it-IT")} km/h · {isAttacking(army) ? "assalto" : "difesa"}
-          </p>
-          {range > 0 && (
+          {known && (
+            <>
+              <span className="progress health" aria-hidden>
+                <span style={{ width: `${health * 100}%` }} />
+              </span>
+              <p className="muted">
+                Salute {Math.round(health * 100)}% · {terrain ? `${TERRAIN_NAMES[terrain]}, ` : ""}
+                {terrainSpeed.toLocaleString("it-IT")} km/h · {isAttacking(army) ? "assalto" : "difesa"}
+              </p>
+            </>
+          )}
+          {known && range > 0 && (
             <p className="muted small">
               {army.move
                 ? `Artiglieria in marcia: sparerà da ferma, dopo ${COMBAT.setupMinutes} minuti di messa in batteria.`
@@ -263,72 +270,79 @@ export function ArmyPanel(props: ArmyPanelProps) {
           </p>
         )}
 
-        {/* 4. Composizione */}
-        <h3>Composizione</h3>
-        <table className="composition">
-          <thead>
-            <tr>
-              <th>Unità</th>
-              <th>Salute</th>
-              <th title="Velocità in km/h">km/h</th>
-              <th title="Attacco contro non corazzati / armatura leggera / armatura pesante">Att.</th>
-              <th title="Difesa contro non corazzati / armatura leggera / armatura pesante">Dif.</th>
-              <th title="Contraerea: danno agli aerei che attaccano">AA</th>
-            </tr>
-          </thead>
-          <tbody>
-            {groupUnits(army.units).map((g) => {
-              const t = UNIT_TYPES[g.type];
-              const hp = g.hp / (g.count * t.hp);
-              return (
-                <tr key={g.type}>
-                  <td>
-                    {g.count}× {g.name}
-                  </td>
-                  <td>
-                    <span className="progress health mini" title={`${Math.round(hp * 100)}%`}>
-                      <span style={{ width: `${hp * 100}%` }} />
-                    </span>
-                  </td>
-                  <td className={t.speedKmh === speed && army.units.some((u) => UNIT_TYPES[u.type].speedKmh > speed) ? "slowest" : undefined}>
-                    {t.speedKmh}
-                  </td>
-                  <td>
-                    {ARMOR_CLASSES.map((c) => t.attack[c].toLocaleString("it-IT")).join(" / ")}
-                  </td>
-                  <td>
-                    {ARMOR_CLASSES.map((c) => t.defense[c].toLocaleString("it-IT")).join(" / ")}
-                  </td>
-                  <td>{t.antiAir}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        {army.units.some((u) => UNIT_TYPES[u.type].speedKmh > speed) && (
-          <p className="muted small-print">In evidenza l'unità più lenta: l'armata va alla sua velocità.</p>
+        {!known && (
+          <p className="fog-note">Composizione sconosciuta: si vede solo da vicino, con una tua armata entro {VISION.revealKm} km.</p>
         )}
+        {known && (
+          <>
+          {/* 4. Composizione */}
+          <h3>Composizione</h3>
+          <table className="composition">
+            <thead>
+              <tr>
+                <th>Unità</th>
+                <th>Salute</th>
+                <th title="Velocità in km/h">km/h</th>
+                <th title="Attacco contro non corazzati / armatura leggera / armatura pesante">Att.</th>
+                <th title="Difesa contro non corazzati / armatura leggera / armatura pesante">Dif.</th>
+                <th title="Contraerea: danno agli aerei che attaccano">AA</th>
+              </tr>
+            </thead>
+            <tbody>
+              {groupUnits(army.units).map((g) => {
+                const t = UNIT_TYPES[g.type];
+                const hp = g.hp / (g.count * t.hp);
+                return (
+                  <tr key={g.type}>
+                    <td>
+                      {g.count}× {g.name}
+                    </td>
+                    <td>
+                      <span className="progress health mini" title={`${Math.round(hp * 100)}%`}>
+                        <span style={{ width: `${hp * 100}%` }} />
+                      </span>
+                    </td>
+                    <td className={t.speedKmh === speed && army.units.some((u) => UNIT_TYPES[u.type].speedKmh > speed) ? "slowest" : undefined}>
+                      {t.speedKmh}
+                    </td>
+                    <td>
+                      {ARMOR_CLASSES.map((c) => t.attack[c].toLocaleString("it-IT")).join(" / ")}
+                    </td>
+                    <td>
+                      {ARMOR_CLASSES.map((c) => t.defense[c].toLocaleString("it-IT")).join(" / ")}
+                    </td>
+                    <td>{t.antiAir}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {army.units.some((u) => UNIT_TYPES[u.type].speedKmh > speed) && (
+            <p className="muted small-print">In evidenza l'unità più lenta: l'armata va alla sua velocità.</p>
+          )}
 
-        {/* 5. Riepilogo */}
-        <h3>Riepilogo{terrain && <span className="muted"> · terreno: {TERRAIN_NAMES[terrain].toLowerCase()}</span>}</h3>
-        <dl className="facts">
-          {ARMOR_CLASSES.map((c) => (
-            <div key={c}>
-              <dt>Contro {ARMOR_CLASS_NAMES[c].toLowerCase()}</dt>
-              <dd>
-                att. {round1(armyDamage(army, c, true, terrain))} · dif. {round1(armyDamage(army, c, false, terrain))}
-              </dd>
+          {/* 5. Riepilogo */}
+          <h3>Riepilogo{terrain && <span className="muted"> · terreno: {TERRAIN_NAMES[terrain].toLowerCase()}</span>}</h3>
+          <dl className="facts">
+            {ARMOR_CLASSES.map((c) => (
+              <div key={c}>
+                <dt>Contro {ARMOR_CLASS_NAMES[c].toLowerCase()}</dt>
+                <dd>
+                  att. {round1(armyDamage(army, c, true, terrain))} · dif. {round1(armyDamage(army, c, false, terrain))}
+                </dd>
+              </div>
+            ))}
+            <div>
+              <dt>Contro gli aerei</dt>
+              <dd>contraerea {round1(armyAntiAir(army))}</dd>
             </div>
-          ))}
-          <div>
-            <dt>Contro gli aerei</dt>
-            <dd>contraerea {round1(armyAntiAir(army))}</dd>
-          </div>
-          <div className="wide">
-            <dt>Mantenimento al giorno</dt>
-            <dd>{upkeep(army) || "—"}</dd>
-          </div>
-        </dl>
+            <div className="wide">
+              <dt>Mantenimento al giorno</dt>
+              <dd>{upkeep(army) || "—"}</dd>
+            </div>
+          </dl>
+          </>
+        )}
       </div>
     </aside>
   );

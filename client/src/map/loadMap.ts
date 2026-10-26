@@ -3,6 +3,8 @@ import { decodeNav, type MapData, type Nation, type NavData, type NavFile, type 
 import mapUrl from "../../../data/maps/europe-1933/map.json?url";
 import navUrl from "../../../data/maps/europe-1933/nav.json?url";
 import shapesUrl from "../../../data/maps/europe-1933/provinces.geojson?url";
+import reliefPlacement from "../../../data/maps/europe-1933/relief.json";
+import reliefUrl from "../../../data/maps/europe-1933/relief.jpg?url";
 import type { Bounds } from "./camera.js";
 import { projectShape, unionBounds, type ProjectedShape } from "./geometry.js";
 import { project } from "./projection.js";
@@ -16,6 +18,8 @@ export interface LoadedMap {
   shapes: ProjectedShape[];
   shapeById: Map<string, ProjectedShape>;
   bounds: Bounds;
+  /** Mappa base del rilievo (immagine di `npm run map:build`) e dove va, in km proiettati. */
+  relief: { url: string; x: number; y: number; width: number; height: number };
 }
 
 /** Scarica la mappa generata da `npm run map:build` e proietta le forme in km. */
@@ -34,6 +38,7 @@ export async function loadMap(): Promise<LoadedMap> {
     shapes,
     shapeById: new Map(shapes.map((s) => [s.id, s])),
     bounds: unionBounds(shapes.map((s) => s.bounds)),
+    relief: { url: reliefUrl, ...reliefPlacement },
   };
 }
 

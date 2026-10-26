@@ -1,4 +1,5 @@
 export * from "./map/types.js";
+export * from "./map/projection.js";
 export * from "./geo.js";
 export * from "./data/economy.js";
 export * from "./data/units.js";
@@ -26,6 +27,7 @@ export * from "./game/works.js";
 export * from "./game/air.js";
 export * from "./game/trade.js";
 export * from "./game/terrain.js";
+export * from "./game/vision.js";
 export * from "./nav/types.js";
 export * from "./nav/codec.js";
 export * from "./nav/grid.js";

@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, Text, type TextStyleOptions } from "pixi.js";
+import { Application, Assets, Container, Graphics, Sprite, Text, type Texture, type TextStyleOptions } from "pixi.js";
 import type { Army, Squadron } from "@waw/shared";
 import type { LngLat } from "@waw/shared";
 import { ArmyLayer } from "./ArmyLayer.js";
@@ -8,10 +8,25 @@ import { clampToBounds, centerOn, fitBounds, pan, screenToWorld, zoomAt, type Ca
 import { HitIndex, type ProjectedShape } from "./geometry.js";
 import { placeLabels, type LabelCandidate } from "./labels.js";
 import type { LoadedMap } from "./loadMap.js";
+import { borderEdges, type BorderEdge } from "./nationBorders.js";
+import { FILL_ALPHA, moraleColor, STANDING_COLORS, type MapMode, type Standing } from "./mapModes.js";
 import { project, unproject } from "./projection.js";
 
 // Disegno della mappa con PixiJS e gestione di mouse, rotella e tocco.
 // Non dipende da React: il componente MapView lo crea e gli passa i callback.
+
+/** Cosa serve per colorare le province: modalità della mappa e dati della partita. */
+export interface ProvinceStyle {
+  mode: MapMode;
+  /** Proprietario attuale di ogni provincia; se manca vale la nazione iniziale. */
+  owners: Record<string, string>;
+  /** Morale di ogni provincia (0–100). */
+  morale: Record<string, number>;
+  /** Rapporto di ogni nazione con il giocatore. */
+  standings: Record<string, Standing>;
+  /** Province che il giocatore vede; null = nessuna nebbia di guerra. */
+  visible: ReadonlySet<string> | null;
+}
 
 export interface MapRendererCallbacks {
   /** Clic sulla mappa: la provincia (null = sul mare) e il punto esatto. */
@@ -29,6 +44,13 @@ export interface MapRendererCallbacks {
 
 const SEA_COLOR = "#a9c4d4";
 const BORDER_COLOR = "#2a2a2a";
+/** Confini tra stati, sopra quelli delle province. */
+const NATION_BORDER_COLOR = "#1c1c1c";
+/** Spessore in pixel dei confini tra stati, uguale a ogni zoom. */
+const NATION_BORDER_PX = 1.6;
+/** Nebbia di guerra: velo sulle province che non si vedono. */
+const FOG_COLOR = "#59626d";
+const FOG_ALPHA = 0.3;
 const SELECT_COLOR = "#ffd23f";
 /** Province evidenziate da un pannello (es. dove si può costruire un porto). */
 const HIGHLIGHT_COLOR = "#ffffff";
@@ -63,9 +85,17 @@ export class MapRenderer {
   private readonly app = new Application();
   private readonly world = new Container();
   private readonly overlay = new Graphics();
+  /** Mappa base del rilievo, sotto tutto. */
+  private readonly relief = new Container();
   private readonly fills = new Graphics();
-  /** Proprietario attuale di ogni provincia; se manca vale la nazione iniziale. */
-  private owners: Record<string, string> = {};
+  private readonly provinceBorders = new Graphics();
+  /** Confini tra stati: lati delle province che toccano una provincia di un'altra nazione. */
+  private readonly nationBorders = new Graphics();
+  private readonly edges: BorderEdge[];
+  /** Scala a cui sono stati disegnati i confini tra stati (si ridisegnano quando cambia lo zoom). */
+  private nationBorderScale = 0;
+  private readonly fog = new Graphics();
+  private style: ProvinceStyle = { mode: "political", owners: {}, morale: {}, standings: {}, visible: null };
   private readonly markers = new Container();
   private readonly labels: Label[] = [];
   private readonly cityMarkers: Marker[] = [];
@@ -94,10 +124,12 @@ export class MapRenderer {
     this.armyLayer = new ArmyLayer(map);
     this.squadronLayer = new SquadronLayer(map);
     this.terrain = new TerrainLayer(map.nav);
+    this.edges = borderEdges(map.shapes, (id) => map.provinces.get(id)?.neighbors.map((n) => n.id) ?? []);
   }
 
   async mount(host: HTMLElement): Promise<void> {
     await this.app.init({
+      preference: "webgl",
       resizeTo: host,
       background: SEA_COLOR,
       antialias: true,
@@ -113,8 +145,10 @@ export class MapRenderer {
     this.app.canvas.style.touchAction = "none";
     this.app.canvas.style.display = "block";
 
+    this.world.addChild(this.relief);
+    void this.loadRelief();
     this.drawProvinces();
-    this.world.addChild(this.terrain.container, this.overlay, this.markers, this.squadronLayer.path, this.armyLayer.path, this.armyLayer.container, this.squadronLayer.container);
+    this.world.addChild(this.terrain.container, this.fog, this.nationBorders, this.overlay, this.markers, this.squadronLayer.path, this.armyLayer.path, this.armyLayer.container, this.squadronLayer.container);
     this.drawMarkersAndLabels();
     this.app.stage.addChild(this.world);
 
@@ -205,29 +239,93 @@ export class MapRenderer {
 
   // --- Disegno ------------------------------------------------------------
 
-  /** Aggiorna i colori quando cambiano i proprietari delle province (es. conquiste). */
-  setOwners(owners: Record<string, string>): void {
-    this.owners = owners;
-    if (this.mounted) this.drawFills();
+  /** Aggiorna i colori quando cambiano modalità, proprietari, morale, rapporti o nebbia. */
+  setProvinceStyle(style: ProvinceStyle): void {
+    const prev = this.style;
+    this.style = style;
+    if (!this.mounted) return;
+    if (style.mode !== prev.mode || style.owners !== prev.owners || style.morale !== prev.morale || style.standings !== prev.standings) this.drawFills();
+    if (style.owners !== prev.owners) this.drawNationBorders();
+    if (style.visible !== prev.visible) this.drawFog();
+  }
+
+  private async loadRelief(): Promise<void> {
+    const { url, x, y, width, height } = this.map.relief;
+    const texture = await Assets.load<Texture>(url);
+    if (this.destroyed) return;
+    const sprite = new Sprite(texture);
+    sprite.position.set(x, y);
+    sprite.width = width;
+    sprite.height = height;
+    this.relief.addChild(sprite);
   }
 
   private drawProvinces(): void {
-    const borders = new Graphics();
     for (const shape of this.map.shapes)
       for (const rings of shape.polygons)
-        for (const ring of rings) borders.poly(ring).stroke({ width: 1, color: BORDER_COLOR, alpha: 0.8, pixelLine: true });
+        for (const ring of rings) this.provinceBorders.poly(ring).stroke({ width: 1, color: BORDER_COLOR, alpha: 0.8, pixelLine: true });
     this.drawFills();
-    this.world.addChild(this.fills, borders);
+    this.drawNationBorders();
+    this.drawFog();
+    this.world.addChild(this.fills, this.provinceBorders);
+  }
+
+  private ownerOf(id: string): string | undefined {
+    return this.style.owners[id] ?? this.map.provinces.get(id)?.nation;
+  }
+
+  /** Dalle più grandi alle più piccole: un'enclave viene disegnata sopra chi la contiene. */
+  private ordered(): ProjectedShape[] {
+    return [...this.map.shapes].sort((a, b) => b.area - a.area);
+  }
+
+  private fillColor(id: string): string {
+    const { mode, morale, standings } = this.style;
+    const owner = this.ownerOf(id);
+    switch (mode) {
+      case "morale":
+        return moraleColor(morale[id] ?? 100);
+      case "diplomacy":
+        return STANDING_COLORS[(owner ? standings[owner] : undefined) ?? "neutral"];
+      default:
+        return (owner && this.map.nations.get(owner)?.color) ?? "#cccccc";
+    }
   }
 
   private drawFills(): void {
     const fills = this.fills.clear();
-    // Dalle più grandi alle più piccole: un'enclave viene disegnata sopra chi la contiene.
-    const ordered = [...this.map.shapes].sort((a, b) => b.area - a.area);
-    for (const shape of ordered) {
-      const owner = this.owners[shape.id] ?? this.map.provinces.get(shape.id)?.nation;
-      const color = (owner && this.map.nations.get(owner)?.color) ?? "#cccccc";
+    // I colori stanno sopra il rilievo, semitrasparenti; nella modalità Rilievo non ci sono.
+    fills.alpha = FILL_ALPHA[this.style.mode];
+    // Nella mappa politica le province hanno già il colore della nazione: i loro confini restano marcati.
+    this.provinceBorders.alpha = this.style.mode === "political" ? 0.7 : 0.35;
+    if (this.style.mode === "terrain") return;
+    for (const shape of this.ordered()) {
+      const color = this.fillColor(shape.id);
       for (const rings of shape.polygons) fills.poly(rings[0]!).fill(color);
+    }
+  }
+
+  /** Lati tra province di nazioni diverse, con uno spessore fisso in pixel (si ridisegnano quando cambia lo zoom). */
+  private drawNationBorders(): void {
+    const g = this.nationBorders.clear();
+    const width = NATION_BORDER_PX / this.cam.scale;
+    for (const e of this.edges) {
+      if (this.ownerOf(e.province) === this.ownerOf(e.neighbor)) continue;
+      const [x1, y1, x2, y2] = e.coords;
+      g.moveTo(x1, y1).lineTo(x2, y2);
+    }
+    g.stroke({ width, color: NATION_BORDER_COLOR, alpha: 0.7, cap: "round", join: "round" });
+    this.nationBorderScale = this.cam.scale;
+  }
+
+  private drawFog(): void {
+    const g = this.fog.clear();
+    const visible = this.style.visible;
+    if (!visible) return;
+    for (const shape of this.ordered()) {
+      if (visible.has(shape.id)) continue;
+      // Solo il contorno esterno, come i colori: un'enclave visibile dentro una provincia nella nebbia resta velata (caso raro).
+      for (const rings of shape.polygons) g.poly(rings[0]!).fill({ color: FOG_COLOR, alpha: FOG_ALPHA });
     }
   }
 
@@ -288,6 +386,7 @@ export class MapRenderer {
   private updateScaleDependent(): void {
     const scale = this.cam.scale;
     this.terrain.update(this.cam);
+    if (Math.abs(scale - this.nationBorderScale) / scale > 0.05) this.drawNationBorders();
     for (const m of this.markers.children) m.scale.set(1 / scale);
     // Lontano si vedono solo le capitali, per non affollare la mappa.
     for (const m of this.cityMarkers) m.graphic.visible = m.kind === "capital" || scale >= CAPITAL_LABEL_SCALE;

@@ -11,6 +11,7 @@ File generati da `npm run map:build`: **non modificarli a mano**, cambia `config
 | `terrain.config.json` | Parametri del terreno delle province (soglie e correzioni a mano con il motivo) |
 | `nav.config.json` | Parametri della rete di movimento: quali fiumi fanno da ostacolo, quali strade e ferrovie |
 | `nav.json` | Rete di movimento: griglia della terraferma, fiumi, strade, ferrovie, ponti (`NavData` di `@waw/shared`) |
+| `relief.jpg`, `relief.json` | Mappa base del rilievo (solo grafica) e dove va, in km nella proiezione della mappa |
 
 ## Come viene costruita
 
@@ -66,3 +67,7 @@ Le strade sono **moderne** (Natural Earth): i grandi tracciati sono simili a que
 - **Dati economici** (`economy` in `config.json`): popolazioni nazionali dei censimenti degli anni '30 e PIL pro capite del Maddison Project (<https://www.rug.nl/ggdc/historicaldevelopment/maddison/>), arrotondati; produzione di petrolio del 1938 da statistiche storiche. Sono stime approssimate per il gioco.
 
 I file grezzi vengono scaricati in `data/raw/`, che è escluso dal versionamento.
+
+## Mappa base del rilievo
+
+Script: [`data/scripts/build-relief.ts`](../../scripts/build-relief.ts), ultimo della catena (`npm run build:relief -w data` per rifarla da sola). Usa le tessere già scaricate per il terreno: colore del suolo dalla copertura MODIS (sopra 56° di latitudine gli arbusteti sono tundra), roccia e neve con la quota, ombreggiatura leggera da nord-ovest su un'altitudine ammorbidita. Un pixel = 1,3 km nella proiezione di Lambert della mappa (`mapProject` di `@waw/shared`); fuori dalle province è del colore del mare. Non cambia il terreno di gioco delle province.

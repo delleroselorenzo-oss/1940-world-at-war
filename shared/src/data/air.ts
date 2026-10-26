@@ -17,6 +17,8 @@ export interface AircraftType {
   rangeKm: number;
   /** Velocità di crociera in km/h di gioco. */
   speedKmh: number;
+  /** Vista in volo: vede le armate e le squadriglie nemiche entro questa distanza. A terra vede la sua base. */
+  sightKm: number;
   /** Minuti a terra per rifornirsi dopo ogni volo (senza costi: è compreso nel mantenimento). */
   refuelMinutes: number;
   hp: number;
@@ -45,6 +47,7 @@ export const AIRCRAFT_TYPES: Record<AircraftTypeId, AircraftType> = {
     description: "Intercetta gli aerei nemici, scorta i bombardieri e pattuglia il cielo. Come lo Spitfire I e l'Hurricane I (~700 km).",
     rangeKm: 630,
     speedKmh: 450,
+    sightKm: 50,
     refuelMinutes: 30,
     hp: 10,
     attack: { soft: 1.5, light: 0.5, heavy: 0.25 },
@@ -63,6 +66,7 @@ export const AIRCRAFT_TYPES: Record<AircraftTypeId, AircraftType> = {
     description: "Colpisce le armate vicino al fronte. Come il Fairey Battle e il Blenheim IV (1.600–2.300 km).",
     rangeKm: 1450,
     speedKmh: 350,
+    sightKm: 40,
     refuelMinutes: 30,
     hp: 12,
     attack: { soft: 6, light: 5, heavy: 3 },
@@ -82,6 +86,7 @@ export const AIRCRAFT_TYPES: Record<AircraftTypeId, AircraftType> = {
     description: "Attacca le navi (con la marina). Come lo Swordfish e il Beaufort (850–2.600 km).",
     rangeKm: 1600,
     speedKmh: 300,
+    sightKm: 50,
     refuelMinutes: 45,
     hp: 12,
     attack: { soft: 2, light: 1.5, heavy: 1 },
@@ -101,6 +106,7 @@ export const AIRCRAFT_TYPES: Record<AircraftTypeId, AircraftType> = {
     description: "Colpisce edifici e città lontano dal fronte. Come il Wellington (~2.550 km).",
     rangeKm: 2300,
     speedKmh: 300,
+    sightKm: 40,
     refuelMinutes: 45,
     hp: 18,
     attack: { soft: 4, light: 3, heavy: 2 },
@@ -119,6 +125,7 @@ export const AIRCRAFT_TYPES: Record<AircraftTypeId, AircraftType> = {
     description: "Vede lontano e pattuglia il mare; attacca poco. Come l'Hudson e il Sunderland (~3.000 km).",
     rangeKm: 2700,
     speedKmh: 300,
+    sightKm: 150,
     refuelMinutes: 45,
     hp: 8,
     attack: { soft: 0.5, light: 0.25, heavy: 0 },

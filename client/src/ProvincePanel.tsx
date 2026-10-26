@@ -6,6 +6,7 @@ import {
   BUILDING_IDS,
   BUILDING_TYPES,
   inTruce,
+  knowsComposition,
   productionType,
   provinceIdAt,
   provinceProductionPerDay,
@@ -17,6 +18,7 @@ import {
   UNIT_TYPES,
   type GameState,
   type Province,
+  type Vision,
 } from "@waw/shared";
 import type { LoadedMap } from "./map/loadMap.js";
 import { formatAmount, formatCountdown } from "./ui/format.js";
@@ -27,6 +29,8 @@ interface ProvincePanelProps {
   map: LoadedMap;
   province: Province;
   game: GameState | null;
+  /** Nebbia di guerra: cosa vede il giocatore (null = tutto). */
+  vision: Vision | null;
   now: number;
   error: string | null;
   onDeclareWar(nation: string): void;
@@ -59,6 +63,7 @@ export function ProvincePanel({
   map,
   province,
   game,
+  vision,
   now,
   error,
   onDeclareWar,
@@ -79,15 +84,20 @@ export function ProvincePanel({
   const production = ps ? provinceProductionPerDay(province, ps, game?.buildings[province.id]) : null;
   const synthetic = ps ? syntheticPerDay(province, ps, game?.buildings[province.id]) : null;
   const kind = province.isCapital ? "Capitale" : province.type === "urban" ? "Città" : "Provincia rurale";
-  const armies = game ? Object.values(game.armies).filter((a) => !a.move && provinceIdAt(map.nav, a.position) === province.id) : [];
-  const squadrons = game ? Object.values(game.squadrons).filter((s) => !s.flight && s.base === province.id) : [];
+  // Nella nebbia di guerra non si vedono armate, squadriglie, edifici e lavori; l'arruolamento solo dei propri (o di chi condivide la mappa).
+  const visible = !vision || vision.provinces.has(province.id);
+  const sharesMap = !vision || vision.viewers.has(ownerId);
+  const armies = game
+    ? Object.values(game.armies).filter((a) => !a.move && provinceIdAt(map.nav, a.position) === province.id && (!vision || vision.armies.has(a.id)))
+    : [];
+  const squadrons = game ? Object.values(game.squadrons).filter((s) => !s.flight && s.base === province.id && (!vision || vision.squadrons.has(s.id))) : [];
   const canRecruit = isMine && province.type === "urban";
-  const queue = game?.production[province.id] ?? [];
+  const queue = sharesMap ? (game?.production[province.id] ?? []) : [];
   const war = game && !isMine ? atWar(game, game.playerNation, ownerId) : false;
   const truce = game && !isMine ? inTruce(game, game.playerNation, ownerId) : false;
-  const buildings = game?.buildings[province.id] ?? {};
+  const buildings = (visible && game?.buildings[province.id]) || {};
   const built = BUILDING_IDS.filter((b) => (buildings[b] ?? 0) > 0);
-  const construction = game?.construction[province.id];
+  const construction = visible ? game?.construction[province.id] : undefined;
   const countdown = (t: number) => (game ? formatCountdown(((t - now) * 60) / game.clock.speed) : "");
 
   return (
@@ -187,6 +197,7 @@ export function ProvincePanel({
             )}
           </div>
         )}
+        {!visible && <p className="fog-note">Nella nebbia di guerra: armate, squadriglie ed edifici non si vedono.</p>}
         {error && (
           <p className="error-text" role="alert">
             {error}
@@ -232,7 +243,11 @@ export function ProvincePanel({
                 <li key={a.id}>
                   <button onClick={() => onSelectArmy(a.id)}>
                     <span className="swatch" style={{ background: map.nations.get(a.owner)?.color }} />
-                    <span className="neighbor-name">{groupUnits(a.units).map((g) => `${g.count}× ${g.name}`).join(", ")}</span>
+                    <span className="neighbor-name">
+                      {!game || !vision || knowsComposition(game, vision, a, now)
+                        ? groupUnits(a.units).map((g) => `${g.count}× ${g.name}`).join(", ")
+                        : `Armata di ${map.nations.get(a.owner)?.name ?? a.owner}, composizione sconosciuta`}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -261,7 +276,7 @@ export function ProvincePanel({
           </>
         )}
 
-        {game && (built.length > 0 || construction || isMine) && (
+        {game && visible && (built.length > 0 || construction || isMine) && (
           <>
             <h3>Edifici</h3>
             {built.length > 0 ? (

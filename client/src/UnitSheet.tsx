@@ -136,6 +136,10 @@ export function UnitSheet({ unit, image, stock, onRecruit, onClose }: UnitSheetP
             <dd>{type.hp}</dd>
             <dt>Velocità</dt>
             <dd>{type.speedKmh} km/h</dd>
+            <dt>Vista</dt>
+            <dd>
+              {type.sightKm} km{air && " · in volo"}
+            </dd>
             {ground?.rangeKm && (
               <>
                 <dt>Gittata</dt>
