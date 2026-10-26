@@ -4,8 +4,9 @@
 //  - salendo di quota il colore vira alla roccia e, sulle vette più alte, alla neve;
 //  - un'ombreggiatura leggera da nord-ovest, calcolata da un'altitudine ammorbidita: si vedono le grandi catene,
 //    non ogni singola montagna.
-// L'immagine è nella stessa proiezione del client (mapProject) e copre solo le province del gioco;
-// fuori è del colore del mare. Usa le tessere già scaricate da build-terrain.ts (data/raw/elevation e landcover).
+// L'immagine è nella stessa proiezione del client (mapProject) e copre le province del gioco;
+// la terra fuori gioco (Africa, Medio Oriente) è di un grigio sabbia spento, con l'ombreggiatura, così si
+// distingue dal mare (le navi la costeggiano). Usa le tessere già scaricate da build-terrain.ts (data/raw/elevation e landcover).
 //
 // Scrive data/maps/europe-1933/relief.jpg e relief.json (dove va messa l'immagine, in km proiettati).
 
@@ -76,14 +77,22 @@ const TUNDRA_LAT = 56;
 const ROCK = hex("#b8a78e");
 const HIGH_ROCK = hex("#c5c0b8");
 const SNOW = hex("#f6f6f3");
+/** Terra fuori gioco: sfuma nel colore del mare verso i bordi dell'immagine (e del riquadro della mappa). */
+const FOREIGN = hex("#d3cfc4");
+const FADE_KM = 280;
+/** Margine dell'immagine intorno alle province, in km. */
+const MARGIN_KM = 160;
 
 function main() {
   const mapConfig = JSON.parse(readFileSync(join(OUT, "config.json"), "utf8")) as { bbox: [number, number, number, number] };
   const shapes = JSON.parse(readFileSync(join(OUT, "provinces.geojson"), "utf8")) as FeatureCollection<Polygon | MultiPolygon, { id: string }>;
   const bbox = mapConfig.bbox;
 
-  console.log("· Province");
+  console.log("· Province e terra fuori gioco");
+  // 1 = provincia, 2 = terra fuori gioco.
   const land = new Raster(bbox, GRID_DEG);
+  const world = JSON.parse(readFileSync(join(RAW, "ne_10m_admin_1_states_provinces.geojson"), "utf8")) as FeatureCollection<Polygon | MultiPolygon>;
+  for (const f of world.features) if (f.geometry) land.fill(f.geometry, 2);
   for (const f of shapes.features) land.fill(f.geometry, 1);
 
   console.log("· Altitudine");
@@ -107,27 +116,31 @@ function main() {
         maxY = Math.max(maxY, y);
       }
   }
-  minX = Math.floor(minX) - 10;
-  minY = Math.floor(minY) - 10;
-  const width = Math.ceil((maxX + 10 - minX) / PIXEL_KM);
-  const height = Math.ceil((maxY + 10 - minY) / PIXEL_KM);
+  minX = Math.floor(minX) - MARGIN_KM;
+  minY = Math.floor(minY) - MARGIN_KM;
+  const width = Math.ceil((maxX + MARGIN_KM - minX) / PIXEL_KM);
+  const height = Math.ceil((maxY + MARGIN_KM - minY) / PIXEL_KM);
   console.log(`· Immagine ${width}×${height} pixel (${PIXEL_KM} km per pixel)`);
 
   // Per ogni pixel: terra o mare, altitudine e colore del suolo.
   const n = width * height;
   const isLand = new Uint8Array(n);
   const height0 = new Float32Array(n);
+  /** Distanza dal bordo del riquadro della mappa (fuori ci sono solo mare e nessun dato). */
+  const bboxKm = new Float32Array(n);
   const color = new Float32Array(n * 3);
   for (let py = 0; py < height; py++)
     for (let px = 0; px < width; px++) {
       const i = py * width + px;
       const [lng, lat] = mapUnproject([minX + (px + 0.5) * PIXEL_KM, minY + (py + 0.5) * PIXEL_KM]);
+      bboxKm[i] = Math.min(lng - bbox[0], bbox[2] - lng) * 111 * Math.cos((lat * Math.PI) / 180);
+      bboxKm[i] = Math.max(0, Math.min(bboxKm[i]!, (lat - bbox[1]) * 111, (bbox[3] - lat) * 111));
       const cell = land.indexOf(lng, lat);
       if (cell < 0) continue;
       height0[i] = Math.max(0, elevation[cell]!);
       if (land.cells[cell]! <= 0) continue;
-      isLand[i] = 1;
-      const c = SOIL_COLORS[SOILS[soil[cell]!]!];
+      isLand[i] = land.cells[cell]!;
+      const c = isLand[i] === 2 ? FOREIGN : SOIL_COLORS[SOILS[soil[cell]!]!];
       color[i * 3] = c[0];
       color[i * 3 + 1] = c[1];
       color[i * 3 + 2] = c[2];
@@ -151,10 +164,13 @@ function main() {
       let c: RGB = SEA;
       if (isLand[i]) {
         const h = tint[i]!;
+        const edgeKm = Math.min(px, py, width - 1 - px, height - 1 - py) * PIXEL_KM;
         c = [color[i * 3]!, color[i * 3 + 1]!, color[i * 3 + 2]!];
-        c = mix(c, ROCK, smooth(500, 1600, h) * 0.6);
-        c = mix(c, HIGH_ROCK, smooth(1600, 2400, h) * 0.7);
-        c = mix(c, SNOW, smooth(2300, 3000, h) * 0.9);
+        if (isLand[i] === 1) {
+          c = mix(c, ROCK, smooth(500, 1600, h) * 0.6);
+          c = mix(c, HIGH_ROCK, smooth(1600, 2400, h) * 0.7);
+          c = mix(c, SNOW, smooth(2300, 3000, h) * 0.9);
+        }
         const dx = (relief[i + (px < width - 1 ? 1 : 0)]! - relief[i - (px > 0 ? 1 : 0)]!) / spacing;
         const dy = (relief[i + (py < height - 1 ? width : 0)]! - relief[i - (py > 0 ? width : 0)]!) / spacing;
         const nx = -dx * exaggeration;
@@ -163,6 +179,7 @@ function main() {
         const light = (nx * L[0]! + ny * L[1]! + L[2]!) / len / L[2]!;
         const shade = Math.max(0.72, Math.min(1.12, 1 + (light - 1) * 0.55));
         c = [c[0] * shade, c[1] * shade, c[2] * shade];
+        if (isLand[i] === 2) c = mix(c, SEA, 1 - smooth(0, FADE_KM, Math.min(edgeKm, bboxKm[i]!)));
       }
       rgb[i * 4] = clamp(c[0]);
       rgb[i * 4 + 1] = clamp(c[1]);

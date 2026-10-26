@@ -32,3 +32,5 @@ export * from "./nav/types.js";
 export * from "./nav/codec.js";
 export * from "./nav/grid.js";
 export * from "./nav/route.js";
+export * from "./nav/sea.js";
+export * from "./nav/heap.js";

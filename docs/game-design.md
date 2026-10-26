@@ -190,8 +190,17 @@ Le unità nel **ruolo preferito** sono circa 2–3x più efficaci; le "tuttofare
 - **Ponti distruggibili** (e riparabili) e **ponti di barche** costruiti dal genio: vedi "Lavori sul campo" qui sotto.
 - **Territorio straniero**: si può marciare ovunque, ma il percorso automatico passa solo per il proprio territorio, per quello di chi è già in guerra o ha un accordo con noi, e per quello della nazione verso cui si marcia (mai per un paese terzo, per non scatenare guerre per sbaglio).
 - Il terreno rallenta la marcia (§9, "Terreno"). Le unità sotto il 50% di salute vanno più lente.
-- **Mare**: le unità terrestri diventano **trasporti** (imbarco/sbarco 3–4 ore, ridotto dalla base navale).
+- **Mare**: le unità terrestri diventano **trasporti** (imbarco/sbarco 3–4 ore, ridotto dalla base navale). Il mare è già nella rete di movimento (vedi "Marina" qui sotto).
 - **Aerei**: hanno una portata; oltre quella atterrano e proseguono via terra come convoglio (vedi "Aviazione" in §9).
+
+### Marina (iniziata il 26/10/2026)
+Passi, ognuno giocabile da solo:
+1. ✅ **Il mare sulla mappa**: celle navigabili sulla stessa griglia da 0,1° delle armate; **30 zone di mare** con un nome (Atlantico settentrionale, Mare del Nord, Baltico centrale, Tirreno, Egeo, Mar Nero, Caspio…) disegnate con un tratteggio leggero e il nome in corsivo; **stretti e canali** che si potranno chiudere (Gibilterra, Øresund, Grande e Piccolo Belt, canale di Kiel, Bosforo, Dardanelli, Messina, Kerč), controllati da chi tiene le rive; un **approdo** per ogni provincia costiera; rotte navali più brevi che girano intorno alla terra senza tagliare gli istmi (`shared/src/nav/sea.ts`). La terra fuori gioco (Africa, Medio Oriente) si vede in grigio sabbia, così le coste sono chiare.
+2. **Navi e flotte**: cacciatorpediniere, incrociatore, corazzata, sottomarino, portaerei; si costruiscono nel cantiere navale; le flotte hanno gettone e pannello come le armate, velocità della nave più lenta. Categoria Marina della Produzione sbloccata.
+3. **Combattimento navale**: tiro a distanza tra navi, bombardamento della costa, aerei contro navi e contraerea delle navi, portaerei come base mobile delle squadriglie.
+4. **Sottomarini e nebbia sul mare**: le flotte si vedono come le armate; i sottomarini solo dai cacciatorpediniere vicini o quando attaccano.
+5. **Trasporti e sbarchi**: imbarco nei porti o sulla costa, trasporto vulnerabile, sbarco (contro una costa difesa è un attacco con penalità).
+6. **Economia del mare**: blocco navale delle importazioni via mare; convogli degli aiuti (Murmansk) e degli sbarchi della partita storica, intercettabili.
 
 ### Stato attuale (milestone 3 e 4)
 - Unità disponibili: fanteria, fanteria motorizzata, autoblindo, carro leggero, artiglieria, anticarro, antiaerea, genio, sanità (valori in `shared/src/data/units.ts` e nella tabella del §9). Ogni unità ha un valore di **contraerea**.
@@ -355,8 +364,8 @@ Esempio: l'armata di una capitale (3 fanterie + 1 artiglieria) che assalta un'ar
 - **Mappa base del rilievo**, sempre sotto: immagine generata da altitudine e copertura del suolo reali (`data/scripts/build-relief.ts`): boschi verdi, campi e prati verde chiaro, zone aride ocra, tundra grigio-verde; salendo di quota roccia e, sulle vette più alte, neve; un'ombreggiatura leggera da nord-ovest su un'altitudine ammorbidita (si vedono le grandi catene, non ogni montagna). Solo grafica: il terreno di gioco delle province non cambia.
 - **Rilievo**: la mappa base pulita, con i soli confini.
 - **Morale**: tutte le province, dal rosso mattone (0%) all'ocra (50%) al verde salvia (100%); il tooltip mostra il valore.
-- **Diplomazia**: grigio neutro; la propria nazione in grigio-azzurro tenue, chi condivide la mappa (o è alleato) in verde salvia, tregua in ocra, guerra in rosso spento. Con la nebbia, il proprio blocco risalta sul resto.
-- In tutte le modalità: confini delle province sottili e **confini tra stati** marcati (tracciati dove cambia il proprietario).
+- **Diplomazia**: grigio neutro; la propria nazione in azzurro chiaro, chi condivide la mappa (o è alleato) in verde salvia, tregua in ocra, guerra in rosso spento. Con la nebbia, il proprio blocco risalta sul resto.
+- In tutte le modalità: confini delle province sottili e **confini tra stati** marcati (tracciati dove cambia il proprietario); sul mare i confini tratteggiati delle zone di mare e i loro nomi.
 
 ### Interfaccia dell'armata
 - Toccando un'armata si apre il suo pannello. Dall'alto: **comandante** (con accanto i pulsanti delle azioni), **stato attuale** (cosa fa e quando finisce, salute complessiva), **azioni**, **composizione** per tipo di unità (quantità, salute, velocità, attacco/difesa; evidenziata l'unità più lenta), riepilogo di forza e mantenimento.

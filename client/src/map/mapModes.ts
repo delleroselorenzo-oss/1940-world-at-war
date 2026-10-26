@@ -24,7 +24,7 @@ export const FILL_ALPHA: Record<MapMode, number> = {
 export type Standing = "self" | "shared" | "war" | "truce" | "neutral";
 
 export const STANDING_COLORS: Record<Standing, string> = {
-  self: "#a7b4c2",
+  self: "#7fa6cf",
   shared: "#a9c2b8",
   war: "#c98d80",
   truce: "#d9bd8e",

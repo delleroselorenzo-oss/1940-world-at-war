@@ -10,7 +10,8 @@ File generati da `npm run map:build`: **non modificarli a mano**, cambia `config
 | `preview.html` | Anteprima per controllare la bozza a occhio (apribile con doppio clic) |
 | `terrain.config.json` | Parametri del terreno delle province (soglie e correzioni a mano con il motivo) |
 | `nav.config.json` | Parametri della rete di movimento: quali fiumi fanno da ostacolo, quali strade e ferrovie |
-| `nav.json` | Rete di movimento: griglia della terraferma, fiumi, strade, ferrovie, ponti (`NavData` di `@waw/shared`) |
+| `nav.json` | Rete di movimento: griglia della terraferma, fiumi, strade, ferrovie, ponti, mare (`NavData` di `@waw/shared`) |
+| `sea.config.json` | Zone di mare (punti da cui crescono, nome) e stretti (dove, raggio, canale) |
 | `relief.jpg`, `relief.json` | Mappa base del rilievo (solo grafica) e dove va, in km nella proiezione della mappa |
 
 ## Come viene costruita
@@ -44,6 +45,7 @@ Script: [`data/scripts/build-nav.ts`](../../scripts/build-nav.ts), eseguito dopo
 3. **Strade e ferrovie** principali (Natural Earth `roads` e `railroads`, scalerank ≤ 6), semplificate a un punto ogni ~5 km mantenendo gli incroci.
 4. **Ponti**: ogni tratto di strada o ferrovia che attraversa un grande fiume (~580).
 5. **Terreno** di ogni cella: quello della sua provincia; "Città" entro 10 km dal centro delle province urbane.
+6. **Mare** ([`lib/sea.ts`](../../scripts/lib/sea.ts), parametri in `sea.config.json`): è acqua ogni cella che non è terra (terra = tutte le suddivisioni di Natural Earth, anche fuori gioco come l'Africa, più le province; i grandi laghi contano come terra). Le **zone di mare** (30, dall'Atlantico al Caspio) crescono insieme dai loro punti finché si incontrano: per spostare un confine si sposta o si aggiunge un punto. Gli **stretti** (Gibilterra, Øresund, Grande e Piccolo Belt, canale di Kiel, Bosforo, Dardanelli, Messina, Kerč) sono le celle entro un raggio da un punto, o lungo un canale che la griglia non vedrebbe; le province sulle rive li controllano. Ogni provincia che tocca il mare ha un **approdo**: la cella di mare accanto più vicina al suo centro (167 province, le stesse marcate "costiere").
 
 File grezzi necessari in `data/raw/` (da <https://github.com/nvkelso/natural-earth-vector/tree/master/geojson>): `ne_10m_rivers_lake_centerlines.geojson`, `ne_10m_roads.geojson`, `ne_10m_railroads.geojson`.
 
@@ -55,7 +57,7 @@ Le strade sono **moderne** (Natural Earth): i grandi tracciati sono simili a que
 - Le **suddivisioni sono moderne**: alcune province hanno confini o nomi non del 1933. I nomi storici più importanti sono in `renames` dentro `config.json`.
 - Le province della **Russia settentrionale** tagliate a metà hanno confini dritti e nomi come "Arcangelo (sud-ovest)".
 - Alcune province accorpate sono **allungate** (es. Krasnodar, Stoccolma), quindi la distanza tra centri non rappresenta bene il percorso.
-- **Isole senza confini via terra** (Sardegna, Corsica, Creta, Baleari, Gotland…): serviranno i collegamenti via mare, da definire insieme alle zone di mare.
+- **Isole senza confini via terra** (Sardegna, Corsica, Creta, Baleari, Gotland…): si raggiungeranno con i trasporti della marina (il mare e gli approdi ci sono già).
 - **Escluse per ora**: colonie e Nord Africa, Islanda (non presente nei dati CShapes del 1933), Malta, Cipro. L'URSS è tagliata a est a 60° di longitudine e senza l'Asia centrale.
 
 ## Fonti e licenze
@@ -70,4 +72,4 @@ I file grezzi vengono scaricati in `data/raw/`, che è escluso dal versionamento
 
 ## Mappa base del rilievo
 
-Script: [`data/scripts/build-relief.ts`](../../scripts/build-relief.ts), ultimo della catena (`npm run build:relief -w data` per rifarla da sola). Usa le tessere già scaricate per il terreno: colore del suolo dalla copertura MODIS (sopra 56° di latitudine gli arbusteti sono tundra), roccia e neve con la quota, ombreggiatura leggera da nord-ovest su un'altitudine ammorbidita. Un pixel = 1,3 km nella proiezione di Lambert della mappa (`mapProject` di `@waw/shared`); fuori dalle province è del colore del mare. Non cambia il terreno di gioco delle province.
+Script: [`data/scripts/build-relief.ts`](../../scripts/build-relief.ts), ultimo della catena (`npm run build:relief -w data` per rifarla da sola). Usa le tessere già scaricate per il terreno: colore del suolo dalla copertura MODIS (sopra 56° di latitudine gli arbusteti sono tundra), roccia e neve con la quota, ombreggiatura leggera da nord-ovest su un'altitudine ammorbidita. Un pixel = 1,3 km nella proiezione di Lambert della mappa (`mapProject` di `@waw/shared`); fuori dalle province è del colore del mare, tranne la terra fuori gioco (Africa, Medio Oriente) che è grigio sabbia e sfuma verso il bordo della mappa. Non cambia il terreno di gioco delle province.

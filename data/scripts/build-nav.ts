@@ -3,7 +3,8 @@
 //  2. grandi fiumi (Natural Earth) che bloccano il passaggio tra celle;
 //  3. strade e ferrovie principali (Natural Earth) come rete di nodi e tratti;
 //  4. ponti: i tratti di strada o ferrovia che attraversano un grande fiume;
-//  5. terreno di ogni cella: quello della sua provincia, "Città" vicino al centro delle province urbane.
+//  5. terreno di ogni cella: quello della sua provincia, "Città" vicino al centro delle province urbane;
+//  6. mare: celle navigabili, zone di mare, stretti e approdi (lib/sea.ts, parametri in sea.config.json).
 //
 // Va eseguito dopo build-europe-1933.ts e build-terrain.ts (usa map.json e provinces.geojson).
 // Uso: npm run map:build   (dalla radice del progetto)
@@ -28,6 +29,7 @@ import {
   type River,
 } from "@waw/shared";
 import { Raster } from "./lib/raster.js";
+import { buildSea, type SeaConfig } from "./lib/sea.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const RAW = join(ROOT, "raw");
@@ -219,6 +221,12 @@ function main() {
     terrain[cell] = TERRAINS.indexOf(near ? "urban" : (p.terrain ?? "plains"));
   }
 
+  // 6. Mare.
+  console.log("· Mare");
+  const seaConfig = JSON.parse(readFileSync(join(OUT, "sea.config.json"), "utf8")) as SeaConfig;
+  const land = readJson<FeatureCollection<Polygon | MultiPolygon>>("ne_10m_admin_1_states_provinces.geojson");
+  const sea = buildSea({ bbox, step, width, height, province }, map, land, seaConfig);
+
   const nav: NavData = {
     mapId: map.id,
     provinceIds,
@@ -233,6 +241,7 @@ function main() {
     },
     bridges,
     rivers,
+    sea,
   };
   const json = JSON.stringify(encodeNav(nav));
   writeFileSync(join(OUT, "nav.json"), json + "\n");

@@ -2,6 +2,7 @@ import { Application, Assets, Container, Graphics, Sprite, Text, type Texture, t
 import type { Army, Squadron } from "@waw/shared";
 import type { LngLat } from "@waw/shared";
 import { ArmyLayer } from "./ArmyLayer.js";
+import { SeaLayer } from "./SeaLayer.js";
 import { SquadronLayer } from "./SquadronLayer.js";
 import { TerrainLayer, type MapWorks } from "./TerrainLayer.js";
 import { clampToBounds, centerOn, fitBounds, pan, screenToWorld, zoomAt, type Camera, type Viewport } from "./camera.js";
@@ -103,6 +104,7 @@ export class MapRenderer {
   private readonly armyLayer: ArmyLayer;
   private readonly squadronLayer: SquadronLayer;
   private readonly terrain: TerrainLayer;
+  private readonly sea: SeaLayer;
   private view: Viewport = { width: 1, height: 1 };
   private cam: Camera = { x: 0, y: 0, scale: 1 };
   private fitScale = 1;
@@ -124,6 +126,7 @@ export class MapRenderer {
     this.armyLayer = new ArmyLayer(map);
     this.squadronLayer = new SquadronLayer(map);
     this.terrain = new TerrainLayer(map.nav);
+    this.sea = new SeaLayer(map.nav);
     this.edges = borderEdges(map.shapes, (id) => map.provinces.get(id)?.neighbors.map((n) => n.id) ?? []);
   }
 
@@ -145,7 +148,7 @@ export class MapRenderer {
     this.app.canvas.style.touchAction = "none";
     this.app.canvas.style.display = "block";
 
-    this.world.addChild(this.relief);
+    this.world.addChild(this.relief, this.sea.container);
     void this.loadRelief();
     this.drawProvinces();
     this.world.addChild(this.terrain.container, this.fog, this.nationBorders, this.overlay, this.markers, this.squadronLayer.path, this.armyLayer.path, this.armyLayer.container, this.squadronLayer.container);
@@ -386,6 +389,7 @@ export class MapRenderer {
   private updateScaleDependent(): void {
     const scale = this.cam.scale;
     this.terrain.update(this.cam);
+    this.sea.update(this.cam);
     if (Math.abs(scale - this.nationBorderScale) / scale > 0.05) this.drawNationBorders();
     for (const m of this.markers.children) m.scale.set(1 / scale);
     // Lontano si vedono solo le capitali, per non affollare la mappa.

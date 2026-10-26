@@ -39,6 +39,12 @@ export function encodeNav(nav: NavData): NavFile {
     },
     bridges: nav.bridges,
     rivers: nav.rivers,
+    sea: nav.sea && {
+      ...nav.sea,
+      zone: toBase64(nav.sea.zone),
+      strait: toBase64(nav.sea.strait),
+      harbor: toBase64(bytes(nav.sea.harbor)),
+    },
   };
 }
 
@@ -62,5 +68,11 @@ export function decodeNav(file: NavFile): NavData {
     },
     bridges: file.bridges,
     rivers: file.rivers,
+    sea: file.sea && {
+      ...file.sea,
+      zone: fromBase64(file.sea.zone),
+      strait: fromBase64(file.sea.strait),
+      harbor: new Int32Array(copy(fromBase64(file.sea.harbor))),
+    },
   };
 }

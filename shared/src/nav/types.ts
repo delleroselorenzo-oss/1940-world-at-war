@@ -9,6 +9,10 @@ import type { LngLat, ProvinceId } from "../map/types.js";
 //    grande fiume è un PONTE.
 //
 // Fuori strada ci si muove di cella in cella (più lentamente), su strada lungo i tratti.
+//
+// Il MARE (facoltativo) usa la stessa griglia: ogni cella navigabile sa a quale zona di mare
+// appartiene; gli stretti sono gruppi di celle che si possono chiudere; ogni provincia
+// costiera ha una cella dove attraccano le navi.
 
 export type RoadKind = "road" | "rail";
 
@@ -21,6 +25,36 @@ export interface Bridge {
 export interface River {
   name: string;
   lines: LngLat[][];
+}
+
+/** Zona di mare con un nome (Mare del Nord, Tirreno…): serve per i blocchi, gli eventi e per orientarsi. */
+export interface SeaZone {
+  id: string;
+  name: string;
+  /** Dove scrivere il nome sulla mappa. */
+  label: LngLat;
+}
+
+/** Stretto o canale: le navi lo attraversano passando per le sue celle, che si possono chiudere. */
+export interface Strait {
+  id: string;
+  name: string;
+  at: LngLat;
+  /** Province sulle due rive (chi le tiene controlla il passaggio). */
+  provinces: ProvinceId[];
+}
+
+export interface SeaData {
+  /** Per cella: 0 = non navigabile, altrimenti indice della zona in `zones` + 1. */
+  zone: Uint8Array;
+  /** Per cella: indice dello stretto in `straits` + 1, 0 = mare aperto. */
+  strait: Uint8Array;
+  zones: SeaZone[];
+  straits: Strait[];
+  /** Per provincia (ordine di `provinceIds`): cella di mare dove attraccano le navi, -1 se non tocca il mare. */
+  harbor: Int32Array;
+  /** Solo per il disegno: confini tra le zone di mare. */
+  borders: LngLat[][];
 }
 
 export interface NavData {
@@ -58,6 +92,7 @@ export interface NavData {
   bridges: Bridge[];
   /** Solo per il disegno: i grandi fiumi che fanno da ostacolo. */
   rivers: River[];
+  sea?: SeaData;
 }
 
 /** Bit di `blocked`: passaggio dalla cella (c, r) verso… */
@@ -74,4 +109,5 @@ export interface NavFile {
   roads: { nodes: number[]; nodeCell: string; edgeA: string; edgeB: string; edgeKind: string; edgeBridge: string };
   bridges: Bridge[];
   rivers: River[];
+  sea?: { zone: string; strait: string; zones: SeaZone[]; straits: Strait[]; harbor: string; borders: LngLat[][] };
 }
