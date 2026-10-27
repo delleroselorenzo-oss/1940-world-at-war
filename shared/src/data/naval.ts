@@ -159,4 +159,6 @@ export const CONVOY = {
   minHp: 10,
   /** Ogni giorno a mezzanotte parte un convoglio per ogni nazione con importazioni via mare. */
   departEveryMinutes: 1440,
+  /** Navi di superficie nemiche (o di chi ha messo l'embargo) che servono in una zona di mare per bloccarne i porti. */
+  blockadeMinShips: 2,
 } as const;

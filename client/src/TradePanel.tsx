@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import {
   BUILDINGS,
+  blockadeHolds,
   cargoAtSea,
+  CONVOY,
+  portZone,
+  zoneForces,
   convoysActive,
   importCapacityPerDay,
   seaFraction,
@@ -40,6 +44,11 @@ export function TradePanel({ map, game, error, onSetImport, order, onSelectProvi
   const seaShare = byConvoy ? seaFraction(flows, capacity) : 0;
   const atSea = cargoAtSea(game, nation);
   const atSeaTotal = Object.values(atSea.cargo).reduce((sum, v) => sum + v, 0);
+  // Zone di mare bloccate con i loro porti e le navi che bloccano e che difendono.
+  const forces = zoneForces(game, map.nav, nation);
+  const blockades = [...new Set(capacity.blockaded.map((id) => portZone(map.nav, id)))]
+    .filter((z) => forces.has(z) && blockadeHolds(forces.get(z)!))
+    .map((z) => ({ zone: z, name: map.nav.sea?.zones[z]?.name ?? "", ports: capacity.blockaded.filter((id) => portZone(map.nav, id) === z), ...forces.get(z)! }));
   const quota = map.nations.get(nation)?.oilConcessionPerDay ?? 0;
   const contracted = Object.values(game.nations[nation]?.imports ?? {}).reduce((sum, v) => sum + (v ?? 0), 0);
   const plants = map.data.provinces
@@ -101,10 +110,10 @@ export function TradePanel({ map, game, error, onSetImport, order, onSelectProvi
                 </dd>
               </div>
             </dl>
-            {capacity.blockaded.length > 0 && (
-              <p className="warning small">
-                Porti bloccati da flotte nemiche:{" "}
-                {capacity.blockaded.map((id, i) => (
+            {blockades.map((b) => (
+              <p key={b.zone} className="warning small">
+                Blocco navale ({b.name}): {b.blockers} navi nemiche contro {b.defenders} tue o alleate. Porti chiusi:{" "}
+                {b.ports.map((id, i) => (
                   <span key={id}>
                     {i > 0 && ", "}
                     <button className="link-button" onClick={() => onSelectProvince(id)}>
@@ -112,7 +121,13 @@ export function TradePanel({ map, game, error, onSetImport, order, onSelectProvi
                     </button>
                   </span>
                 ))}
-                . Una tua nave da guerra (o di un alleato) nella stessa zona di mare toglie il blocco.
+                . Per romperlo affonda le navi che bloccano o porta nella zona almeno {b.blockers + 1} navi di superficie.
+              </p>
+            ))}
+            {capacity.blockaded.length === 0 && (
+              <p className="muted small">
+                Un porto si blocca con almeno {CONVOY.blockadeMinShips} navi di superficie di chi è in guerra con te o ti ha messo l'embargo,
+                nella zona di mare del porto.
               </p>
             )}
             {byConvoy && (flows.length > 0 || atSea.convoys > 0) && (

@@ -61,24 +61,42 @@ describe("convogli", () => {
     expect(game.nations.AAA!.stock.food).toBeLessThan(500);
   });
 
-  it("una flotta di superficie nemica blocca i porti della zona; una nave propria (o alleata) toglie il blocco", () => {
+  it("almeno 2 navi di superficie nemiche bloccano i porti della zona; per rompere il blocco servono più navi proprie o alleate", () => {
     const game = newGame();
-    fleet(game, "BBB", cell(20, 0), ["submarine"]);
-    expect(blockadedPorts(world.map, game, world.nav!, "AAA").size).toBe(0); // i sottomarini non bloccano
+    const blocked = (g: GameState) => [...blockadedPorts(world.map, g, world.nav!, "AAA")];
+    fleet(game, "BBB", cell(20, 0), ["submarine", "submarine", "submarine"]);
+    expect(blocked(game)).toEqual([]); // i sottomarini non bloccano
     fleet(game, "BBB", cell(21, 0), ["destroyer"]);
-    expect([...blockadedPorts(world.map, game, world.nav!, "AAA")]).toEqual(["A9"]);
+    expect(blocked(game)).toEqual([]); // una nave sola non basta
+    fleet(game, "BBB", cell(21, 1), ["cruiser"]);
+    expect(blocked(game)).toEqual(["A9"]);
     const capacity = importCapacityPerDay(world.map, game, "AAA", world.nav);
     expect(capacity.sea).toBe(TRADE.portCityPerDay);
     expect(capacity.blockadedPerDay).toBe(TRADE.portPerLevel);
-    // Senza guerra niente blocco.
-    expect(blockadedPorts(world.map, newGame(false), world.nav!, "AAA").size).toBe(0);
-    fleet(game, "AAA", cell(21, 4), ["destroyer"]);
-    expect(blockadedPorts(world.map, game, world.nav!, "AAA").size).toBe(0);
+    // Senza guerra (e senza embargo) niente blocco.
+    expect(blockadedPorts(world.map, { ...game, relations: {} }, world.nav!, "AAA").size).toBe(0);
+    // Due navi contro due: il blocco tiene; con tre si rompe.
+    fleet(game, "AAA", cell(21, 4), ["destroyer", "destroyer"]);
+    expect(blocked(game)).toEqual(["A9"]);
+    fleet(game, "AAA", cell(20, 4), ["cruiser"]);
+    expect(blocked(game)).toEqual([]);
+  });
+
+  it("chi mette l'embargo può bloccare i porti senza guerra, e senza guerra non si spara ai convogli", () => {
+    let game = newGame(false);
+    game.nations.BBB = { ...game.nations.BBB!, embargo: ["AAA"] };
+    fleet(game, "BBB", cell(21, 0), ["destroyer", "destroyer"]);
+    expect([...blockadedPorts(world.map, game, world.nav!, "AAA")]).toEqual(["A9"]);
+    // Chi subisce l'embargo non blocca chi l'ha messo.
+    fleet(game, "AAA", cell(20, 4), ["destroyer", "destroyer", "destroyer"]);
+    expect(blockadedPorts(world.map, game, world.nav!, "BBB").size).toBe(0);
+    game = advance(game, world, DAY);
+    expect(game.relations[pairKey("AAA", "BBB")]?.war ?? false).toBe(false);
   });
 
   it("con i porti bloccati non parte nessun convoglio", () => {
     let game = newGame();
-    fleet(game, "BBB", cell(20, 0), ["battleship"]);
+    fleet(game, "BBB", cell(20, 0), ["battleship", "cruiser"]);
     game = advance(game, world, DAY);
     expect(convoys(game)).toHaveLength(0);
   });

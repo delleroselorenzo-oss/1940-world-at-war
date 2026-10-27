@@ -4,6 +4,7 @@ import {
   DIPLOMACY,
   formatGameTime,
   hasAgreement,
+  CONVOY,
   hasEmbargo,
   inTruce,
   isHuman,
@@ -273,7 +274,8 @@ function NationDetail({
             <strong>Embargo</strong>
             {hasEmbargo(game, me, nation) && <span className="relation-tag neutral">attivo</span>}
             <span className="muted small">
-              Niente scambi in borsa con questa nazione e niente importazioni attraverso il suo territorio. Lo decidi da solo.
+              Niente scambi in borsa con questa nazione e niente importazioni attraverso il suo territorio. Lo decidi da solo, senza
+              guerra. Con almeno {CONVOY.blockadeMinShips} navi di superficie nella zona di mare di un suo porto puoi anche bloccarlo.
             </span>
           </span>
           <button
