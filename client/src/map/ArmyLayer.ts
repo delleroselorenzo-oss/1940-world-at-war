@@ -1,14 +1,14 @@
-import { Container, Graphics, Sprite, Text } from "pixi.js";
+import { Container, Graphics, Text } from "pixi.js";
 import { armyHealth, armyPosition, type Army } from "@waw/shared";
 import type { Camera } from "./camera.js";
 import type { LoadedMap } from "./loadMap.js";
 import { project } from "./projection.js";
-import { drawFigure, leadUnit, tokenScale, tokenTexture, tokenUrl } from "./tokens.js";
+import { drawCountChip, Figure, leadUnit, tokenScale, tokenTexture, tokenUrl } from "./tokens.js";
 
 // Armate sulla mappa: una pedina dipinta (la figura dell'unità principale, con la sua stazza, voltata nel senso di marcia)
 // con il numero di unità in un cerchietto col colore della nazione, che scorre lungo il percorso mentre l'armata marcia.
 // Senza la figura per la sua dottrina, un gettone col colore della nazione. Sotto, la barra della salute;
-// rosso (anello o bordo) in combattimento, giallo se selezionata. Le dimensioni sono in pixel dello schermo,
+// contorno (o bordo) rosso in combattimento, giallo se selezionata. Le dimensioni sono in pixel dello schermo,
 // un po' più grandi avvicinandosi (`tokenScale`).
 
 const BADGE_W = 28;
@@ -28,7 +28,7 @@ interface Badge {
   /** Cerchietto del numero (sopra la figura). */
   chip: Graphics;
   label: Text;
-  figure: Sprite;
+  fig: Figure;
   /** Spostamento verticale del punto da toccare. */
   hitDy: number;
   /** Aspetto disegnato l'ultima volta, per ridisegnare solo quando cambia. */
@@ -86,7 +86,7 @@ export class ArmyLayer {
       badge.y = y + offset * inv;
       badge.container.position.set(badge.x, badge.y);
       badge.container.scale.set(inv * size);
-      badge.figure.scale.x = Math.abs(badge.figure.scale.x) * (headingWest(army, x, now) ? -1 : 1);
+      badge.fig.setFlip(headingWest(army, x, now));
     }
     this.drawPath(cam, now);
   }
@@ -113,12 +113,11 @@ export class ArmyLayer {
         style: { fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif", fontSize: 12, fontWeight: "700", fill: "#ffffff" },
       });
       label.anchor.set(0.5);
-      const figure = new Sprite();
-      figure.anchor.set(0.5, 1);
+      const fig = new Figure();
       const chip = new Graphics();
-      container.addChild(bg, figure, chip, label);
+      container.addChild(fig.shadow, bg, fig.outline, fig.sprite, chip, label);
       this.container.addChild(container);
-      badge = { container, bg, chip, label, figure, hitDy: 0, look: "", x: 0, y: 0 };
+      badge = { container, bg, chip, label, fig, hitDy: 0, look: "", x: 0, y: 0 };
       this.badges.set(army.id, badge);
     }
     const color = this.map.nations.get(army.owner)?.color ?? "#888888";
@@ -136,19 +135,18 @@ export class ArmyLayer {
       let barY = BADGE_H / 2 + 2;
       let barW = BADGE_W;
       if (texture) {
-        const ring = selected ? SELECT_COLOR : fighting ? COMBAT_COLOR : null;
-        const layout = drawFigure(g, badge.chip, badge.figure, texture, lead!, { color, mine, ring, count: army.units.length });
-        badge.label.position.set(...layout.count);
+        badge.fig.show(texture, lead!, "land", selected ? SELECT_COLOR : fighting ? COMBAT_COLOR : null);
+        badge.label.position.set(...drawCountChip(badge.chip, badge.fig, { color, mine, count: army.units.length }));
         badge.label.style.fontSize = 10;
-        badge.hitDy = layout.hitDy;
-        barY = layout.bottom;
-        barW = Math.max(BADGE_W, layout.width * 0.7);
+        badge.hitDy = -badge.fig.height / 2;
+        barY = 4;
+        barW = Math.max(BADGE_W, badge.fig.width * 0.7);
       } else {
         const border = selected ? SELECT_COLOR : fighting ? COMBAT_COLOR : mine ? "#ffffff" : "#1b1b1b";
         g.roundRect(-BADGE_W / 2, -BADGE_H / 2, BADGE_W, BADGE_H, 5)
           .fill(color)
           .stroke({ width: selected || fighting ? 3 : mine ? 2 : 1.2, color: border });
-        badge.figure.visible = false;
+        badge.fig.hide();
         badge.label.position.set(0, 0);
         badge.label.style.fontSize = 12;
         badge.hitDy = 0;

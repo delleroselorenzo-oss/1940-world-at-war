@@ -1,14 +1,15 @@
-import { Container, Graphics, Sprite, Text } from "pixi.js";
+import { Container, Graphics, Text } from "pixi.js";
 import { fleetPosition, isSubmerged, type Fleet } from "@waw/shared";
 import type { Camera } from "./camera.js";
 import type { LoadedMap } from "./loadMap.js";
 import { project } from "./projection.js";
-import { drawFigure, leadShip, tokenScale, tokenTexture, tokenUrl } from "./tokens.js";
+import { drawCountChip, Figure, leadShip, tokenScale, tokenTexture, tokenUrl } from "./tokens.js";
 
 // Flotte sulla mappa: una pedina dipinta (la nave più grande della flotta; il trasporto truppe o il convoglio
 // mercantile, uguali per tutti) con la sua stazza, voltata nel senso di navigazione, e il numero di navi (o di unità a bordo)
 // in un cerchietto col colore della nazione. Senza la figura, un gettone allungato con la sagoma di una nave (di un
 // sottomarino se la flotta ne ha solo; di un mercantile per un trasporto). In immersione la pedina è velata.
+// Sull'acqua l'ombra è blu scuro; in navigazione la nave lascia la scia (non i sottomarini in immersione).
 // Più flotte nello stesso punto (lo stesso porto) si impilano. Per la flotta selezionata: la rotta che resta.
 // Le dimensioni sono in pixel dello schermo (indipendenti dallo zoom).
 
@@ -25,7 +26,7 @@ interface Badge {
   /** Cerchietto del numero (sopra la figura). */
   chip: Graphics;
   label: Text;
-  figure: Sprite;
+  fig: Figure;
   hitDy: number;
   look: string;
   x: number;
@@ -77,7 +78,7 @@ export class FleetLayer {
       badge.y = y - k * STACK_GAP * size * inv;
       badge.container.position.set(badge.x, badge.y);
       badge.container.scale.set(inv * size);
-      badge.figure.scale.x = Math.abs(badge.figure.scale.x) * (sailingWest(fleet, x, now) ? -1 : 1);
+      badge.fig.setFlip(sailingWest(fleet, x, now));
     }
     this.drawSelected(cam, now);
   }
@@ -104,12 +105,11 @@ export class FleetLayer {
         style: { fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif", fontSize: 10, fontWeight: "700", fill: "#ffffff" },
       });
       label.anchor.set(0.5);
-      const figure = new Sprite();
-      figure.anchor.set(0.5, 1);
+      const fig = new Figure();
       const chip = new Graphics();
-      container.addChild(bg, figure, chip, label);
+      container.addChild(fig.shadow, fig.wake, bg, fig.outline, fig.sprite, chip, label);
       this.container.addChild(container);
-      badge = { container, bg, chip, label, figure, hitDy: 0, look: "", x: 0, y: 0 };
+      badge = { container, bg, chip, label, fig, hitDy: 0, look: "", x: 0, y: 0 };
       this.badges.set(fleet.id, badge);
     }
     const color = this.map.nations.get(fleet.owner)?.color ?? "#888888";
@@ -128,10 +128,11 @@ export class FleetLayer {
       const g = badge.bg.clear();
       badge.chip.clear();
       if (texture) {
-        const ring = selected ? SELECT_COLOR : null;
-        const layout = drawFigure(g, badge.chip, badge.figure, texture, lead!, { color, mine, ring, count: convoy ? null : (cargo ?? fleet.ships.length) });
-        badge.label.position.set(...layout.count);
-        badge.hitDy = layout.hitDy;
+        badge.fig.show(texture, lead!, "sea", selected ? SELECT_COLOR : null);
+        // In immersione niente scia: il sottomarino non si deve vedere.
+        badge.fig.setWake(sailing && !submerged);
+        badge.label.position.set(...drawCountChip(badge.chip, badge.fig, { color, mine, count: convoy ? null : (cargo ?? fleet.ships.length) }));
+        badge.hitDy = -badge.fig.height / 2;
       } else {
         const border = selected ? SELECT_COLOR : mine ? "#ffffff" : "#1b1b1b";
         g.roundRect(-HALF_W, -HALF_H, HALF_W * 2, HALF_H * 2, HALF_H)
@@ -141,7 +142,7 @@ export class FleetLayer {
         else if (convoy) drawConvoy(g);
         else if (subs) drawSubmarine(g);
         else drawShip(g);
-        badge.figure.visible = false;
+        badge.fig.hide();
         badge.hitDy = 0;
         // Numero di navi in un cerchietto in basso a destra (per un trasporto: le unità a bordo; il convoglio non ne ha).
         if (!convoy) g.circle(HALF_W, HALF_H * 0.8, 6).fill("#1b1b1b");

@@ -1,9 +1,9 @@
-import { Container, Graphics, Sprite, Text } from "pixi.js";
+import { Container, Graphics, Text } from "pixi.js";
 import { squadronAltitude, squadronPosition, squadronRangeKm, type Fleet, type Squadron } from "@waw/shared";
 import type { Camera } from "./camera.js";
 import type { LoadedMap } from "./loadMap.js";
 import { project } from "./projection.js";
-import { drawFigure, leadAircraft, tokenScale, tokenTexture, tokenUrl } from "./tokens.js";
+import { drawCountChip, Figure, leadAircraft, tokenScale, tokenTexture, tokenUrl } from "./tokens.js";
 
 // Squadriglie sulla mappa: una pedina dipinta (l'aereo più numeroso, a parità il più costoso, con la sua stazza) voltata
 // nel senso del volo, con il numero di aerei in un cerchietto col colore della nazione; senza la figura, un gettone tondo
@@ -26,13 +26,13 @@ const HIT_RADIUS = 14;
 
 interface Badge {
   container: Container;
-  /** Ombra a terra (e anello di selezione). */
+  /** Gettone disegnato, se manca la figura. */
   bg: Graphics;
   /** Ciò che vola: figura, cerchietto del numero e numero; si alza con la quota. */
   body: Container;
   chip: Graphics;
   label: Text;
-  figure: Sprite;
+  fig: Figure;
   /** Punto da toccare a terra; in volo si alza con la figura. */
   hitDy: number;
   lift: number;
@@ -93,13 +93,11 @@ export class SquadronLayer {
       badge.y = y + dy * size * inv;
       badge.container.position.set(badge.x, badge.y);
       badge.container.scale.set(inv * size);
-      const altitude = badge.figure.visible ? squadronAltitude(this.fleets, sq, this.map.data, now) : 0;
+      const altitude = badge.fig.sprite.visible ? squadronAltitude(this.fleets, sq, this.map.data, now) : 0;
       badge.lift = altitude * CRUISE_PX;
       badge.body.y = -badge.lift;
-      // Più è in alto, più l'ombra è leggera.
-      badge.bg.alpha = 1 - 0.45 * altitude;
-      const west = sq.flight !== null && project(sq.flight.to)[0] < project(sq.flight.from)[0];
-      badge.figure.scale.x = Math.abs(badge.figure.scale.x) * (west ? -1 : 1);
+      badge.fig.fadeShadow(1 - 0.45 * altitude);
+      badge.fig.setFlip(sq.flight !== null && project(sq.flight.to)[0] < project(sq.flight.from)[0]);
     }
     this.drawSelected(cam, now);
   }
@@ -126,14 +124,14 @@ export class SquadronLayer {
         style: { fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif", fontSize: 10, fontWeight: "700", fill: "#ffffff" },
       });
       label.anchor.set(0.5);
-      const figure = new Sprite();
-      figure.anchor.set(0.5, 1);
+      const fig = new Figure();
       const chip = new Graphics();
       const body = new Container();
-      body.addChild(figure, chip, label);
-      container.addChild(bg, body);
+      body.addChild(fig.outline, fig.sprite, chip, label);
+      // L'ombra resta a terra mentre la figura si alza.
+      container.addChild(fig.shadow, bg, body);
       this.container.addChild(container);
-      badge = { container, bg, body, chip, label, figure, hitDy: 0, lift: 0, look: "", x: 0, y: 0 };
+      badge = { container, bg, body, chip, label, fig, hitDy: 0, lift: 0, look: "", x: 0, y: 0 };
       this.badges.set(sq.id, badge);
     }
     const color = this.map.nations.get(sq.owner)?.color ?? "#888888";
@@ -148,16 +146,16 @@ export class SquadronLayer {
       const g = badge.bg.clear();
       badge.chip.clear();
       if (texture) {
-        const layout = drawFigure(g, badge.chip, badge.figure, texture, lead!, { color, mine, ring: selected ? SELECT_COLOR : null, count: sq.aircraft.length });
-        badge.label.position.set(...layout.count);
-        badge.hitDy = layout.hitDy;
+        badge.fig.show(texture, lead!, "air", selected ? SELECT_COLOR : null);
+        badge.label.position.set(...drawCountChip(badge.chip, badge.fig, { color, mine, count: sq.aircraft.length }));
+        badge.hitDy = -badge.fig.height / 2;
       } else {
         const border = selected ? SELECT_COLOR : mine ? "#ffffff" : "#1b1b1b";
         g.circle(0, 0, RADIUS)
           .fill(color)
           .stroke({ width: selected ? 3 : mine ? 2 : 1.2, color: border });
         drawPlane(g);
-        badge.figure.visible = false;
+        badge.fig.hide();
         badge.hitDy = 0;
         // Numero di aerei in un cerchietto in basso a destra.
         g.circle(RADIUS * 0.75, RADIUS * 0.75, 6).fill("#1b1b1b");
