@@ -1,12 +1,12 @@
 import { Container, Graphics, Text } from "pixi.js";
-import { squadronAltitude, squadronPosition, squadronRangeKm, type Fleet, type Squadron } from "@waw/shared";
+import { squadronAltitude, squadronHealth, squadronPosition, squadronRangeKm, type Fleet, type Squadron } from "@waw/shared";
 import type { Camera } from "./camera.js";
 import type { LoadedMap } from "./loadMap.js";
 import { project } from "./projection.js";
-import { drawCountChip, Figure, leadAircraft, tokenScale, tokenTexture, tokenUrl } from "./tokens.js";
+import { Figure, leadAircraft, placeTag, tagBorder, tagIconsReady, tokenScale, tokenTexture, tokenUrl, UnitTag } from "./tokens.js";
 
 // Squadriglie sulla mappa: una pedina dipinta (l'aereo più numeroso, a parità il più costoso, con la sua stazza) voltata
-// nel senso del volo, con il numero di aerei in un cerchietto col colore della nazione; senza la figura, un gettone tondo
+// nel senso del volo, con accanto il cartellino (aerei, salute, colore della nazione); senza la figura, un gettone tondo
 // con la sagoma di un aereo. A terra sta accanto al centro della base (a destra, per non coprire le armate); in volo
 // scorre lungo la rotta e si alza sopra la sua ombra: sale dopo il decollo, resta in quota verso il bersaglio e sopra
 // di lui, scende solo arrivando a una base (`squadronAltitude`).
@@ -17,7 +17,7 @@ const RADIUS = 11;
 /** Spostamento a destra del centro della base, per stare accanto alle armate. */
 const GROUND_OFFSET_X = 26;
 /** Distanza verticale tra più squadriglie nella stessa base. */
-const STACK_GAP = 32;
+const STACK_GAP = 40;
 /** Altezza in quota della figura sopra la sua ombra. */
 const CRUISE_PX = 30;
 const SELECT_COLOR = "#ffd23f";
@@ -28,9 +28,10 @@ interface Badge {
   container: Container;
   /** Gettone disegnato, se manca la figura. */
   bg: Graphics;
-  /** Ciò che vola: figura, cerchietto del numero e numero; si alza con la quota. */
+  /** Ciò che vola: figura e cartellino; si alza con la quota. */
   body: Container;
-  chip: Graphics;
+  /** Cartellino accanto all'aereo: numero di aerei e salute. */
+  tag: UnitTag;
   label: Text;
   fig: Figure;
   /** Punto da toccare a terra; in volo si alza con la figura. */
@@ -125,13 +126,13 @@ export class SquadronLayer {
       });
       label.anchor.set(0.5);
       const fig = new Figure();
-      const chip = new Graphics();
+      const tag = new UnitTag();
       const body = new Container();
-      body.addChild(fig.outline, fig.sprite, chip, label);
+      body.addChild(fig.outline, fig.sprite, tag.container, label);
       // L'ombra resta a terra mentre la figura si alza.
       container.addChild(fig.shadow, bg, body);
       this.container.addChild(container);
-      badge = { container, bg, body, chip, label, fig, hitDy: 0, lift: 0, look: "", x: 0, y: 0 };
+      badge = { container, bg, body, tag, label, fig, hitDy: 0, lift: 0, look: "", x: 0, y: 0 };
       this.badges.set(sq.id, badge);
     }
     const color = this.map.nations.get(sq.owner)?.color ?? "#888888";
@@ -140,14 +141,17 @@ export class SquadronLayer {
     const flying = sq.flight !== null;
     const lead = leadAircraft(sq.aircraft);
     const texture = lead ? tokenTexture(tokenUrl(sq.owner, lead)) : null;
-    const look = `${color}|${mine}|${selected}|${flying}|${sq.aircraft.length}|${lead}|${texture !== null}`;
+    const health = Math.round(squadronHealth(sq) * 20) / 20;
+    const look = `${color}|${mine}|${selected}|${flying}|${sq.aircraft.length}|${health}|${lead}|${texture !== null}|${tagIconsReady()}`;
     if (look !== badge.look) {
       badge.look = look;
       const g = badge.bg.clear();
-      badge.chip.clear();
       if (texture) {
         badge.fig.show(texture, lead!, "air", selected ? SELECT_COLOR : null);
-        badge.label.position.set(...drawCountChip(badge.chip, badge.fig, { color, mine, count: sq.aircraft.length }));
+        badge.tag.draw([{ icon: "air", count: sq.aircraft.length }], color, health, tagBorder(selected, false, mine));
+        placeTag(badge.tag, badge.fig);
+        badge.tag.container.visible = true;
+        badge.label.visible = false;
         badge.hitDy = -badge.fig.height / 2;
       } else {
         const border = selected ? SELECT_COLOR : mine ? "#ffffff" : "#1b1b1b";
@@ -156,6 +160,8 @@ export class SquadronLayer {
           .stroke({ width: selected ? 3 : mine ? 2 : 1.2, color: border });
         drawPlane(g);
         badge.fig.hide();
+        badge.tag.container.visible = false;
+        badge.label.visible = true;
         badge.hitDy = 0;
         // Numero di aerei in un cerchietto in basso a destra.
         g.circle(RADIUS * 0.75, RADIUS * 0.75, 6).fill("#1b1b1b");

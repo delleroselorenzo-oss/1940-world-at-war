@@ -1,6 +1,6 @@
 # Pedine dipinte per la mappa — guida e prompt
 
-Le armate sulla mappa diventano **soldatini dipinti**: ogni gettone mostra la figura dell'unità principale dell'armata. Niente basetta: la figura poggia direttamente sulla mappa con l'ombra della sua sagoma; accanto il numero di unità in un cerchietto col colore della nazione. Le immagini quindi contengono **solo la figura**: niente base, niente sfondo, niente bandiere.
+Le armate sulla mappa diventano **soldatini dipinti**: ogni gettone mostra la figura dell'unità principale dell'armata. Niente basetta: la figura poggia direttamente sulla mappa con un'ombra morbida della sua sagoma; accanto un cartellino con le truppe, la salute e il colore della nazione. Le immagini quindi contengono **solo la figura**: niente base, niente sfondo, niente bandiere.
 
 ## Cosa serve
 
@@ -167,7 +167,7 @@ Accorgimenti:
 - Per il **convoglio aereo** l'aereo sul rimorchio deve vedersi bene: è l'unica cosa che lo distingue dalla fanteria motorizzata. Se il generatore disegna l'aereo con le ali aperte, chiedi: *"Wings removed and carried beside the fuselage, the plane must fit on the trailer."*
 - Il **trasporto** deve sembrare diverso dalle navi da guerra: più alto, niente torri dei cannoni, soldati sul ponte.
 - Il **convoglio mercantile** è l'unica pedina con due figure. Tienile vicine, così a 40 pixel si legge come un gruppo e non come due macchie.
-- Le navi mercantili sono civili, quindi le tre dottrine possono uscire simili. Va bene così: il colore del cerchietto dirà di chi sono.
+- Le navi mercantili sono civili, quindi le tre dottrine possono uscire simili. Va bene così: il colore del cartellino dirà di chi sono.
 
 I file vanno in `icone/pedine/<dottrina>/<id>.png`, come gli altri.
 
@@ -175,10 +175,11 @@ I file vanno in `icone/pedine/<dottrina>/<id>.png`, come gli altri.
 
 ## Come le userà il gioco
 
-- **Armata**: figura dell'unità "di testa". Per ora è la più numerosa; a parità, la più forte (carri prima della fanteria). Niente basetta né ovali: l'ombra ha la stessa sagoma della figura (nera a terra, blu scuro sull'acqua), la selezione è un contorno giallo intorno alla figura e la battaglia un contorno rosso. Accanto il numero di unità in un cerchietto col colore della nazione (bordo bianco se è tua); sotto, la barra della salute.
-- **Navi**: l'acqua la disegna il gioco, le figure restano senza mare intorno (una macchia d'acqua dipinta avrebbe un azzurro diverso dal mare della mappa e in porto finirebbe sulla terra). In navigazione la nave lascia una scia: un baffo d'acqua a prua e due solchi dietro la poppa; i sottomarini in immersione no.
+- **Armata**: figura dell'unità "di testa". Per ora è la più numerosa; a parità, la più forte (carri prima della fanteria). Niente basetta né ovali: un'ombra morbida e sfumata della sagoma, spostata in basso a destra (luce da sinistra in alto), uguale a terra e in mare; la selezione è un contorno giallo intorno alla figura e la battaglia un contorno rosso.
+- **Cartellino** accanto alla figura: una riga per tipo di truppa con l'icona delle categorie di Produzione (fanteria, corazzati, artiglieria) e il numero; a sinistra una striscia col colore della nazione, a destra la salute in verticale (verde, gialla, rossa). Bordo bianco se è tua, giallo se selezionata, rosso in battaglia. Per le flotte una riga con le navi (per un trasporto, le truppe a bordo; per il convoglio mercantile solo l'icona), per le squadriglie una riga con gli aerei.
+- **Navi**: nessun effetto d'acqua, le figure restano senza mare intorno (una macchia d'acqua dipinta avrebbe un azzurro diverso dal mare della mappa e in porto finirebbe sulla terra).
 - **Squadriglia**: l'aereo più numeroso (a parità il più costoso). **Flotta**: la nave più grande. Le figure si voltano nel senso di marcia, di navigazione o di volo.
-- **Convogli**: una squadriglia che viaggia a terra mostra `airConvoy`. Un'armata in mare mostra `transport`, con accanto il numero delle unità a bordo. Le importazioni via mare mostrano `convoy`. Il convoglio aereo a terra non c'è ancora nel gioco: la figura è pronta per quando arriverà.
-- **Stazza**: non in scala vera, ma ogni tipo ha la sua misura (lato più lungo, con lo zoom di partenza): fanteria, genio e sanità 30 px; anticarro 34; antiaerea 36; autoblindo 38; motorizzata, artiglieria e carro leggero 40; carro pesante 48; caccia 36, ricognitore 38, bombardiere tattico 40, aerosilurante 42, bombardiere strategico 52; sottomarino 44, cacciatorpediniere 50, trasporto 56, convoglio e incrociatore 58, portaerei e corazzata 66. Avvicinandosi le pedine crescono (fino a 1,6 volte), per vedere i dettagli. I valori stanno in `client/src/map/tokens.ts` (`TOKEN_SIZE`).
+- **Convogli**: una squadriglia che viaggia a terra mostra `airConvoy`. Un'armata in mare mostra `transport`, con le truppe a bordo nel cartellino. Le importazioni via mare mostrano `convoy`. Il convoglio aereo a terra non c'è ancora nel gioco: la figura è pronta per quando arriverà.
+- **Stazza**: non in scala vera, ma ogni tipo ha la sua misura (lato più lungo, con lo zoom di partenza): fanteria, genio e sanità 40 px; anticarro 44; antiaerea 46; autoblindo 50; motorizzata, artiglieria e carro leggero 52; carro pesante 62; caccia 46, ricognitore 48, bombardiere tattico 52, aerosilurante 54, bombardiere strategico 66; sottomarino 56, cacciatorpediniere 64, trasporto 72, convoglio e incrociatore 74, portaerei e corazzata 84. Avvicinandosi le pedine crescono (fino al doppio), per vedere i dettagli. I valori stanno in `client/src/map/tokens.ts` (`TOKEN_SIZE`).
 - **Aerei in volo**: la figura si alza sopra la sua ombra, che resta a terra con la stessa sagoma ed è più leggera in quota. Sale nei primi 10 minuti dopo il decollo da una base, resta in quota verso il bersaglio e sopra di lui, scende solo negli ultimi 10 minuti prima di atterrare in una base (`squadronAltitude`).
 - Le figure della dottrina della nazione: un'armata tedesca ha soldatini tedeschi, una britannica soldatini alleati. È lo stesso sistema delle foto nelle schede delle unità.

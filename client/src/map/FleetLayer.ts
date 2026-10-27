@@ -1,30 +1,30 @@
 import { Container, Graphics, Text } from "pixi.js";
-import { fleetPosition, isSubmerged, type Fleet } from "@waw/shared";
+import { armyHealth, fleetHealth, fleetPosition, isSubmerged, type Fleet } from "@waw/shared";
 import type { Camera } from "./camera.js";
 import type { LoadedMap } from "./loadMap.js";
 import { project } from "./projection.js";
-import { drawCountChip, Figure, leadShip, tokenScale, tokenTexture, tokenUrl } from "./tokens.js";
+import { armyTagRows, Figure, leadShip, placeTag, tagBorder, tagIconsReady, tokenScale, tokenTexture, tokenUrl, UnitTag, type TagRow } from "./tokens.js";
 
 // Flotte sulla mappa: una pedina dipinta (la nave più grande della flotta; il trasporto truppe o il convoglio
-// mercantile, uguali per tutti) con la sua stazza, voltata nel senso di navigazione, e il numero di navi (o di unità a bordo)
-// in un cerchietto col colore della nazione. Senza la figura, un gettone allungato con la sagoma di una nave (di un
-// sottomarino se la flotta ne ha solo; di un mercantile per un trasporto). In immersione la pedina è velata.
-// Sull'acqua l'ombra è blu scuro; in navigazione la nave lascia la scia (non i sottomarini in immersione).
+// mercantile, uguali per tutti) con la sua stazza e l'ombra morbida, voltata nel senso di navigazione, e accanto il
+// cartellino (navi, o truppe a bordo di un trasporto; salute; colore della nazione). Senza la figura, un gettone allungato
+// con la sagoma di una nave (di un sottomarino se la flotta ne ha solo; di un mercantile per un trasporto).
+// In immersione la pedina è velata.
 // Più flotte nello stesso punto (lo stesso porto) si impilano. Per la flotta selezionata: la rotta che resta.
 // Le dimensioni sono in pixel dello schermo (indipendenti dallo zoom).
 
 const HALF_W = 15;
 const HALF_H = 9;
 /** Distanza verticale tra più flotte nello stesso punto. */
-const STACK_GAP = 36;
+const STACK_GAP = 46;
 const SELECT_COLOR = "#ffd23f";
 const HIT_RADIUS = 16;
 
 interface Badge {
   container: Container;
   bg: Graphics;
-  /** Cerchietto del numero (sopra la figura). */
-  chip: Graphics;
+  /** Cartellino accanto alla figura: navi (o truppe a bordo), numeri, salute. */
+  tag: UnitTag;
   label: Text;
   fig: Figure;
   hitDy: number;
@@ -106,10 +106,10 @@ export class FleetLayer {
       });
       label.anchor.set(0.5);
       const fig = new Figure();
-      const chip = new Graphics();
-      container.addChild(fig.shadow, fig.wake, bg, fig.outline, fig.sprite, chip, label);
+      const tag = new UnitTag();
+      container.addChild(fig.shadow, bg, fig.outline, fig.sprite, tag.container, label);
       this.container.addChild(container);
-      badge = { container, bg, chip, label, fig, hitDy: 0, look: "", x: 0, y: 0 };
+      badge = { container, bg, tag, label, fig, hitDy: 0, look: "", x: 0, y: 0 };
       this.badges.set(fleet.id, badge);
     }
     const color = this.map.nations.get(fleet.owner)?.color ?? "#888888";
@@ -122,16 +122,20 @@ export class FleetLayer {
     const submerged = isSubmerged(fleet);
     const lead = convoy ? "convoy" : fleet.transport ? "transport" : leadShip(fleet.ships);
     const texture = lead ? tokenTexture(tokenUrl(fleet.owner, lead)) : null;
-    const look = `${color}|${mine}|${selected}|${sailing}|${fleet.ships.length}|${subs}|${submerged}|${cargo}|${convoy}|${lead}|${texture !== null}`;
+    // Cartellino: le truppe a bordo di un trasporto, le navi di una flotta, solo l'icona per il convoglio.
+    const rows: TagRow[] = fleet.transport ? armyTagRows(fleet.transport.army.units) : [{ icon: "navy", count: convoy ? null : fleet.ships.length }];
+    const health = Math.round((fleet.transport ? armyHealth(fleet.transport.army) : fleetHealth(fleet)) * 20) / 20;
+    const rowsKey = rows.map((r) => `${r.icon}${r.count}`).join();
+    const look = `${color}|${mine}|${selected}|${sailing}|${rowsKey}|${health}|${subs}|${submerged}|${cargo}|${convoy}|${lead}|${texture !== null}|${tagIconsReady()}`;
     if (look !== badge.look) {
       badge.look = look;
       const g = badge.bg.clear();
-      badge.chip.clear();
       if (texture) {
         badge.fig.show(texture, lead!, "sea", selected ? SELECT_COLOR : null);
-        // In immersione niente scia: il sottomarino non si deve vedere.
-        badge.fig.setWake(sailing && !submerged);
-        badge.label.position.set(...drawCountChip(badge.chip, badge.fig, { color, mine, count: convoy ? null : (cargo ?? fleet.ships.length) }));
+        badge.tag.draw(rows, color, health, tagBorder(selected, false, mine));
+        placeTag(badge.tag, badge.fig);
+        badge.tag.container.visible = true;
+        badge.label.visible = false;
         badge.hitDy = -badge.fig.height / 2;
       } else {
         const border = selected ? SELECT_COLOR : mine ? "#ffffff" : "#1b1b1b";
@@ -143,6 +147,8 @@ export class FleetLayer {
         else if (subs) drawSubmarine(g);
         else drawShip(g);
         badge.fig.hide();
+        badge.tag.container.visible = false;
+        badge.label.visible = true;
         badge.hitDy = 0;
         // Numero di navi in un cerchietto in basso a destra (per un trasporto: le unità a bordo; il convoglio non ne ha).
         if (!convoy) g.circle(HALF_W, HALF_H * 0.8, 6).fill("#1b1b1b");
