@@ -172,29 +172,62 @@ const OUTLINE_DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, 0.7],
 const OUTLINE_PX = 1.8;
 /** Ombra morbida (luce da sinistra in alto, come nelle figure): opacità e spostamento in pixel dello schermo. */
 const SHADOWS: Record<FigureKind, { alpha: number; dx: number; dy: number }> = {
-  land: { alpha: 0.55, dx: 5, dy: 4 },
-  sea: { alpha: 0.45, dx: 5, dy: 4 },
+  land: { alpha: 0.6, dx: 4, dy: 2 },
+  sea: { alpha: 0.45, dx: 4, dy: 3 },
   air: { alpha: 0.4, dx: 4, dy: 5 },
 };
+/**
+ * Figure in piedi (soldati visti di lato): l'ombra non è una copia spostata ma è proiettata sul terreno, schiacciata e
+ * inclinata, che parte dai piedi e si allunga verso destra in basso. I mezzi, visti più dall'alto, hanno l'ombra spostata.
+ */
+const STANDING = new Set(["infantry", "engineer", "medic"]);
+/** Ombra proiettata: quanto è schiacciata e quanto pende (radianti). */
+const CAST_FLATTEN = 0.42;
+const CAST_SKEW = 0.85;
+
+/** Macchia sfumata per l'ombra di contatto (bianca, si colora con `tint`). */
+let contactTexture: Texture | null = null;
+function contactBlob(): Texture {
+  if (contactTexture) return contactTexture;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 64;
+  const ctx = canvas.getContext("2d")!;
+  const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, "rgba(255,255,255,1)");
+  grad.addColorStop(0.45, "rgba(255,255,255,0.6)");
+  grad.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 64, 64);
+  contactTexture = Texture.from(canvas);
+  return contactTexture;
+}
 
 /**
- * Figura dipinta senza basetta: niente si mette tra la figura e la mappa. Ha un'ombra morbida della sua sagoma
- * (`shadow`, sotto tutto; per un aereo in volo resta a terra mentre la figura si alza), il contorno della sagoma
- * per la selezione o la battaglia (`outline`) e la figura (`sprite`).
+ * Figura dipinta senza basetta: niente si mette tra la figura e la mappa. Ha la sua ombra (`shadow`, sotto tutto; per un
+ * aereo in volo resta a terra mentre la figura si alza), il contorno della sagoma per la selezione o la battaglia
+ * (`outline`) e la figura (`sprite`). L'ombra è fatta di due parti: la sagoma sfumata (`cast`: proiettata sul terreno per
+ * i soldati, spostata per mezzi, navi e aerei) e, per chi sta a terra, una piccola ombra di contatto sfumata proprio sotto
+ * i piedi o le ruote (`contact`), che fa sembrare la figura appoggiata.
  * Il punto della pedina è dove la figura poggia: i piedi, le ruote, la linea di galleggiamento.
  */
 export class Figure {
-  readonly shadow = new Sprite();
+  readonly shadow = new Container();
   readonly outline = new Container();
   readonly sprite = new Sprite();
   width = 0;
   height = 0;
+  private readonly cast = new Sprite();
+  private readonly contact = new Sprite();
   private k = 1;
   private shadowAlpha = 0;
-  private shadowDx = 0;
+  private standing = false;
 
   constructor() {
     this.sprite.anchor.set(0.5, 1);
+    this.contact.anchor.set(0.5);
+    this.contact.tint = 0x000000;
+    this.cast.tint = 0x000000;
+    this.shadow.addChild(this.cast, this.contact);
     for (const [dx, dy] of OUTLINE_DIRS) {
       const s = new Sprite();
       s.anchor.set(0.5, 1);
@@ -213,23 +246,31 @@ export class Figure {
     this.k = (TOKEN_SIZE[id] ?? 36) / Math.max(texture.width, texture.height);
     this.width = texture.width * this.k;
     this.height = texture.height * this.k;
+    this.standing = kind === "land" && STANDING.has(id);
     const extra = figureExtras.get(texture);
     const shade = SHADOWS[kind];
     if (extra) {
-      this.shadow.texture = extra.shadow;
+      this.cast.texture = extra.shadow;
       // L'ombra ha un margine intorno per la sfumatura: l'ancora resta sul piede della figura.
-      this.shadow.anchor.set((SHADOW_PAD + texture.width / 2) / extra.shadow.width, (SHADOW_PAD + texture.height) / extra.shadow.height);
+      this.cast.anchor.set((SHADOW_PAD + texture.width / 2) / extra.shadow.width, (SHADOW_PAD + texture.height) / extra.shadow.height);
     }
-    this.shadow.tint = 0x000000;
+    this.cast.visible = extra !== undefined;
+    this.cast.alpha = this.standing ? 0.8 : 1;
+    this.cast.position.set(this.standing ? 1 : shade.dx, this.standing ? 0 : shade.dy);
+    // Ombra di contatto: stretta e sfumata, solo per chi poggia a terra.
+    this.contact.visible = kind === "land";
+    this.contact.texture = contactBlob();
+    this.contact.width = this.width * (this.standing ? 0.55 : 0.85);
+    this.contact.height = Math.max(4, this.height * (this.standing ? 0.12 : 0.22));
+    this.contact.position.set(1, this.standing ? 0 : -this.height * 0.08);
+    this.contact.alpha = 0.9;
     this.shadow.alpha = this.shadowAlpha = shade.alpha;
-    this.shadowDx = shade.dx;
-    this.shadow.position.set(shade.dx, shade.dy);
     this.sprite.texture = texture;
     for (const s of this.outline.children as Sprite[]) {
       s.texture = extra?.silhouette ?? texture;
       if (ring) s.tint = ring;
     }
-    this.shadow.visible = extra !== undefined;
+    this.shadow.visible = true;
     this.sprite.visible = true;
     this.outline.visible = ring !== null;
     this.setFlip(false);
@@ -240,13 +281,19 @@ export class Figure {
     this.shadow.alpha = this.shadowAlpha * k;
   }
 
-  /** Volta la figura (guarda a destra; `west` = verso sinistra). L'ombra resta in basso a destra. */
+  /** Volta la figura (guarda a destra; `west` = verso sinistra). L'ombra cade sempre in basso a destra. */
   setFlip(west: boolean): void {
     const sx = west ? -this.k : this.k;
     this.sprite.scale.set(sx, this.k);
-    this.shadow.scale.set(sx, this.k);
-    this.shadow.x = this.shadowDx;
     for (const s of this.outline.children as Sprite[]) s.scale.set(sx, this.k);
+    if (this.standing) {
+      // Ribaltata in basso, schiacciata e inclinata: la sagoma stesa per terra davanti ai piedi.
+      this.cast.scale.set(sx, -this.k * CAST_FLATTEN);
+      this.cast.skew.set(CAST_SKEW, 0);
+    } else {
+      this.cast.scale.set(sx, this.k);
+      this.cast.skew.set(0, 0);
+    }
   }
 }
 
