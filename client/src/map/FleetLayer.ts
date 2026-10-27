@@ -1,18 +1,27 @@
-import { Container, Graphics, Text } from "pixi.js";
+import { Container, Graphics, Sprite, Text } from "pixi.js";
 import { fleetPosition, isSubmerged, type Fleet } from "@waw/shared";
 import type { Camera } from "./camera.js";
 import type { LoadedMap } from "./loadMap.js";
 import { project } from "./projection.js";
+import { drawPedestal, leadShip, tokenTexture, tokenUrl } from "./tokens.js";
 
-// Flotte sulla mappa: un gettone allungato col colore della nazione, la sagoma di una nave (di un sottomarino se la flotta
-// ne ha solo, in immersione col gettone velato; di un mercantile per un trasporto) e il numero di navi (o di unità a bordo).
+// Flotte sulla mappa: una pedina dipinta (la nave più grande della flotta; il trasporto truppe o il convoglio
+// mercantile, uguali per tutti) su una basetta allungata col colore della nazione, voltata nel senso di navigazione.
+// Senza la figura, un gettone allungato con la sagoma di una nave (di un sottomarino se la flotta ne ha solo; di un
+// mercantile per un trasporto). In immersione la pedina è velata. Accanto il numero di navi (o di unità a bordo).
 // Più flotte nello stesso punto (lo stesso porto) si impilano. Per la flotta selezionata: la rotta che resta.
 // Le dimensioni sono in pixel dello schermo (indipendenti dallo zoom).
 
 const HALF_W = 15;
 const HALF_H = 9;
 /** Distanza verticale tra più flotte nello stesso punto. */
-const STACK_GAP = 22;
+const STACK_GAP = 30;
+/** Lato più lungo della figura della pedina. */
+const FIGURE = 38;
+/** Centro della basetta, sotto il punto della flotta; la nave ci poggia sopra. */
+const PEDESTAL_Y = 4;
+/** La pedina si tocca un po' più in alto del punto della flotta (dov'è la nave). */
+const FIGURE_HIT_DY = -7;
 const SELECT_COLOR = "#ffd23f";
 const HIT_RADIUS = 16;
 
@@ -20,6 +29,8 @@ interface Badge {
   container: Container;
   bg: Graphics;
   label: Text;
+  figure: Sprite;
+  hitDy: number;
   look: string;
   x: number;
   y: number;
@@ -67,6 +78,7 @@ export class FleetLayer {
       badge.y = y - k * STACK_GAP * inv;
       badge.container.position.set(badge.x, badge.y);
       badge.container.scale.set(inv);
+      badge.figure.scale.x = Math.abs(badge.figure.scale.x) * (sailingWest(fleet, x, now) ? -1 : 1);
     }
     this.drawSelected(cam, now);
   }
@@ -76,7 +88,7 @@ export class FleetLayer {
     let best: string | null = null;
     let bestDist = HIT_RADIUS;
     for (const [id, b] of this.badges) {
-      const d = Math.hypot(b.x * cam.scale + cam.x - sx, b.y * cam.scale + cam.y - sy);
+      const d = Math.hypot(b.x * cam.scale + cam.x - sx, b.y * cam.scale + cam.y + b.hitDy - sy);
       if (d < bestDist) [best, bestDist] = [id, d];
     }
     return best;
@@ -93,10 +105,11 @@ export class FleetLayer {
         style: { fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif", fontSize: 10, fontWeight: "700", fill: "#ffffff" },
       });
       label.anchor.set(0.5);
-      label.position.set(HALF_W, HALF_H * 0.8);
-      container.addChild(bg, label);
+      const figure = new Sprite();
+      figure.anchor.set(0.5, 1);
+      container.addChild(bg, figure, label);
       this.container.addChild(container);
-      badge = { container, bg, label, look: "", x: 0, y: 0 };
+      badge = { container, bg, label, figure, hitDy: 0, look: "", x: 0, y: 0 };
       this.badges.set(fleet.id, badge);
     }
     const color = this.map.nations.get(fleet.owner)?.color ?? "#888888";
@@ -107,21 +120,36 @@ export class FleetLayer {
     const convoy = fleet.convoy !== undefined;
     const subs = !cargo && !convoy && fleet.ships.every((s) => s.type === "submarine");
     const submerged = isSubmerged(fleet);
-    const look = `${color}|${mine}|${selected}|${sailing}|${fleet.ships.length}|${subs}|${submerged}|${cargo}|${convoy}`;
+    const lead = convoy ? "convoy" : fleet.transport ? "transport" : leadShip(fleet.ships);
+    const texture = lead ? tokenTexture(tokenUrl(fleet.owner, lead)) : null;
+    const look = `${color}|${mine}|${selected}|${sailing}|${fleet.ships.length}|${subs}|${submerged}|${cargo}|${convoy}|${lead}|${texture !== null}`;
     if (look !== badge.look) {
       badge.look = look;
       const border = selected ? SELECT_COLOR : mine ? "#ffffff" : "#1b1b1b";
+      const borderWidth = selected ? 3 : mine ? 2 : 1.2;
       const g = badge.bg.clear();
-      g.roundRect(-HALF_W, -HALF_H, HALF_W * 2, HALF_H * 2, HALF_H)
-        .fill(color)
-        .stroke({ width: selected ? 3 : mine ? 2 : 1.2, color: border });
-      if (cargo) drawTransport(g);
-      else if (convoy) drawConvoy(g);
-      else if (subs) drawSubmarine(g);
-      else drawShip(g);
+      let count: [number, number] = [HALF_W, HALF_H * 0.8];
+      if (texture) {
+        drawPedestal(g, PEDESTAL_Y, 19, 6.5, color, border, borderWidth);
+        badge.figure.texture = texture;
+        badge.figure.scale.set(FIGURE / Math.max(texture.width, texture.height));
+        badge.figure.position.set(0, PEDESTAL_Y + 2);
+        badge.figure.visible = true;
+        badge.hitDy = FIGURE_HIT_DY;
+        count = [19, PEDESTAL_Y - 1];
+      } else {
+        g.roundRect(-HALF_W, -HALF_H, HALF_W * 2, HALF_H * 2, HALF_H).fill(color).stroke({ width: borderWidth, color: border });
+        if (cargo) drawTransport(g);
+        else if (convoy) drawConvoy(g);
+        else if (subs) drawSubmarine(g);
+        else drawShip(g);
+        badge.figure.visible = false;
+        badge.hitDy = 0;
+      }
       badge.container.alpha = submerged ? 0.7 : 1;
       // Numero di navi in un cerchietto in basso a destra (per un trasporto: le unità a bordo; il convoglio non ne ha).
-      if (!convoy) g.circle(HALF_W, HALF_H * 0.8, 6).fill("#1b1b1b");
+      if (!convoy) g.circle(count[0], count[1], 6).fill("#1b1b1b");
+      badge.label.position.set(count[0], count[1]);
       badge.label.text = convoy ? "" : String(cargo ?? fleet.ships.length);
       badge.container.zIndex = selected ? 3 : sailing ? 2 : mine ? 1 : 0;
     }
@@ -181,4 +209,13 @@ function drawTransport(g: Graphics): void {
   g.rect(-7, -2.5, 4, 3.5).fill("#ffffff").stroke({ width: 0.8, color: "#1b1b1b", alpha: 0.6 });
   g.rect(-2.5, -2.5, 4, 3.5).fill("#ffffff").stroke({ width: 0.8, color: "#1b1b1b", alpha: 0.6 });
   g.rect(4, -5, 3, 6).fill("#ffffff").stroke({ width: 0.8, color: "#1b1b1b", alpha: 0.6 });
+}
+
+/** La flotta naviga verso ovest (la figura, con la prua a destra, va voltata)? */
+function sailingWest(fleet: Fleet, x: number, now: number): boolean {
+  const v = fleet.voyage;
+  if (!v) return false;
+  const i = v.times.findIndex((t) => t > now);
+  if (i < 0) return false;
+  return project(v.points[i]!)[0] < x - 1e-6;
 }

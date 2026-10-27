@@ -26,17 +26,28 @@ Le armate sulla mappa diventano **soldatini dipinti**: ogni gettone mostra la fi
 ## Dove metterle
 
 ```
-icone/pedine/alleati/infantry.png
-icone/pedine/nazisti/infantry.png
-icone/pedine/comunisti/infantry.png
-…
+icone/icone alleati/icone pedine/infantry.png
+icone/icone nazisti/icone pedine/infantry.png
+icone/icone comunisti/icone pedine/infantry.png
+icone/icone nipponici/icone pedine/infantry.png
+icone/icone in comune/transport.png      (uguali per tutte le dottrine)
+icone/icone in comune/convoy.png
 ```
 
-Usa il nome del file esattamente come la colonna "id" (maiuscole comprese). Dimmi quando ci sono e penso io al resto:
-- tolgo lo sfondo, se è rimasto;
-- ritaglio e centro tutte le figure allo stesso modo;
-- le rimpicciolisco per la mappa (dentro `client/src/assets/tokens/`);
-- le collego ai gettoni.
+Usa il nome del file esattamente come la colonna "id" (maiuscole comprese). Poi basta lanciare:
+
+```
+npm run build:tokens -w data
+```
+
+Lo script (`data/scripts/build-tokens.ts`) prepara le figure per la mappa in `client/src/assets/tokens/<dottrina>/` e `tokens/common/`:
+- toglie lo sfondo, se l'immagine non è trasparente (sfondo bianco o scacchiera finta attaccati ai bordi);
+- ritaglia la figura;
+- la rimpicciolisce a 128 pixel sul lato più lungo.
+
+Il gioco le prende da solo. Una dottrina senza figure tiene i gettoni disegnati.
+
+**Stato (27/10/2026):** ci sono tutte le figure degli Alleati (unità di terra, aerei, navi, convoglio aereo) e quelle in comune (trasporto e convoglio mercantile). Mancano Nazisti, Comunisti e Nipponici.
 
 ## Regole per tenere lo stile uguale su tutte
 
@@ -164,7 +175,7 @@ I file vanno in `icone/pedine/<dottrina>/<id>.png`, come gli altri.
 
 ## Come le userà il gioco
 
-- **Armata**: figura dell'unità "di testa". Per ora è la più numerosa; a parità, la più forte (carri prima della fanteria). Basetta col colore della nazione, numero di unità accanto, bordo bianco se è tua e giallo se è selezionata. Il numero e la selezione ci sono già oggi.
-- **Squadriglia**: l'aereo principale. **Flotta**: la nave più grande.
-- **Convogli**: una squadriglia che viaggia a terra mostra `airConvoy`. Un'armata in mare mostra `transport`, con accanto il numero delle unità a bordo. Le importazioni via mare mostrano `convoy`. Finché mancano le immagini restano le sagome disegnate dal gioco.
+- **Armata**: figura dell'unità "di testa". Per ora è la più numerosa; a parità, la più forte (carri prima della fanteria). Basetta col colore della nazione, numero di unità accanto, bordo bianco se è tua, giallo se è selezionata, rosso in battaglia; sotto, la barra della salute.
+- **Squadriglia**: l'aereo più numeroso (a parità il più costoso). **Flotta**: la nave più grande. Le figure si voltano nel senso di marcia, di navigazione o di volo.
+- **Convogli**: una squadriglia che viaggia a terra mostra `airConvoy`. Un'armata in mare mostra `transport`, con accanto il numero delle unità a bordo. Le importazioni via mare mostrano `convoy`. Il convoglio aereo a terra non c'è ancora nel gioco: la figura è pronta per quando arriverà.
 - Le figure della dottrina della nazione: un'armata tedesca ha soldatini tedeschi, una britannica soldatini alleati. È lo stesso sistema delle foto nelle schede delle unità.

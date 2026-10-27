@@ -1,20 +1,27 @@
-import { Container, Graphics, Text } from "pixi.js";
+import { Container, Graphics, Sprite, Text } from "pixi.js";
 import { armyHealth, armyPosition, type Army } from "@waw/shared";
 import type { Camera } from "./camera.js";
 import type { LoadedMap } from "./loadMap.js";
 import { project } from "./projection.js";
+import { drawPedestal, leadUnit, tokenTexture, tokenUrl } from "./tokens.js";
 
-// Armate sulla mappa: un "gettone" col colore della nazione e il numero di unità,
-// che scorre lungo il percorso mentre l'armata marcia. Sotto, la barra della salute;
-// il bordo rosso indica che è in combattimento. Le dimensioni sono in pixel
-// dello schermo (indipendenti dallo zoom).
+// Armate sulla mappa: una pedina dipinta (la figura dell'unità principale su una basetta col colore della nazione,
+// voltata nel senso di marcia) con il numero di unità, che scorre lungo il percorso mentre l'armata marcia.
+// Senza la figura per la sua dottrina, un gettone col colore della nazione. Sotto, la barra della salute;
+// il bordo rosso indica che è in combattimento. Le dimensioni sono in pixel dello schermo (indipendenti dallo zoom).
 
 const BADGE_W = 28;
 const BADGE_H = 18;
 /** Spostamento verso l'alto rispetto al centro della provincia, per non coprire la città. */
 const BADGE_OFFSET_Y = -16;
 /** Distanza verticale tra più armate ferme nello stesso punto. */
-const STACK_GAP = 26;
+const STACK_GAP = 34;
+/** Lato più lungo della figura della pedina. */
+const FIGURE = 34;
+/** Centro della basetta, sotto il punto dell'armata; la figura ci poggia sopra. */
+const PEDESTAL_Y = 4;
+/** La pedina si tocca un po' più in alto del punto dell'armata (dov'è la figura). */
+const FIGURE_HIT_DY = -9;
 const SELECT_COLOR = "#ffd23f";
 const COMBAT_COLOR = "#e5322d";
 const HEALTH_H = 3;
@@ -24,6 +31,9 @@ interface Badge {
   container: Container;
   bg: Graphics;
   label: Text;
+  figure: Sprite;
+  /** Spostamento verticale del punto da toccare. */
+  hitDy: number;
   /** Aspetto disegnato l'ultima volta, per ridisegnare solo quando cambia. */
   look: string;
   /** Posizione nel mondo (km) all'ultimo aggiornamento. */
@@ -76,6 +86,7 @@ export class ArmyLayer {
       badge.y = y + offset * inv;
       badge.container.position.set(badge.x, badge.y);
       badge.container.scale.set(inv);
+      badge.figure.scale.x = Math.abs(badge.figure.scale.x) * (headingWest(army, x, now) ? -1 : 1);
     }
     this.drawPath(cam, now);
   }
@@ -85,7 +96,7 @@ export class ArmyLayer {
     let best: string | null = null;
     let bestDist = HIT_RADIUS;
     for (const [id, b] of this.badges) {
-      const d = Math.hypot(b.x * cam.scale + cam.x - sx, b.y * cam.scale + cam.y - sy);
+      const d = Math.hypot(b.x * cam.scale + cam.x - sx, b.y * cam.scale + cam.y + b.hitDy - sy);
       if (d < bestDist) [best, bestDist] = [id, d];
     }
     return best;
@@ -102,9 +113,11 @@ export class ArmyLayer {
         style: { fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif", fontSize: 12, fontWeight: "700", fill: "#ffffff" },
       });
       label.anchor.set(0.5);
-      container.addChild(bg, label);
+      const figure = new Sprite();
+      figure.anchor.set(0.5, 1);
+      container.addChild(bg, figure, label);
       this.container.addChild(container);
-      badge = { container, bg, label, look: "", x: 0, y: 0 };
+      badge = { container, bg, label, figure, hitDy: 0, look: "", x: 0, y: 0 };
       this.badges.set(army.id, badge);
     }
     const color = this.map.nations.get(army.owner)?.color ?? "#888888";
@@ -112,17 +125,35 @@ export class ArmyLayer {
     const selected = army.id === this.selected;
     const fighting = this.engaged.has(army.id);
     const health = Math.round(armyHealth(army) * 20) / 20;
-    const look = `${color}|${mine}|${selected}|${fighting}|${health}|${army.units.length}`;
+    const lead = leadUnit(army.units);
+    const texture = lead ? tokenTexture(tokenUrl(army.owner, lead)) : null;
+    const look = `${color}|${mine}|${selected}|${fighting}|${health}|${army.units.length}|${lead}|${texture !== null}`;
     if (look !== badge.look) {
       badge.look = look;
       const border = selected ? SELECT_COLOR : fighting ? COMBAT_COLOR : mine ? "#ffffff" : "#1b1b1b";
-      const barY = BADGE_H / 2 + 2;
-      badge.bg
-        .clear()
-        .roundRect(-BADGE_W / 2, -BADGE_H / 2, BADGE_W, BADGE_H, 5)
-        .fill(color)
-        .stroke({ width: selected || fighting ? 3 : mine ? 2 : 1.2, color: border })
-        .rect(-BADGE_W / 2, barY, BADGE_W, HEALTH_H)
+      const borderWidth = selected || fighting ? 3 : mine ? 2 : 1.2;
+      const g = badge.bg.clear();
+      let barY = BADGE_H / 2 + 2;
+      if (texture) {
+        // Pedina: basetta, figura in piedi sulla basetta, numero di unità in un cerchietto a destra.
+        drawPedestal(g, PEDESTAL_Y, 17, 7, color, border, borderWidth);
+        badge.figure.texture = texture;
+        badge.figure.scale.set(FIGURE / Math.max(texture.width, texture.height));
+        badge.figure.position.set(0, PEDESTAL_Y + 2);
+        badge.figure.visible = true;
+        g.circle(17, PEDESTAL_Y - 1, 7).fill("#1b1b1b");
+        badge.label.position.set(17, PEDESTAL_Y - 1);
+        badge.label.style.fontSize = 10;
+        badge.hitDy = FIGURE_HIT_DY;
+        barY = PEDESTAL_Y + 10;
+      } else {
+        g.roundRect(-BADGE_W / 2, -BADGE_H / 2, BADGE_W, BADGE_H, 5).fill(color).stroke({ width: borderWidth, color: border });
+        badge.figure.visible = false;
+        badge.label.position.set(0, 0);
+        badge.label.style.fontSize = 12;
+        badge.hitDy = 0;
+      }
+      g.rect(-BADGE_W / 2, barY, BADGE_W, HEALTH_H)
         .fill("#1b1b1b")
         .rect(-BADGE_W / 2, barY, BADGE_W * health, HEALTH_H)
         .fill(health > 0.6 ? "#5fbf4a" : health > 0.3 ? "#e8b730" : COMBAT_COLOR);
@@ -151,4 +182,13 @@ export class ArmyLayer {
     const [ex, ey] = points[points.length - 1]!;
     g.circle(ex, ey, 6 * px).fill({ color: SELECT_COLOR, alpha: 0.35 }).stroke({ width: 2 * px, color: SELECT_COLOR });
   }
+}
+
+/** L'armata marcia verso ovest (la figura, che guarda a destra, va voltata)? */
+function headingWest(army: Army, x: number, now: number): boolean {
+  const move = army.move;
+  if (!move) return false;
+  const i = move.times.findIndex((t) => t > now);
+  if (i < 0) return false;
+  return project(move.points[i]!)[0] < x - 1e-6;
 }

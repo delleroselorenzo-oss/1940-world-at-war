@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsx scripts/build-europe-1933.ts && tsx scripts/build-terrain.ts && tsx scripts/build-nav.ts && tsx scripts/build-relief.ts",
     "build:nav": "tsx scripts/build-nav.ts",
-    "build:relief": "tsx scripts/build-relief.ts"
+    "build:relief": "tsx scripts/build-relief.ts",
+    "build:tokens": "tsx scripts/build-tokens.ts"
   },
   "dependencies": {
     "@turf/turf": "^7.2.0",
