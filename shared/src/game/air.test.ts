@@ -4,7 +4,7 @@ import { COMBAT } from "../data/combat.js";
 import { UNIT_TYPES, type UnitTypeId } from "../data/units.js";
 import type { LngLat, MapData } from "../map/types.js";
 import { flatKm } from "../nav/grid.js";
-import { isAirBase, refuelMinutes, squadronPosition } from "./air.js";
+import { isAirBase, refuelMinutes, squadronAltitude, squadronPosition } from "./air.js";
 import { nationUpkeepPerDay } from "./economy.js";
 import { advance, createGame } from "./engine.js";
 import { mapIndex } from "./mapIndex.js";
@@ -94,6 +94,25 @@ describe("aviazione: trasferimento", () => {
     expect(error(game, { type: "fly", squadron: "s", base: "A1" })).toBe("La squadriglia si sta rifornendo.");
     game = advance(game, world, minutes + AIRCRAFT_TYPES.tacticalBomber.refuelMinutes);
     expect(error(game, { type: "fly", squadron: "s", base: "A1" })).toBe("");
+  });
+
+  it("quota per il disegno: sale dopo il decollo, scende solo arrivando a una base", () => {
+    let game = squadron(newGame(), "A1", ["strategicBomber"]);
+    const alt = (t: number) => squadronAltitude(game, game.squadrons.s!, world.map, t);
+    expect(alt(0)).toBe(0);
+    game = order(game, { type: "fly", squadron: "s", base: "A2" });
+    const f = game.squadrons.s!.flight!;
+    const ramp = Math.min(AIR.climbMinutes, (f.arriveAt - f.departAt) / 2);
+    expect(alt(0)).toBe(0);
+    expect(alt(ramp / 2)).toBeCloseTo(0.5);
+    expect(alt(ramp)).toBe(1);
+    expect(alt(f.arriveAt - ramp / 2)).toBeCloseTo(0.5);
+    expect(alt(f.arriveAt)).toBe(0);
+    // Ordine arrivato in volo (partenza lontano dalla base) verso un bersaglio: resta in quota, anche sopra di lui.
+    const s = game.squadrons.s!;
+    const strike = { ...s, flight: { ...f, from: center("A3"), base: null } };
+    expect(squadronAltitude(game, strike, world.map, f.departAt)).toBe(1);
+    expect(squadronAltitude(game, strike, world.map, f.arriveAt + 5)).toBe(1);
   });
 
   it("i livelli dell'aeroporto accorciano il rifornimento", () => {

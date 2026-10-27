@@ -3,25 +3,20 @@ import { armyHealth, armyPosition, type Army } from "@waw/shared";
 import type { Camera } from "./camera.js";
 import type { LoadedMap } from "./loadMap.js";
 import { project } from "./projection.js";
-import { drawPedestal, leadUnit, tokenTexture, tokenUrl } from "./tokens.js";
+import { drawFigure, leadUnit, tokenScale, tokenTexture, tokenUrl } from "./tokens.js";
 
-// Armate sulla mappa: una pedina dipinta (la figura dell'unità principale su una basetta col colore della nazione,
-// voltata nel senso di marcia) con il numero di unità, che scorre lungo il percorso mentre l'armata marcia.
+// Armate sulla mappa: una pedina dipinta (la figura dell'unità principale, con la sua stazza, voltata nel senso di marcia)
+// con il numero di unità in un cerchietto col colore della nazione, che scorre lungo il percorso mentre l'armata marcia.
 // Senza la figura per la sua dottrina, un gettone col colore della nazione. Sotto, la barra della salute;
-// il bordo rosso indica che è in combattimento. Le dimensioni sono in pixel dello schermo (indipendenti dallo zoom).
+// rosso (anello o bordo) in combattimento, giallo se selezionata. Le dimensioni sono in pixel dello schermo,
+// un po' più grandi avvicinandosi (`tokenScale`).
 
 const BADGE_W = 28;
 const BADGE_H = 18;
 /** Spostamento verso l'alto rispetto al centro della provincia, per non coprire la città. */
 const BADGE_OFFSET_Y = -16;
 /** Distanza verticale tra più armate ferme nello stesso punto. */
-const STACK_GAP = 34;
-/** Lato più lungo della figura della pedina. */
-const FIGURE = 34;
-/** Centro della basetta, sotto il punto dell'armata; la figura ci poggia sopra. */
-const PEDESTAL_Y = 4;
-/** La pedina si tocca un po' più in alto del punto dell'armata (dov'è la figura). */
-const FIGURE_HIT_DY = -9;
+const STACK_GAP = 36;
 const SELECT_COLOR = "#ffd23f";
 const COMBAT_COLOR = "#e5322d";
 const HEALTH_H = 3;
@@ -30,6 +25,8 @@ const HIT_RADIUS = 16;
 interface Badge {
   container: Container;
   bg: Graphics;
+  /** Cerchietto del numero (sopra la figura). */
+  chip: Graphics;
   label: Text;
   figure: Sprite;
   /** Spostamento verticale del punto da toccare. */
@@ -49,6 +46,7 @@ export class ArmyLayer {
   private playerNation: string | null = null;
   private engaged: ReadonlySet<string> = new Set();
   private selected: string | null = null;
+  private size = 1;
 
   constructor(private readonly map: LoadedMap) {}
 
@@ -69,7 +67,9 @@ export class ArmyLayer {
   }
 
   /** Da chiamare a ogni fotogramma: aggiorna posizioni e percorso. */
-  update(cam: Camera, now: number): void {
+  update(cam: Camera, now: number, zoom: number): void {
+    const size = tokenScale(zoom);
+    this.size = size;
     const inv = 1 / cam.scale;
     const stacked = new Map<string, number>(); // punto -> armate ferme già piazzate lì
     for (const army of this.armies) {
@@ -80,12 +80,12 @@ export class ArmyLayer {
         const key = `${army.position[0].toFixed(2)},${army.position[1].toFixed(2)}`;
         const k = stacked.get(key) ?? 0;
         stacked.set(key, k + 1);
-        offset -= k * STACK_GAP;
+        offset -= k * STACK_GAP * size;
       }
       badge.x = x;
       badge.y = y + offset * inv;
       badge.container.position.set(badge.x, badge.y);
-      badge.container.scale.set(inv);
+      badge.container.scale.set(inv * size);
       badge.figure.scale.x = Math.abs(badge.figure.scale.x) * (headingWest(army, x, now) ? -1 : 1);
     }
     this.drawPath(cam, now);
@@ -94,9 +94,9 @@ export class ArmyLayer {
   /** Armata sotto il punto dello schermo (sx, sy), la più vicina. */
   armyAt(cam: Camera, sx: number, sy: number): string | null {
     let best: string | null = null;
-    let bestDist = HIT_RADIUS;
+    let bestDist = HIT_RADIUS * this.size;
     for (const [id, b] of this.badges) {
-      const d = Math.hypot(b.x * cam.scale + cam.x - sx, b.y * cam.scale + cam.y + b.hitDy - sy);
+      const d = Math.hypot(b.x * cam.scale + cam.x - sx, b.y * cam.scale + cam.y + b.hitDy * this.size - sy);
       if (d < bestDist) [best, bestDist] = [id, d];
     }
     return best;
@@ -115,9 +115,10 @@ export class ArmyLayer {
       label.anchor.set(0.5);
       const figure = new Sprite();
       figure.anchor.set(0.5, 1);
-      container.addChild(bg, figure, label);
+      const chip = new Graphics();
+      container.addChild(bg, figure, chip, label);
       this.container.addChild(container);
-      badge = { container, bg, label, figure, hitDy: 0, look: "", x: 0, y: 0 };
+      badge = { container, bg, chip, label, figure, hitDy: 0, look: "", x: 0, y: 0 };
       this.badges.set(army.id, badge);
     }
     const color = this.map.nations.get(army.owner)?.color ?? "#888888";
@@ -130,32 +131,31 @@ export class ArmyLayer {
     const look = `${color}|${mine}|${selected}|${fighting}|${health}|${army.units.length}|${lead}|${texture !== null}`;
     if (look !== badge.look) {
       badge.look = look;
-      const border = selected ? SELECT_COLOR : fighting ? COMBAT_COLOR : mine ? "#ffffff" : "#1b1b1b";
-      const borderWidth = selected || fighting ? 3 : mine ? 2 : 1.2;
       const g = badge.bg.clear();
+      badge.chip.clear();
       let barY = BADGE_H / 2 + 2;
+      let barW = BADGE_W;
       if (texture) {
-        // Pedina: basetta, figura in piedi sulla basetta, numero di unità in un cerchietto a destra.
-        drawPedestal(g, PEDESTAL_Y, 17, 7, color, border, borderWidth);
-        badge.figure.texture = texture;
-        badge.figure.scale.set(FIGURE / Math.max(texture.width, texture.height));
-        badge.figure.position.set(0, PEDESTAL_Y + 2);
-        badge.figure.visible = true;
-        g.circle(17, PEDESTAL_Y - 1, 7).fill("#1b1b1b");
-        badge.label.position.set(17, PEDESTAL_Y - 1);
+        const ring = selected ? SELECT_COLOR : fighting ? COMBAT_COLOR : null;
+        const layout = drawFigure(g, badge.chip, badge.figure, texture, lead!, { color, mine, ring, count: army.units.length });
+        badge.label.position.set(...layout.count);
         badge.label.style.fontSize = 10;
-        badge.hitDy = FIGURE_HIT_DY;
-        barY = PEDESTAL_Y + 10;
+        badge.hitDy = layout.hitDy;
+        barY = layout.bottom;
+        barW = Math.max(BADGE_W, layout.width * 0.7);
       } else {
-        g.roundRect(-BADGE_W / 2, -BADGE_H / 2, BADGE_W, BADGE_H, 5).fill(color).stroke({ width: borderWidth, color: border });
+        const border = selected ? SELECT_COLOR : fighting ? COMBAT_COLOR : mine ? "#ffffff" : "#1b1b1b";
+        g.roundRect(-BADGE_W / 2, -BADGE_H / 2, BADGE_W, BADGE_H, 5)
+          .fill(color)
+          .stroke({ width: selected || fighting ? 3 : mine ? 2 : 1.2, color: border });
         badge.figure.visible = false;
         badge.label.position.set(0, 0);
         badge.label.style.fontSize = 12;
         badge.hitDy = 0;
       }
-      g.rect(-BADGE_W / 2, barY, BADGE_W, HEALTH_H)
+      g.rect(-barW / 2, barY, barW, HEALTH_H)
         .fill("#1b1b1b")
-        .rect(-BADGE_W / 2, barY, BADGE_W * health, HEALTH_H)
+        .rect(-barW / 2, barY, barW * health, HEALTH_H)
         .fill(health > 0.6 ? "#5fbf4a" : health > 0.3 ? "#e8b730" : COMBAT_COLOR);
       badge.label.text = String(army.units.length);
       badge.label.style.stroke = { color: "#1b1b1b", width: 2.5, join: "round" };

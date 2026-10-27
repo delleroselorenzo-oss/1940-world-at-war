@@ -166,6 +166,8 @@ export const AIR = {
   patrolMinutes: 25,
   /** L'attacco avviene quando la squadriglia arriva entro questa distanza dal bersaglio. */
   strikeKm: 5,
+  /** Solo grafica: minuti per salire in quota dopo il decollo e per scendere prima di atterrare (al più metà del volo). */
+  climbMinutes: 10,
 } as const;
 
 /** Ciò che si può arruolare o costruire in una città: un'unità di terra, un aereo o una nave. */

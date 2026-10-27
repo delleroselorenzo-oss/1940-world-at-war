@@ -1,6 +1,6 @@
 # Pedine dipinte per la mappa — guida e prompt
 
-Le armate sulla mappa diventano **soldatini dipinti**: ogni gettone mostra la figura dell'unità principale dell'armata. Sotto la figura il gioco disegna una basetta tonda con il colore della nazione e, accanto, il numero di unità. Le immagini quindi contengono **solo la figura**: niente base, niente sfondo, niente bandiere.
+Le armate sulla mappa diventano **soldatini dipinti**: ogni gettone mostra la figura dell'unità principale dell'armata. Sotto la figura il gioco disegna la sua ombra e, accanto, il numero di unità in un cerchietto col colore della nazione. Le immagini quindi contengono **solo la figura**: niente base, niente sfondo, niente bandiere.
 
 ## Cosa serve
 
@@ -167,7 +167,7 @@ Accorgimenti:
 - Per il **convoglio aereo** l'aereo sul rimorchio deve vedersi bene: è l'unica cosa che lo distingue dalla fanteria motorizzata. Se il generatore disegna l'aereo con le ali aperte, chiedi: *"Wings removed and carried beside the fuselage, the plane must fit on the trailer."*
 - Il **trasporto** deve sembrare diverso dalle navi da guerra: più alto, niente torri dei cannoni, soldati sul ponte.
 - Il **convoglio mercantile** è l'unica pedina con due figure. Tienile vicine, così a 40 pixel si legge come un gruppo e non come due macchie.
-- Le navi mercantili sono civili, quindi le tre dottrine possono uscire simili. Va bene così: il colore della basetta dirà di chi sono.
+- Le navi mercantili sono civili, quindi le tre dottrine possono uscire simili. Va bene così: il colore del cerchietto dirà di chi sono.
 
 I file vanno in `icone/pedine/<dottrina>/<id>.png`, come gli altri.
 
@@ -175,7 +175,9 @@ I file vanno in `icone/pedine/<dottrina>/<id>.png`, come gli altri.
 
 ## Come le userà il gioco
 
-- **Armata**: figura dell'unità "di testa". Per ora è la più numerosa; a parità, la più forte (carri prima della fanteria). Basetta col colore della nazione, numero di unità accanto, bordo bianco se è tua, giallo se è selezionata, rosso in battaglia; sotto, la barra della salute.
+- **Armata**: figura dell'unità "di testa". Per ora è la più numerosa; a parità, la più forte (carri prima della fanteria). Niente basetta: sotto la figura la sua ombra (con un anello giallo se è selezionata, rosso in battaglia), accanto il numero di unità in un cerchietto col colore della nazione (bordo bianco se è tua); sotto, la barra della salute.
 - **Squadriglia**: l'aereo più numeroso (a parità il più costoso). **Flotta**: la nave più grande. Le figure si voltano nel senso di marcia, di navigazione o di volo.
 - **Convogli**: una squadriglia che viaggia a terra mostra `airConvoy`. Un'armata in mare mostra `transport`, con accanto il numero delle unità a bordo. Le importazioni via mare mostrano `convoy`. Il convoglio aereo a terra non c'è ancora nel gioco: la figura è pronta per quando arriverà.
+- **Stazza**: non in scala vera, ma ogni tipo ha la sua misura (lato più lungo, con lo zoom di partenza): fanteria, genio e sanità 30 px; anticarro 34; antiaerea 36; autoblindo 38; motorizzata, artiglieria e carro leggero 40; carro pesante 48; caccia 36, ricognitore 38, bombardiere tattico 40, aerosilurante 42, bombardiere strategico 52; sottomarino 44, cacciatorpediniere 50, trasporto 56, convoglio e incrociatore 58, portaerei e corazzata 66. Avvicinandosi le pedine crescono (fino a 1,6 volte), per vedere i dettagli. I valori stanno in `client/src/map/tokens.ts` (`TOKEN_SIZE`).
+- **Aerei in volo**: la figura si alza sopra la sua ombra. Sale nei primi 10 minuti dopo il decollo da una base, resta in quota verso il bersaglio e sopra di lui, scende solo negli ultimi 10 minuti prima di atterrare in una base (`squadronAltitude`).
 - Le figure della dottrina della nazione: un'armata tedesca ha soldatini tedeschi, una britannica soldatini alleati. È lo stesso sistema delle foto nelle schede delle unità.

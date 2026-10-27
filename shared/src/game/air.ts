@@ -120,6 +120,23 @@ export function squadronPosition(state: Pick<GameState, "fleets">, sq: Squadron,
   return lerp(f.from, f.to, Math.max(0, (t - f.departAt) / (f.arriveAt - f.departAt)));
 }
 
+/**
+ * Quota della squadriglia al minuto `t`, per il disegno: 0 a terra, 1 in quota. Sale dopo il decollo da una base
+ * (non quando l'ordine arriva in volo), scende solo avvicinandosi a una base; verso un bersaglio, sopra di lui
+ * e da lì verso un'altra meta resta in quota. Solo grafica: non cambia nulla nel gioco.
+ */
+export function squadronAltitude(state: Pick<GameState, "fleets">, sq: Squadron, map: MapData, t: number): number {
+  const f = sq.flight;
+  if (!f) return 0;
+  const ramp = Math.max(1e-6, Math.min(AIR.climbMinutes, (f.arriveAt - f.departAt) / 2));
+  let a = 1;
+  const home = basePosition(state, map, sq.base, f.departAt);
+  if (home && flatKm(home, f.from) <= AIR.strikeKm) a = Math.min(a, (t - f.departAt) / ramp);
+  if (f.base !== null) a = Math.min(a, (f.arriveAt - t) / ramp);
+  a = Math.max(0, Math.min(1, a));
+  return a * a * (3 - 2 * a);
+}
+
 /** Portata che resta alla squadriglia al minuto `t`: tutta a terra; in volo quella che avrà all'arrivo più il tratto ancora da fare. */
 export function squadronFuelKm(state: GameState, sq: Squadron, map: MapData, t: number): number {
   const f = sq.flight;

@@ -177,9 +177,9 @@ export class MapRenderer {
     this.cleanup.push(() => this.app.renderer.off("resize", onResize));
     this.app.ticker.add(() => {
       this.stepAnimation();
-      this.armyLayer.update(this.cam, this.callbacks.now());
-      this.squadronLayer.update(this.cam, this.callbacks.now());
-      this.fleetLayer.update(this.cam, this.callbacks.now());
+      this.armyLayer.update(this.cam, this.callbacks.now(), this.cam.scale / this.fitScale);
+      this.squadronLayer.update(this.cam, this.callbacks.now(), this.cam.scale / this.fitScale);
+      this.fleetLayer.update(this.cam, this.callbacks.now(), this.cam.scale / this.fitScale);
     });
   }
 
