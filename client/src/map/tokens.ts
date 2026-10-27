@@ -297,6 +297,27 @@ export class Figure {
   }
 }
 
+/**
+ * Segnaposto: un pallino col colore della nazione (bordo bianco se è tua) sul punto esatto dove si trova l'unità,
+ * collegato da una linea sottile alla pedina, che sta scostata per non coprire la città o per non coprire le altre.
+ * Coordinate nel gettone: la pedina poggia in (0, 0), il segnaposto in (x, y).
+ */
+export class Pin {
+  readonly graphics = new Graphics();
+  private key = "";
+
+  set(x: number, y: number, color: string, mine: boolean): void {
+    const key = `${x.toFixed(1)}|${y.toFixed(1)}|${color}|${mine}`;
+    if (key === this.key) return;
+    this.key = key;
+    const g = this.graphics.clear();
+    if (Math.hypot(x, y) < 3) return;
+    g.moveTo(0, 0).lineTo(x, y).stroke({ width: 3, color: "#1b1b1b", alpha: 0.35, cap: "round" });
+    g.moveTo(0, 0).lineTo(x, y).stroke({ width: 1.4, color: "#ffffff", alpha: 0.95, cap: "round" });
+    g.circle(x, y, 3.6).fill(color).stroke({ width: 1.4, color: mine ? "#ffffff" : "#1b1b1b" });
+  }
+}
+
 /** Bordo del cartellino: giallo se selezionata, rosso in battaglia, bianco se è tua, scuro altrimenti. */
 export function tagBorder(selected: boolean, fighting: boolean, mine: boolean): { color: string; width: number } {
   if (selected) return { color: "#ffd23f", width: 2.5 };

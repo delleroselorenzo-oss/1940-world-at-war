@@ -3,7 +3,7 @@ import { squadronAltitude, squadronHealth, squadronPosition, squadronRangeKm, ty
 import type { Camera } from "./camera.js";
 import type { LoadedMap } from "./loadMap.js";
 import { project } from "./projection.js";
-import { COMPACT_ZOOM, CompactMarker, Figure, leadAircraft, placeTag, tagBorder, tagIconsReady, tokenScale, tokenTexture, tokenUrl, UnitTag } from "./tokens.js";
+import { COMPACT_ZOOM, CompactMarker, Figure, leadAircraft, Pin, placeTag, tagBorder, tagIconsReady, tokenScale, tokenTexture, tokenUrl, UnitTag } from "./tokens.js";
 
 // Squadriglie sulla mappa: una pedina dipinta (l'aereo più numeroso, a parità il più costoso, con la sua stazza) voltata
 // nel senso del volo, con accanto il cartellino (aerei, salute, colore della nazione); senza la figura, un gettone tondo
@@ -40,6 +40,8 @@ interface Badge {
   full: Container;
   /** Segnalino della vista da lontano. */
   marker: CompactMarker;
+  /** Segnaposto sul punto esatto e linea fino alla pedina. */
+  pin: Pin;
   /** C'è la figura dipinta (altrimenti il gettone disegnato, uguale a ogni zoom). */
   hasFigure: boolean;
   /** Mostra il segnalino piccolo adesso. */
@@ -106,6 +108,8 @@ export class SquadronLayer {
       }
       badge.x = x + dx * size * inv;
       badge.y = y + dy * size * inv;
+      // A terra la squadriglia sta accanto alla base: il segnaposto è sulla base.
+      badge.pin.set(-dx, -dy, this.map.nations.get(sq.owner)?.color ?? "#888888", sq.owner === this.playerNation);
       badge.container.position.set(badge.x, badge.y);
       badge.container.scale.set(inv * size);
       const altitude = badge.hasFigure && !badge.small ? squadronAltitude(this.fleets, sq, this.map.data, now) : 0;
@@ -147,9 +151,10 @@ export class SquadronLayer {
       const full = new Container();
       full.addChild(fig.shadow, bg, body);
       const marker = new CompactMarker();
-      container.addChild(full, marker.container);
+      const pin = new Pin();
+      container.addChild(pin.graphics, full, marker.container);
       this.container.addChild(container);
-      badge = { container, bg, body, tag, label, fig, full, marker, hasFigure: false, small: false, hitDy: 0, lift: 0, look: "", x: 0, y: 0 };
+      badge = { container, bg, body, tag, label, fig, full, marker, pin, hasFigure: false, small: false, hitDy: 0, lift: 0, look: "", x: 0, y: 0 };
       this.badges.set(sq.id, badge);
     }
     const color = this.map.nations.get(sq.owner)?.color ?? "#888888";

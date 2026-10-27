@@ -3,7 +3,7 @@ import { armyHealth, fleetHealth, fleetPosition, isSubmerged, type Fleet } from 
 import type { Camera } from "./camera.js";
 import type { LoadedMap } from "./loadMap.js";
 import { project } from "./projection.js";
-import { armyTagRows, COMPACT_ZOOM, CompactMarker, Figure, leadShip, placeTag, tagBorder, tagIconsReady, tokenScale, tokenTexture, tokenUrl, UnitTag, type TagRow } from "./tokens.js";
+import { armyTagRows, COMPACT_ZOOM, CompactMarker, Figure, Pin, leadShip, placeTag, tagBorder, tagIconsReady, tokenScale, tokenTexture, tokenUrl, UnitTag, type TagRow } from "./tokens.js";
 
 // Flotte sulla mappa: una pedina dipinta (la nave più grande della flotta; il trasporto truppe o il convoglio
 // mercantile, uguali per tutti) con la sua stazza e l'ombra morbida, voltata nel senso di navigazione, e accanto il
@@ -31,6 +31,8 @@ interface Badge {
   full: Container;
   /** Segnalino della vista da lontano. */
   marker: CompactMarker;
+  /** Segnaposto sul punto esatto e linea fino alla pedina. */
+  pin: Pin;
   /** C'è la figura dipinta (altrimenti il gettone disegnato, uguale a ogni zoom). */
   hasFigure: boolean;
   /** Mostra il segnalino piccolo adesso. */
@@ -89,7 +91,10 @@ export class FleetLayer {
       const k = stacked.get(key) ?? 0;
       stacked.set(key, k + 1);
       badge.x = x;
-      badge.y = y - k * (badge.small ? COMPACT_GAP : STACK_GAP * size) * inv;
+      const lift = k * (badge.small ? COMPACT_GAP : STACK_GAP * size);
+      badge.y = y - lift * inv;
+      // Le flotte impilate nello stesso porto restano collegate al loro punto.
+      badge.pin.set(0, lift / size, this.map.nations.get(fleet.owner)?.color ?? "#888888", fleet.owner === this.playerNation);
       badge.container.position.set(badge.x, badge.y);
       badge.container.scale.set(inv * size);
       badge.fig.setFlip(sailingWest(fleet, x, now));
@@ -124,9 +129,10 @@ export class FleetLayer {
       const full = new Container();
       full.addChild(fig.shadow, fig.outline, fig.sprite, tag.container);
       const marker = new CompactMarker();
-      container.addChild(bg, full, marker.container, label);
+      const pin = new Pin();
+      container.addChild(pin.graphics, bg, full, marker.container, label);
       this.container.addChild(container);
-      badge = { container, bg, tag, label, fig, full, marker, hasFigure: false, small: false, hitDy: 0, look: "", x: 0, y: 0 };
+      badge = { container, bg, tag, label, fig, full, marker, pin, hasFigure: false, small: false, hitDy: 0, look: "", x: 0, y: 0 };
       this.badges.set(fleet.id, badge);
     }
     const color = this.map.nations.get(fleet.owner)?.color ?? "#888888";

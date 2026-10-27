@@ -3,7 +3,7 @@ import { armyHealth, armyPosition, type Army } from "@waw/shared";
 import type { Camera } from "./camera.js";
 import type { LoadedMap } from "./loadMap.js";
 import { project } from "./projection.js";
-import { armyTagRows, COMPACT_ZOOM, CompactMarker, Figure, leadUnit, placeTag, tagBorder, tagIconsReady, tokenScale, tokenTexture, tokenUrl, UnitTag, unitTagIcon } from "./tokens.js";
+import { armyTagRows, COMPACT_ZOOM, CompactMarker, Figure, Pin, leadUnit, placeTag, tagBorder, tagIconsReady, tokenScale, tokenTexture, tokenUrl, UnitTag, unitTagIcon } from "./tokens.js";
 
 // Armate sulla mappa: una pedina dipinta (la figura dell'unità principale, con la sua stazza, voltata nel senso di marcia)
 // con l'ombra morbida e, accanto, il cartellino (truppe per tipo, salute, colore della nazione), che scorre lungo il percorso
@@ -35,6 +35,8 @@ interface Badge {
   full: Container;
   /** Segnalino della vista da lontano. */
   marker: CompactMarker;
+  /** Segnaposto sul punto esatto e linea fino alla pedina. */
+  pin: Pin;
   /** C'è la figura dipinta (altrimenti il gettone disegnato, uguale a ogni zoom). */
   hasFigure: boolean;
   /** Mostra il segnalino piccolo adesso. */
@@ -100,6 +102,7 @@ export class ArmyLayer {
       badge.y = y + offset * inv;
       badge.container.position.set(badge.x, badge.y);
       badge.container.scale.set(inv * size);
+      badge.pin.set(0, -offset / size, this.map.nations.get(army.owner)?.color ?? "#888888", army.owner === this.playerNation);
       badge.fig.setFlip(headingWest(army, x, now));
     }
     this.drawPath(cam, now);
@@ -132,9 +135,10 @@ export class ArmyLayer {
       const full = new Container();
       full.addChild(fig.shadow, fig.outline, fig.sprite, tag.container);
       const marker = new CompactMarker();
-      container.addChild(bg, full, marker.container, label);
+      const pin = new Pin();
+      container.addChild(pin.graphics, bg, full, marker.container, label);
       this.container.addChild(container);
-      badge = { container, bg, tag, label, fig, full, marker, hasFigure: false, small: false, hitDy: 0, look: "", x: 0, y: 0 };
+      badge = { container, bg, tag, label, fig, full, marker, pin, hasFigure: false, small: false, hitDy: 0, look: "", x: 0, y: 0 };
       this.badges.set(army.id, badge);
     }
     const color = this.map.nations.get(army.owner)?.color ?? "#888888";
