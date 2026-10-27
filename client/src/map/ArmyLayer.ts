@@ -3,7 +3,7 @@ import { armyHealth, armyPosition, type Army } from "@waw/shared";
 import type { Camera } from "./camera.js";
 import type { LoadedMap } from "./loadMap.js";
 import { project } from "./projection.js";
-import { armyTagRows, Figure, leadUnit, placeTag, tagBorder, tagIconsReady, tokenScale, tokenTexture, tokenUrl, UnitTag } from "./tokens.js";
+import { armyTagRows, COMPACT_ZOOM, CompactMarker, Figure, leadUnit, placeTag, tagBorder, tagIconsReady, tokenScale, tokenTexture, tokenUrl, UnitTag, unitTagIcon } from "./tokens.js";
 
 // Armate sulla mappa: una pedina dipinta (la figura dell'unità principale, con la sua stazza, voltata nel senso di marcia)
 // con l'ombra morbida e, accanto, il cartellino (truppe per tipo, salute, colore della nazione), che scorre lungo il percorso
@@ -17,6 +17,8 @@ const BADGE_H = 18;
 const BADGE_OFFSET_Y = -16;
 /** Distanza verticale tra più armate ferme nello stesso punto. */
 const STACK_GAP = 46;
+/** Distanza tra i segnalini piccoli impilati (vista da lontano). */
+const COMPACT_GAP = 22;
 const SELECT_COLOR = "#ffd23f";
 const COMBAT_COLOR = "#e5322d";
 const HEALTH_H = 3;
@@ -29,6 +31,14 @@ interface Badge {
   tag: UnitTag;
   label: Text;
   fig: Figure;
+  /** Figura e cartellino (vista da vicino). */
+  full: Container;
+  /** Segnalino della vista da lontano. */
+  marker: CompactMarker;
+  /** C'è la figura dipinta (altrimenti il gettone disegnato, uguale a ogni zoom). */
+  hasFigure: boolean;
+  /** Mostra il segnalino piccolo adesso. */
+  small: boolean;
   /** Spostamento verticale del punto da toccare. */
   hitDy: number;
   /** Aspetto disegnato l'ultima volta, per ridisegnare solo quando cambia. */
@@ -70,17 +80,21 @@ export class ArmyLayer {
   update(cam: Camera, now: number, zoom: number): void {
     const size = tokenScale(zoom);
     this.size = size;
+    const compact = zoom < COMPACT_ZOOM;
     const inv = 1 / cam.scale;
     const stacked = new Map<string, number>(); // punto -> armate ferme già piazzate lì
     for (const army of this.armies) {
       const badge = this.badgeFor(army);
+      badge.small = compact && badge.hasFigure;
+      badge.full.visible = !badge.small;
+      badge.marker.container.visible = badge.small;
       const [x, y] = project(armyPosition(army, now));
       let offset = BADGE_OFFSET_Y;
       if (!army.move) {
         const key = `${army.position[0].toFixed(2)},${army.position[1].toFixed(2)}`;
         const k = stacked.get(key) ?? 0;
         stacked.set(key, k + 1);
-        offset -= k * STACK_GAP * size;
+        offset -= k * (badge.small ? COMPACT_GAP : STACK_GAP * size);
       }
       badge.x = x;
       badge.y = y + offset * inv;
@@ -96,7 +110,7 @@ export class ArmyLayer {
     let best: string | null = null;
     let bestDist = HIT_RADIUS * this.size;
     for (const [id, b] of this.badges) {
-      const d = Math.hypot(b.x * cam.scale + cam.x - sx, b.y * cam.scale + cam.y + b.hitDy * this.size - sy);
+      const d = Math.hypot(b.x * cam.scale + cam.x - sx, b.y * cam.scale + cam.y + (b.small ? 0 : b.hitDy) * this.size - sy);
       if (d < bestDist) [best, bestDist] = [id, d];
     }
     return best;
@@ -115,9 +129,12 @@ export class ArmyLayer {
       label.anchor.set(0.5);
       const fig = new Figure();
       const tag = new UnitTag();
-      container.addChild(fig.shadow, bg, fig.outline, fig.sprite, tag.container, label);
+      const full = new Container();
+      full.addChild(fig.shadow, fig.outline, fig.sprite, tag.container);
+      const marker = new CompactMarker();
+      container.addChild(bg, full, marker.container, label);
       this.container.addChild(container);
-      badge = { container, bg, tag, label, fig, hitDy: 0, look: "", x: 0, y: 0 };
+      badge = { container, bg, tag, label, fig, full, marker, hasFigure: false, small: false, hitDy: 0, look: "", x: 0, y: 0 };
       this.badges.set(army.id, badge);
     }
     const color = this.map.nations.get(army.owner)?.color ?? "#888888";
@@ -134,6 +151,8 @@ export class ArmyLayer {
       const g = badge.bg.clear();
       if (texture) {
         badge.fig.show(texture, lead!, "land", selected ? SELECT_COLOR : fighting ? COMBAT_COLOR : null);
+        badge.marker.draw(unitTagIcon(lead!), army.units.length, color, selected ? SELECT_COLOR : fighting ? COMBAT_COLOR : null);
+        badge.hasFigure = true;
         badge.tag.draw(rows, color, health, tagBorder(selected, fighting, mine));
         placeTag(badge.tag, badge.fig);
         badge.tag.container.visible = true;
@@ -145,6 +164,7 @@ export class ArmyLayer {
           .fill(color)
           .stroke({ width: selected || fighting ? 3 : mine ? 2 : 1.2, color: border });
         badge.fig.hide();
+        badge.hasFigure = false;
         badge.tag.container.visible = false;
         badge.label.visible = true;
         badge.hitDy = 0;

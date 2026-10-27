@@ -2,7 +2,7 @@ import { Assets, Container, Graphics, Sprite, Text, Texture } from "pixi.js";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CategoryIcon } from "../ui/CategoryIcon.js";
-import { AIRCRAFT_TYPES, SHIP_TYPES, UNIT_TYPES, doctrineOf, type Aircraft, type Ship, type ShipTypeId, type Unit } from "@waw/shared";
+import { AIRCRAFT_TYPES, SHIP_TYPES, UNIT_TYPES, doctrineOf, type Aircraft, type Ship, type ShipTypeId, type Unit, type UnitTypeId } from "@waw/shared";
 
 // Pedine dipinte della mappa (docs/pedine.md): la figura dell'unità principale, senza basetta, con l'ombra morbida della sua
 // sagoma, e accanto il cartellino con le truppe, la salute e il colore della nazione.
@@ -262,6 +262,57 @@ export function placeTag(tag: UnitTag, figure: Figure): void {
   tag.container.position.set(figure.width / 2 + 1, -figure.height / 2 - tag.height / 2);
 }
 
+/**
+ * Sotto questo zoom (1 = Europa intera) le pedine diventano segnalini piccoli: vista da lontano la mappa resta leggibile,
+ * senza figure giganti sopra intere nazioni. Avvicinandosi tornano figura e cartellino.
+ */
+export const COMPACT_ZOOM = 2.5;
+
+const MARKER_R = 9;
+
+/**
+ * Segnalino della mappa vista da lontano: un rombo chiaro col bordo del colore della nazione (giallo se selezionata,
+ * rosso in battaglia), l'icona del tipo principale e il numero in una linguetta scura in basso a destra.
+ */
+export class CompactMarker {
+  readonly container = new Container();
+  private readonly bg = new Graphics();
+  private readonly icon = new Sprite();
+  private readonly label = new Text({
+    text: "",
+    resolution: (window.devicePixelRatio || 1) * 2,
+    style: { fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif", fontSize: 8, fontWeight: "700", fill: "#ffffff" },
+  });
+
+  constructor() {
+    this.icon.anchor.set(0.5);
+    this.label.anchor.set(0.5);
+    this.label.position.set(MARKER_R * 0.75, MARKER_R * 0.75);
+    this.container.addChild(this.bg, this.icon, this.label);
+  }
+
+  draw(icon: TagIcon, count: number | null, color: string, ring: string | null): void {
+    const r = MARKER_R;
+    const g = this.bg.clear();
+    g.poly([0, -r - 1.5, r + 1.5, 0, 0, r + 1.5, -r - 1.5, 0]).fill({ color: "#000000", alpha: 0.25 });
+    g.poly([0, -r, r, 0, 0, r, -r, 0])
+      .fill("#f4f0e6")
+      .stroke({ width: ring ? 2.6 : 2, color: ring ?? color, join: "round" });
+    const tex = tagIconTexture(icon);
+    this.icon.visible = tex !== null;
+    if (tex) {
+      this.icon.texture = tex;
+      this.icon.width = this.icon.height = 10;
+    }
+    this.label.visible = count !== null;
+    if (count !== null) {
+      this.label.text = String(count);
+      const w = Math.max(9, 4 + 5 * String(count).length);
+      g.roundRect(r * 0.75 - w / 2, r * 0.75 - 4.5, w, 9, 3).fill("#2b2a26");
+    }
+  }
+}
+
 /** Icone del cartellino (le stesse delle categorie di Produzione). */
 export type TagIcon = "infantry" | "armor" | "artillery" | "air" | "navy";
 
@@ -271,13 +322,19 @@ export interface TagRow {
   count: number | null;
 }
 
-/** Riga del cartellino di ogni unità di terra: dall'edificio che la produce, come le categorie di Produzione. */
+const BUILDING_ICONS: Record<string, TagIcon> = { barracks: "infantry", tankFactory: "armor", artilleryFactory: "artillery" };
+
+/** Icona di un'unità di terra: dall'edificio che la produce, come le categorie di Produzione. */
+export function unitTagIcon(type: UnitTypeId): TagIcon {
+  return BUILDING_ICONS[UNIT_TYPES[type].building] ?? "infantry";
+}
+
+/** Righe del cartellino di un'armata: una per tipo di truppa (fanteria, corazzati, artiglieria). */
 export function armyTagRows(units: Unit[]): TagRow[] {
-  const icon: Record<string, TagIcon> = { barracks: "infantry", tankFactory: "armor", artilleryFactory: "artillery" };
   const order: TagIcon[] = ["infantry", "armor", "artillery"];
   const count = new Map<TagIcon, number>();
   for (const u of units) {
-    const i = icon[UNIT_TYPES[u.type].building] ?? "infantry";
+    const i = unitTagIcon(u.type);
     count.set(i, (count.get(i) ?? 0) + 1);
   }
   return order.filter((i) => count.has(i)).map((i) => ({ icon: i, count: count.get(i)! }));

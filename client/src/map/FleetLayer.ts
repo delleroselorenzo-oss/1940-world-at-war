@@ -3,7 +3,7 @@ import { armyHealth, fleetHealth, fleetPosition, isSubmerged, type Fleet } from 
 import type { Camera } from "./camera.js";
 import type { LoadedMap } from "./loadMap.js";
 import { project } from "./projection.js";
-import { armyTagRows, Figure, leadShip, placeTag, tagBorder, tagIconsReady, tokenScale, tokenTexture, tokenUrl, UnitTag, type TagRow } from "./tokens.js";
+import { armyTagRows, COMPACT_ZOOM, CompactMarker, Figure, leadShip, placeTag, tagBorder, tagIconsReady, tokenScale, tokenTexture, tokenUrl, UnitTag, type TagRow } from "./tokens.js";
 
 // Flotte sulla mappa: una pedina dipinta (la nave più grande della flotta; il trasporto truppe o il convoglio
 // mercantile, uguali per tutti) con la sua stazza e l'ombra morbida, voltata nel senso di navigazione, e accanto il
@@ -17,6 +17,8 @@ const HALF_W = 15;
 const HALF_H = 9;
 /** Distanza verticale tra più flotte nello stesso punto. */
 const STACK_GAP = 46;
+/** Distanza tra i segnalini piccoli impilati (vista da lontano). */
+const COMPACT_GAP = 22;
 const SELECT_COLOR = "#ffd23f";
 const HIT_RADIUS = 16;
 
@@ -25,6 +27,14 @@ interface Badge {
   bg: Graphics;
   /** Cartellino accanto alla figura: navi (o truppe a bordo), numeri, salute. */
   tag: UnitTag;
+  /** Figura e cartellino (vista da vicino). */
+  full: Container;
+  /** Segnalino della vista da lontano. */
+  marker: CompactMarker;
+  /** C'è la figura dipinta (altrimenti il gettone disegnato, uguale a ogni zoom). */
+  hasFigure: boolean;
+  /** Mostra il segnalino piccolo adesso. */
+  small: boolean;
   label: Text;
   fig: Figure;
   hitDy: number;
@@ -65,17 +75,21 @@ export class FleetLayer {
   update(cam: Camera, now: number, zoom: number): void {
     const size = tokenScale(zoom);
     this.size = size;
+    const compact = zoom < COMPACT_ZOOM;
     const inv = 1 / cam.scale;
     const stacked = new Map<string, number>(); // punto -> flotte già piazzate lì
     for (const fleet of this.fleets) {
       const badge = this.badgeFor(fleet);
+      badge.small = compact && badge.hasFigure;
+      badge.full.visible = !badge.small;
+      badge.marker.container.visible = badge.small;
       const at = fleetPosition(fleet, now);
       const [x, y] = project(at);
       const key = fleet.voyage ? fleet.id : `${at[0].toFixed(3)},${at[1].toFixed(3)}`;
       const k = stacked.get(key) ?? 0;
       stacked.set(key, k + 1);
       badge.x = x;
-      badge.y = y - k * STACK_GAP * size * inv;
+      badge.y = y - k * (badge.small ? COMPACT_GAP : STACK_GAP * size) * inv;
       badge.container.position.set(badge.x, badge.y);
       badge.container.scale.set(inv * size);
       badge.fig.setFlip(sailingWest(fleet, x, now));
@@ -88,7 +102,7 @@ export class FleetLayer {
     let best: string | null = null;
     let bestDist = HIT_RADIUS * this.size;
     for (const [id, b] of this.badges) {
-      const d = Math.hypot(b.x * cam.scale + cam.x - sx, b.y * cam.scale + cam.y + b.hitDy * this.size - sy);
+      const d = Math.hypot(b.x * cam.scale + cam.x - sx, b.y * cam.scale + cam.y + (b.small ? 0 : b.hitDy) * this.size - sy);
       if (d < bestDist) [best, bestDist] = [id, d];
     }
     return best;
@@ -107,9 +121,12 @@ export class FleetLayer {
       label.anchor.set(0.5);
       const fig = new Figure();
       const tag = new UnitTag();
-      container.addChild(fig.shadow, bg, fig.outline, fig.sprite, tag.container, label);
+      const full = new Container();
+      full.addChild(fig.shadow, fig.outline, fig.sprite, tag.container);
+      const marker = new CompactMarker();
+      container.addChild(bg, full, marker.container, label);
       this.container.addChild(container);
-      badge = { container, bg, tag, label, fig, hitDy: 0, look: "", x: 0, y: 0 };
+      badge = { container, bg, tag, label, fig, full, marker, hasFigure: false, small: false, hitDy: 0, look: "", x: 0, y: 0 };
       this.badges.set(fleet.id, badge);
     }
     const color = this.map.nations.get(fleet.owner)?.color ?? "#888888";
@@ -132,6 +149,8 @@ export class FleetLayer {
       const g = badge.bg.clear();
       if (texture) {
         badge.fig.show(texture, lead!, "sea", selected ? SELECT_COLOR : null);
+        badge.marker.draw("navy", convoy ? null : (cargo ?? fleet.ships.length), color, selected ? SELECT_COLOR : null);
+        badge.hasFigure = true;
         badge.tag.draw(rows, color, health, tagBorder(selected, false, mine));
         placeTag(badge.tag, badge.fig);
         badge.tag.container.visible = true;
@@ -147,6 +166,7 @@ export class FleetLayer {
         else if (subs) drawSubmarine(g);
         else drawShip(g);
         badge.fig.hide();
+        badge.hasFigure = false;
         badge.tag.container.visible = false;
         badge.label.visible = true;
         badge.hitDy = 0;

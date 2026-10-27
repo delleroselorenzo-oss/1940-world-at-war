@@ -3,7 +3,7 @@ import { squadronAltitude, squadronHealth, squadronPosition, squadronRangeKm, ty
 import type { Camera } from "./camera.js";
 import type { LoadedMap } from "./loadMap.js";
 import { project } from "./projection.js";
-import { Figure, leadAircraft, placeTag, tagBorder, tagIconsReady, tokenScale, tokenTexture, tokenUrl, UnitTag } from "./tokens.js";
+import { COMPACT_ZOOM, CompactMarker, Figure, leadAircraft, placeTag, tagBorder, tagIconsReady, tokenScale, tokenTexture, tokenUrl, UnitTag } from "./tokens.js";
 
 // Squadriglie sulla mappa: una pedina dipinta (l'aereo più numeroso, a parità il più costoso, con la sua stazza) voltata
 // nel senso del volo, con accanto il cartellino (aerei, salute, colore della nazione); senza la figura, un gettone tondo
@@ -18,6 +18,8 @@ const RADIUS = 11;
 const GROUND_OFFSET_X = 26;
 /** Distanza verticale tra più squadriglie nella stessa base. */
 const STACK_GAP = 40;
+/** Distanza tra i segnalini piccoli impilati (vista da lontano). */
+const COMPACT_GAP = 22;
 /** Altezza in quota della figura sopra la sua ombra. */
 const CRUISE_PX = 30;
 const SELECT_COLOR = "#ffd23f";
@@ -34,6 +36,14 @@ interface Badge {
   tag: UnitTag;
   label: Text;
   fig: Figure;
+  /** Figura, ombra e cartellino (vista da vicino). */
+  full: Container;
+  /** Segnalino della vista da lontano. */
+  marker: CompactMarker;
+  /** C'è la figura dipinta (altrimenti il gettone disegnato, uguale a ogni zoom). */
+  hasFigure: boolean;
+  /** Mostra il segnalino piccolo adesso. */
+  small: boolean;
   /** Punto da toccare a terra; in volo si alza con la figura. */
   hitDy: number;
   lift: number;
@@ -77,24 +87,28 @@ export class SquadronLayer {
   update(cam: Camera, now: number, zoom: number): void {
     const size = tokenScale(zoom);
     this.size = size;
+    const compact = zoom < COMPACT_ZOOM;
     const inv = 1 / cam.scale;
     const stacked = new Map<string, number>(); // base -> squadriglie a terra già piazzate lì
     for (const sq of this.squadrons) {
       const badge = this.badgeFor(sq);
+      badge.small = compact && badge.hasFigure;
+      badge.full.visible = !badge.small;
+      badge.marker.container.visible = badge.small;
       const [x, y] = project(squadronPosition(this.fleets, sq, this.map.data, now));
       let dx = 0;
       let dy = 0;
       if (!sq.flight) {
         const k = stacked.get(sq.base) ?? 0;
         stacked.set(sq.base, k + 1);
-        dx = GROUND_OFFSET_X;
-        dy = -k * STACK_GAP;
+        dx = badge.small ? GROUND_OFFSET_X * 0.6 : GROUND_OFFSET_X;
+        dy = -k * (badge.small ? COMPACT_GAP : STACK_GAP);
       }
       badge.x = x + dx * size * inv;
       badge.y = y + dy * size * inv;
       badge.container.position.set(badge.x, badge.y);
       badge.container.scale.set(inv * size);
-      const altitude = badge.fig.sprite.visible ? squadronAltitude(this.fleets, sq, this.map.data, now) : 0;
+      const altitude = badge.hasFigure && !badge.small ? squadronAltitude(this.fleets, sq, this.map.data, now) : 0;
       badge.lift = altitude * CRUISE_PX;
       badge.body.y = -badge.lift;
       badge.fig.fadeShadow(1 - 0.45 * altitude);
@@ -108,7 +122,7 @@ export class SquadronLayer {
     let best: string | null = null;
     let bestDist = HIT_RADIUS * this.size;
     for (const [id, b] of this.badges) {
-      const d = Math.hypot(b.x * cam.scale + cam.x - sx, b.y * cam.scale + cam.y + (b.hitDy - b.lift) * this.size - sy);
+      const d = Math.hypot(b.x * cam.scale + cam.x - sx, b.y * cam.scale + cam.y + (b.small ? 0 : b.hitDy - b.lift) * this.size - sy);
       if (d < bestDist) [best, bestDist] = [id, d];
     }
     return best;
@@ -130,9 +144,12 @@ export class SquadronLayer {
       const body = new Container();
       body.addChild(fig.outline, fig.sprite, tag.container, label);
       // L'ombra resta a terra mentre la figura si alza.
-      container.addChild(fig.shadow, bg, body);
+      const full = new Container();
+      full.addChild(fig.shadow, bg, body);
+      const marker = new CompactMarker();
+      container.addChild(full, marker.container);
       this.container.addChild(container);
-      badge = { container, bg, body, tag, label, fig, hitDy: 0, lift: 0, look: "", x: 0, y: 0 };
+      badge = { container, bg, body, tag, label, fig, full, marker, hasFigure: false, small: false, hitDy: 0, lift: 0, look: "", x: 0, y: 0 };
       this.badges.set(sq.id, badge);
     }
     const color = this.map.nations.get(sq.owner)?.color ?? "#888888";
@@ -148,6 +165,8 @@ export class SquadronLayer {
       const g = badge.bg.clear();
       if (texture) {
         badge.fig.show(texture, lead!, "air", selected ? SELECT_COLOR : null);
+        badge.marker.draw("air", sq.aircraft.length, color, selected ? SELECT_COLOR : null);
+        badge.hasFigure = true;
         badge.tag.draw([{ icon: "air", count: sq.aircraft.length }], color, health, tagBorder(selected, false, mine));
         placeTag(badge.tag, badge.fig);
         badge.tag.container.visible = true;
@@ -160,6 +179,7 @@ export class SquadronLayer {
           .stroke({ width: selected ? 3 : mine ? 2 : 1.2, color: border });
         drawPlane(g);
         badge.fig.hide();
+        badge.hasFigure = false;
         badge.tag.container.visible = false;
         badge.label.visible = true;
         badge.hitDy = 0;
