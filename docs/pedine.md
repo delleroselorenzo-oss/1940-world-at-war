@@ -21,6 +21,8 @@ Le armate sulla mappa diventano **soldatini dipinti**: ogni gettone mostra la fi
 
 **Seconda tornata, facoltativa: aerei e navi.** Sono 5 aerei e 5 navi per dottrina. Per ora le loro sagome disegnate dal gioco funzionano; si possono fare dopo con le stesse regole (prompt in fondo).
 
+**Terza tornata: i convogli.** Sono 3 per dottrina: il convoglio aereo a terra, il trasporto truppe e il convoglio mercantile (prompt in fondo).
+
 ## Dove metterle
 
 ```
@@ -132,8 +134,37 @@ I file vanno in `icone/pedine/<dottrina>/<id>.png`, come per le unità di terra.
 
 ---
 
+## Terza tornata: i convogli
+
+Sono 3 pedine per dottrina, quindi 9 immagini. Servono per tre cose che si muovono sulla mappa ma non combattono:
+
+| id (nome del file) | Cos'è nel gioco |
+|---|---|
+| `airConvoy` | **Convoglio aereo a terra.** Quando una squadriglia deve andare oltre la sua portata, atterra nell'aeroporto più vicino alla meta e prosegue su strada (o in treno) a 18 km/h. Durante il viaggio è indifesa: se un'armata nemica la raggiunge, la distrugge. È già nel game design (§9, "Aviazione"); nel gioco arriverà con il prossimo passo dell'aviazione. |
+| `transport` | **Trasporto truppe.** Un'armata che attraversa il mare: si imbarca in un porto, naviga a 25 km/h e sbarca sulla costa. Se viene colpita in mare, perde unità a bordo. |
+| `convoy` | **Convoglio mercantile.** Porta le importazioni via mare (cibo, beni, metallo, petrolio): parte ogni giorno a mezzanotte da una porta sull'oceano e va al porto. Non spara; navi, sottomarini, artiglieria costiera e aerei nemici lo possono affondare. |
+
+Si fanno nella **stessa chat della dottrina** con i prompt di stile già dati. Per il convoglio aereo vale il punto di vista delle unità di terra. Per trasporto e convoglio mercantile vale quello delle navi: prima incolla la variante della seconda tornata, se in quella chat non l'hai già fatto.
+
+| id | Prompt |
+|---|---|
+| `airConvoy` | `Next figure, same style as the land units: a small road convoy moving an aircraft by land, one military truck towing a low trailer that carries a fighter plane with its wings removed and strapped alongside the fuselage, wheels on the road, the plane clearly recognisable. Allies: Bedford truck with a Hurricane-like fuselage. Germans: Opel Blitz with a Bf 109-like fuselage. Soviets: GAZ/ZIS truck with an I-16-like fuselage.` |
+| `transport` | `Next figure, same style as the ships: a troop transport ship, a converted passenger liner with one or two funnels, rows of lifeboats along the side and small soldiers crowded on the open deck; plain hull, no big gun turrets, clearly a troopship and not a warship.` |
+| `convoy` | `Next figure, same style as the ships: two merchant cargo ships sailing close together in convoy, one slightly behind the other; tramp steamers with a single funnel, cargo derricks and crates or barrels on deck, one of them a low tanker with its bridge at the stern; worn, rusty civilian paint, no guns except perhaps one small gun at the stern.` |
+
+Accorgimenti:
+- Per il **convoglio aereo** l'aereo sul rimorchio deve vedersi bene: è l'unica cosa che lo distingue dalla fanteria motorizzata. Se il generatore disegna l'aereo con le ali aperte, chiedi: *"Wings removed and carried beside the fuselage, the plane must fit on the trailer."*
+- Il **trasporto** deve sembrare diverso dalle navi da guerra: più alto, niente torri dei cannoni, soldati sul ponte.
+- Il **convoglio mercantile** è l'unica pedina con due figure. Tienile vicine, così a 40 pixel si legge come un gruppo e non come due macchie.
+- Le navi mercantili sono civili, quindi le tre dottrine possono uscire simili. Va bene così: il colore della basetta dirà di chi sono.
+
+I file vanno in `icone/pedine/<dottrina>/<id>.png`, come gli altri.
+
+---
+
 ## Come le userà il gioco
 
 - **Armata**: figura dell'unità "di testa". Per ora è la più numerosa; a parità, la più forte (carri prima della fanteria). Basetta col colore della nazione, numero di unità accanto, bordo bianco se è tua e giallo se è selezionata. Il numero e la selezione ci sono già oggi.
-- **Squadriglia**: l'aereo principale. **Flotta**: la nave più grande. Trasporti e convogli tengono le sagome disegnate dal gioco.
+- **Squadriglia**: l'aereo principale. **Flotta**: la nave più grande.
+- **Convogli**: una squadriglia che viaggia a terra mostra `airConvoy`. Un'armata in mare mostra `transport`, con accanto il numero delle unità a bordo. Le importazioni via mare mostrano `convoy`. Finché mancano le immagini restano le sagome disegnate dal gioco.
 - Le figure della dottrina della nazione: un'armata tedesca ha soldatini tedeschi, una britannica soldatini alleati. È lo stesso sistema delle foto nelle schede delle unità.
