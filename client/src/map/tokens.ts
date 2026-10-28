@@ -159,9 +159,9 @@ const TOKEN_SIZE: Record<string, number> = {
   battleship: 84,
 };
 
-/** Ingrandimento delle pedine con lo zoom della mappa (`zoom` = 1 con l'Europa intera): più grandi da vicino (fino al doppio), per vedere i dettagli. */
+/** Ingrandimento delle pedine con lo zoom della mappa (`zoom` = 1 con l'Europa intera): più grandi da vicino (fino al doppio), per vedere i dettagli; 0,8 appena le figure prendono il posto dei segnalini (`COMPACT_ZOOM`). */
 export function tokenScale(zoom: number): number {
-  return Math.min(2, Math.max(0.8, 0.8 + 0.3 * Math.log2(Math.max(zoom, 1e-3))));
+  return Math.min(2, Math.max(0.8, 0.8 + 0.4 * Math.log2(Math.max(zoom, 1e-3) / COMPACT_ZOOM)));
 }
 
 /** Dove sta la figura: un aereo in volo ha l'ombra a terra, lontana da lui. */

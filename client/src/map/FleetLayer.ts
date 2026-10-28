@@ -21,6 +21,9 @@ const STACK_GAP = 46;
 const COMPACT_GAP = 22;
 const SELECT_COLOR = "#ffd23f";
 const HIT_RADIUS = 16;
+/** La nave sta centrata sul suo punto (non appoggiata sopra con la chiglia): scende di questa frazione della sua altezza.
+ *  Così una nave vicino alla costa resta in mare. */
+const SHIP_SINK = 0.5;
 
 interface Badge {
   container: Container;
@@ -161,7 +164,8 @@ export class FleetLayer {
         placeTag(badge.tag, badge.fig);
         badge.tag.container.visible = true;
         badge.label.visible = false;
-        badge.hitDy = -badge.fig.height / 2;
+        badge.full.y = badge.fig.height * SHIP_SINK;
+        badge.hitDy = badge.fig.height * (SHIP_SINK - 0.5);
       } else {
         const border = selected ? SELECT_COLOR : mine ? "#ffffff" : "#1b1b1b";
         g.roundRect(-HALF_W, -HALF_H, HALF_W * 2, HALF_H * 2, HALF_H)
@@ -175,6 +179,7 @@ export class FleetLayer {
         badge.hasFigure = false;
         badge.tag.container.visible = false;
         badge.label.visible = true;
+        badge.full.y = 0;
         badge.hitDy = 0;
         // Numero di navi in un cerchietto in basso a destra (per un trasporto: le unità a bordo; il convoglio non ne ha).
         if (!convoy) g.circle(HALF_W, HALF_H * 0.8, 6).fill("#1b1b1b");

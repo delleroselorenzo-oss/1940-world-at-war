@@ -37,6 +37,11 @@ interface City {
   look: string;
 }
 
+/** Spazio libero in pixel sopra il centro di una città: lì una pedina ferma in città appoggia i piedi, senza coprire lo stemma. */
+export function cityClearance(capital: boolean): number {
+  return capital ? CAPITAL_R + 3 + 11 : EMBLEM_R + 3 + 2;
+}
+
 export class CityLayer {
   /** Isolati, nello spazio della mappa (km): vanno sopra i colori delle province e sotto confini ed etichette. */
   readonly blocks = new Graphics();
