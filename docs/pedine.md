@@ -70,7 +70,7 @@ La mappa si guarda dall'alto. Una figura disegnata di lato (occhio all'altezza d
 
 Per le navi vale lo stesso al livello dell'acqua: lo scafo finisce **dritto sulla linea di galleggiamento**, senza la chiglia rossa sotto. Una nave con la chiglia visibile sembra tirata fuori dall'acqua.
 
-Se una figura esce comunque sospesa, chiedi: *"Redo it seen more from above, about 45 degrees: we must see the top of the helmet and shoulders, and both feet flat on the same invisible ground level."*
+Se una figura esce comunque sospesa, chiedi: *"Redo it seen more from above, about 45 degrees, like an isometric strategy game unit: we must see the top of the helmet and shoulders, and both feet flat on the same invisible ground level."*
 
 ---
 
@@ -79,21 +79,48 @@ Se una figura esce comunque sospesa, chiedi: *"Redo it seen more from above, abo
 Sostituisci `[FACTION]` con il blocco della dottrina qui sotto.
 
 ```
-I need a set of game pieces for a WW2 strategy board game seen on a map.
-Style for ALL images in this chat:
+I need a set of game pieces for a WW2 strategy game. They will be placed on a map that the player looks at FROM ABOVE, so every figure must be seen from above too.
+
+CAMERA (the most important rule, same for every image in this chat):
+- high bird's-eye three-quarter view, like the units of an isometric strategy game, or like a photo of a miniature on a table taken by a standing person looking DOWN at it (camera about 45 degrees above the ground)
+- because we look down: the top of the helmet is a clearly visible oval, we see the top of the shoulders and of the backpack, the head is slightly foreshortened, the legs look shorter, and the feet are the lowest point of the image
+- NOT a side view, NOT eye level, NOT a low angle, NOT a profile
+- the figure moves diagonally towards the RIGHT and slightly towards the viewer
+
+GROUND CONTACT:
+- imagine the figure standing on a flat table seen from above, then erase the table and its shadow completely
+- soldiers: both boot soles flat on that invisible table, the nearer foot a little lower in the image than the farther foot, weight down, knees slightly bent; nobody jumps, runs or lifts a foot
+- vehicles and guns: every wheel and both tracks rest on the same flat invisible surface
+
+STYLE:
 - a single hand-painted tin toy soldier / miniature figure, like a classic painted lead figurine, slightly glossy enamel paint, subtle metal wear on the edges
-- chunky, simplified proportions and a strong, clear silhouette that stays readable when shown very small (40 pixels)
-- camera HIGH: three-quarter view from above at about 45 degrees, like a player looking down at a figure on a game table; we see the top of helmets, shoulders, hoods and turrets; the figure faces RIGHT
-- the figure is planted on an invisible flat ground: soldiers have both feet flat on the same level, weight down, knees slightly bent; every wheel and both tracks touch the same flat ground plane; nothing jumps or floats
-- soft light from the top left, gentle shading on the figure only
-- NO base, NO pedestal, NO ground surface, NO shadow drawn on the ground (the game adds its own)
-- transparent background (PNG), square 1024x1024 image, the whole figure visible and centered with some margin
+- chunky, simplified proportions and a strong silhouette that stays readable when shown very small (40 pixels)
+- soft light from the top left, shading on the figure only
+- NO base, NO pedestal, NO ground, NO shadow on the ground (the game adds its own)
+- transparent background (PNG), square 1024x1024, the whole figure visible and centered with some margin
 - no text, no letters, no numbers, no flags, no frame
+
 Faction for this chat: [FACTION]
-Reply only with the image. First figure: one infantry soldier walking forward with a rifle held across the chest, both boots on the ground.
+Reply only with the image. First figure: one infantry soldier walking calmly forward with a rifle held across the chest.
 ```
 
-Le figure degli Alleati già fatte con la versione vecchia del prompt (camera più bassa) vanno bene per i mezzi. **Fanteria, genio e sanità** conviene rifarle con questa versione: sono quelle che sembrano più sospese, perché sono alte e strette.
+**Da aggiungere in fondo a ogni prompt successivo** (i generatori dimenticano la camera dopo due o tre immagini):
+
+```
+Same camera as the first figure: high three-quarter view looking DOWN from about 45 degrees, not a side view. Resting flat on the invisible ground.
+```
+
+**Controllo prima di salvare** (dieci secondi, risparmia di rifarla dopo):
+1. Si vede la **calotta dell'elmetto** (o il tetto del mezzo, la torretta da sopra)? Se si vede solo il profilo, è di lato: rifalla.
+2. I **piedi sono il punto più basso** e tutti e due appoggiati? Le ruote e i cingoli tutti sulla stessa linea?
+3. Niente ombra, niente terreno, niente basetta?
+4. Guarda **a destra**?
+
+**Il trucco migliore: l'immagine di riferimento.** Quando una figura esce bene (camera alta e piedi a terra), salvala e allegala ai prompt successivi con: *"Use the attached image as the reference for camera angle, style and lighting."* Il generatore copia l'angolo da un'immagine molto meglio che da una descrizione. Puoi anche iniziare la chat allegando una foto vera di un soldatino fotografato dall'alto, con: *"Copy only the camera angle of this photo."*
+
+Se dopo due tentativi esce ancora di lato, chiedi la stessa figura **"as seen in an isometric strategy game"**: è la parola che più spesso sblocca la vista dall'alto.
+
+Le figure degli Alleati già fatte con la versione vecchia del prompt (camera più bassa) vanno bene per i mezzi. **Fanteria, genio e sanità** conviene rifarle solo quando esce una figura davvero vista dall'alto: sono quelle che sembrano più sospese, perché sono alte e strette.
 
 ### Blocchi `[FACTION]`
 
