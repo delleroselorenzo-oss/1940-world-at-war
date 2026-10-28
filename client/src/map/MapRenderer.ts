@@ -2,6 +2,7 @@ import { Application, Assets, Container, Graphics, Sprite, Text, type Texture, t
 import type { Army, Fleet, Squadron } from "@waw/shared";
 import type { LngLat } from "@waw/shared";
 import { ArmyLayer } from "./ArmyLayer.js";
+import { CityLayer } from "./CityLayer.js";
 import { FleetLayer } from "./FleetLayer.js";
 import { SeaLayer } from "./SeaLayer.js";
 import { SquadronLayer } from "./SquadronLayer.js";
@@ -69,14 +70,11 @@ const MAX_ZOOM = 30;
 const CAPITAL_LABEL_SCALE = 0.17;
 const CITY_LABEL_SCALE = 0.3;
 const RURAL_LABEL_SCALE = 0.45;
+/** Il nome di una città sta sotto il suo stemma, scostato di questa frazione della sua altezza. */
+const CITY_LABEL_GAP = 0.95;
 /** Su schermi verticali (telefono) la vista iniziale è ingrandita sull'Europa centrale. */
 const PORTRAIT_START_ZOOM = 2.2;
 const PORTRAIT_START_CENTER: [number, number] = [14, 50];
-
-interface Marker {
-  graphic: Graphics;
-  kind: "capital" | "city";
-}
 
 interface Label {
   text: Text;
@@ -101,7 +99,7 @@ export class MapRenderer {
   private style: ProvinceStyle = { mode: "political", owners: {}, morale: {}, standings: {}, visible: null };
   private readonly markers = new Container();
   private readonly labels: Label[] = [];
-  private readonly cityMarkers: Marker[] = [];
+  private readonly cities: CityLayer;
   private readonly hit: HitIndex;
   private readonly armyLayer: ArmyLayer;
   private readonly squadronLayer: SquadronLayer;
@@ -126,6 +124,7 @@ export class MapRenderer {
     private readonly callbacks: MapRendererCallbacks,
   ) {
     this.hit = new HitIndex(map.shapes);
+    this.cities = new CityLayer(map);
     this.armyLayer = new ArmyLayer(map);
     this.squadronLayer = new SquadronLayer(map);
     this.fleetLayer = new FleetLayer(map);
@@ -155,7 +154,7 @@ export class MapRenderer {
     this.world.addChild(this.relief, this.sea.container);
     void this.loadRelief();
     this.drawProvinces();
-    this.world.addChild(this.terrain.container, this.fog, this.nationBorders, this.overlay, this.markers, this.fleetLayer.path, this.squadronLayer.path, this.armyLayer.path, this.fleetLayer.container, this.armyLayer.container, this.squadronLayer.container);
+    this.world.addChild(this.cities.blocks, this.terrain.container, this.fog, this.nationBorders, this.overlay, this.cities.emblems, this.markers, this.fleetLayer.path, this.squadronLayer.path, this.armyLayer.path, this.fleetLayer.container, this.armyLayer.container, this.squadronLayer.container);
     this.drawMarkersAndLabels();
     this.app.stage.addChild(this.world);
 
@@ -261,7 +260,10 @@ export class MapRenderer {
     this.style = style;
     if (!this.mounted) return;
     if (style.mode !== prev.mode || style.owners !== prev.owners || style.morale !== prev.morale || style.standings !== prev.standings) this.drawFills();
-    if (style.owners !== prev.owners) this.drawNationBorders();
+    if (style.owners !== prev.owners) {
+      this.drawNationBorders();
+      this.cities.setOwners(style.owners);
+    }
     if (style.visible !== prev.visible) this.drawFog();
   }
 
@@ -357,15 +359,6 @@ export class MapRenderer {
       const [x, y] = project(p.center);
       const kind: Label["kind"] = p.isCapital ? "capital" : p.type === "urban" ? "city" : "rural";
 
-      if (kind !== "rural") {
-        const marker = new Graphics();
-        if (kind === "capital") marker.star(0, 0, 5, 7, 3).fill(SELECT_COLOR).stroke({ width: 1.2, color: "#222" });
-        else marker.rect(-3.5, -3.5, 7, 7).fill("#ffffff").stroke({ width: 1.2, color: "#222" });
-        marker.position.set(x, y);
-        this.markers.addChild(marker);
-        this.cityMarkers.push({ graphic: marker, kind });
-      }
-
       const text = new Text({
         text: p.name,
         resolution,
@@ -376,7 +369,7 @@ export class MapRenderer {
           fill: kind === "rural" ? "#333333" : "#111111",
         },
       });
-      text.anchor.set(0.5, kind === "rural" ? 0.5 : -0.45);
+      text.anchor.set(0.5, kind === "rural" ? 0.5 : -CITY_LABEL_GAP);
       text.position.set(x, y);
       this.markers.addChild(text);
       this.labels.push({ text, shape, kind });
@@ -405,8 +398,7 @@ export class MapRenderer {
     this.sea.update(this.cam);
     if (Math.abs(scale - this.nationBorderScale) / scale > 0.05) this.drawNationBorders();
     for (const m of this.markers.children) m.scale.set(1 / scale);
-    // Lontano si vedono solo le capitali, per non affollare la mappa.
-    for (const m of this.cityMarkers) m.graphic.visible = m.kind === "capital" || scale >= CAPITAL_LABEL_SCALE;
+    this.cities.update(scale);
 
     // Candidati: le etichette abbastanza "vicine"; poi si tolgono quelle che si sovrappongono.
     const candidates: LabelCandidate[] = [];
@@ -425,7 +417,7 @@ export class MapRenderer {
       const sx = l.text.x * scale + this.cam.x;
       const sy = l.text.y * scale + this.cam.y;
       if (sx < -w || sx > this.view.width + w || sy < -h || sy > this.view.height + h) continue;
-      const top = l.kind === "rural" ? sy - h / 2 : sy + 0.45 * h;
+      const top = l.kind === "rural" ? sy - h / 2 : sy + CITY_LABEL_GAP * h;
       candidates.push({ priority: l.kind === "capital" ? 0 : l.kind === "city" ? 1 : 2, left: sx - w / 2, top, width: w, height: h });
       owners.push(l);
     }
