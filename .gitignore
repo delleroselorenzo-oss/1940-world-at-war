@@ -5,3 +5,6 @@ dist/
 # Dati grezzi scaricati dallo script (pesanti, si riscaricano con npm run map:build)
 data/raw/
 dist-types/
+
+# Immagini originali, prompt e scarti delle pedine: restano solo in locale (le versioni ridotte stanno in client/src/assets/)
+icone/
