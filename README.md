@@ -56,5 +56,6 @@ Il motore è deterministico: prende lo stato e il tempo trascorso e restituisce 
 - **Mappa** (`data/maps/`): i confini del 1933 vengono da CShapes 2.0, con licenza CC BY-NC-SA 4.0. La mappa derivata segue la stessa licenza: **solo uso non commerciale**, citando la fonte. Le altre fonti sono elencate nel [README della mappa](data/maps/europe-1933/README.md).
 - **Foto delle unità** (`client/src/assets/units/`) e **ritratti dei capi di stato** (`client/src/assets/leaders/`): da Wikimedia Commons, di pubblico dominio o con licenze Creative Commons. Fonte e licenza di ogni immagine sono in [docs/crediti/](docs/crediti/). Le immagini con licenza CC BY-SA restano CC BY-SA anche ritagliate.
 - **Pedine dipinte** (`client/src/assets/tokens/`): generate per il gioco (guida e prompt in [docs/pedine.md](docs/pedine.md)).
+- **Icone delle risorse** (`client/src/assets/resources/`): disegni originali, con la stessa licenza del codice.
 
 Le immagini storiche sono mostrate come sono, senza ritocchi né censure: è un gioco storico.

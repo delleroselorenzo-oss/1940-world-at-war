@@ -1,12 +1,12 @@
 import { RESOURCE_NAMES, type ResourceId } from "@waw/shared";
-import food from "../assets/resources/food.jpg";
-import goods from "../assets/resources/goods.jpg";
-import manpower from "../assets/resources/manpower.jpg";
-import metal from "../assets/resources/metal.jpg";
-import money from "../assets/resources/money.jpg";
-import oil from "../assets/resources/oil.jpg";
+import food from "../assets/resources/food.svg";
+import goods from "../assets/resources/goods.svg";
+import manpower from "../assets/resources/manpower.svg";
+import metal from "../assets/resources/metal.svg";
+import money from "../assets/resources/money.svg";
+import oil from "../assets/resources/oil.svg";
 
-// Immagini delle risorse (da icone/icone materie prime, ritagliate quadrate): tonde come icona, intere nel riepilogo.
+// Icone delle risorse (disegni originali in SVG, a pieno quadrato): tonde come icona, intere nel riepilogo.
 
 export const RESOURCE_IMAGES: Record<ResourceId, string> = { food, goods, metal, oil, money, manpower };
 
