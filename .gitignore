@@ -8,3 +8,6 @@ dist-types/
 
 # Immagini originali, prompt e scarti delle pedine: restano solo in locale (le versioni ridotte stanno in client/src/assets/)
 icone/
+
+# Foto delle risorse scelte in locale (immagini commerciali, non si possono pubblicare): se ci sono, il gioco usa queste al posto delle icone in SVG
+client/src/assets/resources-local/
